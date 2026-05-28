@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import subprocess
 import sys
 import urllib.error
@@ -59,6 +60,7 @@ class RelevanceConfig:
     recommended_subreddits: set[str]
     positive_terms: list[str]
     exclude_terms: list[str]
+    topic_rules: dict[str, dict[str, Any]]
 
 
 def parse_args() -> argparse.Namespace:
@@ -128,6 +130,7 @@ def load_relevance_config(config: dict[str, Any]) -> RelevanceConfig:
             for term in relevance.get("exclude_terms", [])
             if str(term).strip()
         ],
+        topic_rules=config.get("topic_rules") or {},
     )
 
 
@@ -252,12 +255,16 @@ def extract_json(stdout: str) -> dict[str, Any]:
     return json.loads(stdout[start : end + 1])
 
 
-def apply_relevance_ranking(report: dict[str, Any], rules: RelevanceConfig) -> dict[str, Any]:
+def apply_relevance_ranking(
+    report: dict[str, Any],
+    rules: RelevanceConfig,
+    topic: str,
+) -> dict[str, Any]:
     for source, items in (report.get("items_by_source") or {}).items():
         if source != "reddit" or not isinstance(items, list):
             continue
         for item in items:
-            score, level, notes = score_reddit_item(item, rules)
+            score, level, notes = score_reddit_item(item, rules, topic)
             metadata = item.setdefault("metadata", {})
             metadata["ceramic_relevance_score"] = score
             metadata["ceramic_relevance_level"] = level
@@ -272,11 +279,16 @@ def apply_relevance_ranking(report: dict[str, Any], rules: RelevanceConfig) -> d
     return report
 
 
-def score_reddit_item(item: dict[str, Any], rules: RelevanceConfig) -> tuple[int, str, str]:
+def score_reddit_item(
+    item: dict[str, Any],
+    rules: RelevanceConfig,
+    topic: str = "",
+) -> tuple[int, str, str]:
     title = str(item.get("title") or "")
     body = str(item.get("body") or item.get("snippet") or "")
     subreddit = normalize_subreddit(str(item.get("container") or item.get("subreddit") or ""))
-    haystack = " ".join([title, body, subreddit]).lower()
+    haystack = " ".join([title, body, subreddit])
+    topic_rule = find_topic_rule(topic, rules)
 
     score = 0
     notes = []
@@ -284,21 +296,40 @@ def score_reddit_item(item: dict[str, Any], rules: RelevanceConfig) -> tuple[int
         score += 4
         notes.append(f"来自推荐 subreddit r/{subreddit}")
 
-    positive_hits = [term for term in rules.positive_terms if term in haystack]
+    positive_hits = match_terms(haystack, rules.positive_terms)
     if positive_hits:
         score += min(5, len(set(positive_hits)))
         notes.append("命中陶瓷词：" + ", ".join(sorted(set(positive_hits))[:5]))
 
-    title_or_sub = f"{title} {subreddit}".lower()
-    strong_hits = [term for term in rules.positive_terms if term in title_or_sub]
+    title_or_sub = f"{title} {subreddit}"
+    strong_hits = match_terms(title_or_sub, rules.positive_terms)
     if strong_hits:
         score += 2
         notes.append("标题或 subreddit 直接相关")
 
-    exclude_hits = [term for term in rules.exclude_terms if term in haystack]
+    exclude_hits = match_terms(haystack, rules.exclude_terms)
+    rule_exclude_hits = match_terms(haystack, topic_rule.get("exclude_terms", [])) if topic_rule else []
+    exclude_hits = sorted(set(exclude_hits + rule_exclude_hits))
     if exclude_hits:
         score -= 5 + min(4, len(set(exclude_hits)))
         notes.append("跑偏词：" + ", ".join(sorted(set(exclude_hits))[:5]))
+
+    if topic_rule:
+        required_hits = match_terms(haystack, topic_rule.get("required_terms", []))
+        boost_hits = match_terms(haystack, topic_rule.get("boost_terms", []))
+        if required_hits:
+            score += min(4, len(set(required_hits)))
+            notes.append("命中分类意图：" + ", ".join(sorted(set(required_hits))[:5]))
+        else:
+            if positive_hits:
+                score = min(score, 4)
+                notes.append("陶瓷相关，但未命中当前关键词意图")
+            else:
+                score -= 2
+                notes.append("未命中当前关键词意图")
+        if boost_hits:
+            score += min(3, len(set(boost_hits)))
+            notes.append("分类加权：" + ", ".join(sorted(set(boost_hits))[:5]))
 
     if score >= 5:
         level = "high"
@@ -307,6 +338,37 @@ def score_reddit_item(item: dict[str, Any], rules: RelevanceConfig) -> tuple[int
     else:
         level = "low"
     return score, level, "；".join(notes) if notes else "未命中明确陶瓷相关信号"
+
+
+def find_topic_rule(topic: str, rules: RelevanceConfig) -> dict[str, Any]:
+    normalized_topic = topic.strip().lower()
+    for rule_name, rule in rules.topic_rules.items():
+        if normalized_topic == rule_name.lower():
+            return rule if isinstance(rule, dict) else {}
+    return {}
+
+
+def match_terms(text: str, terms: list[str]) -> list[str]:
+    text_lower = text.lower()
+    hits = []
+    for raw_term in terms:
+        term = str(raw_term).strip().lower()
+        if not term:
+            continue
+        if term_matches(text_lower, term):
+            hits.append(term)
+    return hits
+
+
+def term_matches(text_lower: str, term: str) -> bool:
+    if not term:
+        return False
+    escaped = re.escape(term)
+    # Treat spaces, hyphens, and underscores in configured phrases as flexible
+    # separators, while still requiring token boundaries at both ends.
+    escaped = escaped.replace(r"\ ", r"[\s_-]+")
+    pattern = rf"(?<![a-z0-9]){escaped}(?![a-z0-9])"
+    return re.search(pattern, text_lower, flags=re.IGNORECASE) is not None
 
 
 def collect_evidence(topic: str, report: dict[str, Any]) -> list[Evidence]:
@@ -366,6 +428,7 @@ def trend_insights(topics: list[str]) -> list[str]:
     insights = [
         "手作陶瓷仍然适合用“过程感”表达价值，用户更容易被制作细节、失败修正和前后对比吸引。",
         "釉色、肌理、窑变这类视觉信号适合做短视频和图文系列，因为它们天然具备收藏、评论和二次提问空间。",
+        "趋势判断应优先来自高相关内容；边缘相关内容只能作为灵感补充，跑偏样本不进入趋势结论。",
     ]
     if "ai" in joined or "3d" in joined:
         insights.append("AI 与 3D 打印更适合作为灵感生成和打样辅助，而不是直接替代手作叙事。")
@@ -415,7 +478,7 @@ def render_report(
         "# 陶瓷趋势情报报告",
         "",
         f"- 生成时间：{generated_at}",
-        f"- 版本：V0.3.1 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
+        f"- 版本：V0.3.2 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
         f"- 数据模式：{data_mode_label(mode)}",
         f"- 关键词数量：{len(topics)}",
         f"- 相关性分层：高相关 {len(high_evidence)} 条，边缘相关 {len(edge_evidence)} 条，跑偏样本 {len(low_evidence)} 条",
@@ -600,7 +663,7 @@ def main() -> int:
                 )
             else:
                 report = run_last30days_mock(topic, script_path)
-            report = apply_relevance_ranking(report, relevance_config)
+            report = apply_relevance_ranking(report, relevance_config, topic)
             runs.append(
                 TopicRun(
                     topic=topic,

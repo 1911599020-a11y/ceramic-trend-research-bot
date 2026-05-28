@@ -2,6 +2,13 @@
 
 请把来自 Reddit、YouTube、GitHub、Pinterest 等来源的原始证据，整理成面向中文陶瓷创作者、陶瓷工作室和内容运营者的 Markdown 报告。
 
+判断证据时必须同时考虑两件事：
+
+- 陶瓷相关性：是否真的和 ceramic、pottery、glaze、kiln、clay、studio、firing 等陶瓷语境有关
+- 关键词意图：是否符合当前分类，例如 AI ceramic design 必须有 AI/生成式/数字设计/prompt/pattern 等信号，ceramic business 必须有经营/销售/定价/客户/订单/库存/营销等信号
+
+只碰到 ceramic/pottery 但不符合该分类意图的内容，最多作为边缘相关，不要当成高相关趋势。
+
 ## 热门内容
 
 - 最近被讨论、观看、收藏或评论最多的内容是什么
@@ -25,11 +32,13 @@
 ## 高相关内容
 
 - 来自陶瓷相关 subreddit，或标题/subreddit/正文明确包含 ceramic、pottery、glaze、kiln、clay、handmade、studio、firing 等词
+- 同时符合当前关键词意图
 - 可用于趋势判断、内容选题和工具灵感
 
 ## 边缘相关内容
 
 - 与手作、艺术、创作经营、材料或视觉灵感有关，但陶瓷信号不够强
+- 陶瓷相关但不符合当前分类意图的内容，也归入边缘相关
 - 可以作为灵感线索，但不要单独得出趋势结论
 
 ## 跑偏样本

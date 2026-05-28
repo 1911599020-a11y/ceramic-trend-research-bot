@@ -4,11 +4,13 @@
 
 ## Current Status
 
-V0.3.1 是 **Reddit live relevance filtering 版本**：
+V0.3.2 是 **分类相关性规则精修版本**：
 
 - `mock` 模式仍然可用，用于稳定生成示例报告
 - `live` 模式只测试 Reddit，不接 YouTube / Pinterest / GitHub Actions
-- Reddit 结果会按陶瓷相关 subreddit、陶瓷关键词和跑偏词做轻量重排
+- Reddit 结果会按陶瓷相关 subreddit、陶瓷关键词、分类意图和跑偏词做轻量重排
+- AI ceramic design、ceramic business、kiln firing 等分类有独立 required / boost / exclude 规则
+- 跑偏词使用完整单词/短语匹配，降低 `cat` 这类词的误伤
 - 报告会区分高相关内容、边缘相关内容和跑偏样本
 - 不安装 `yt-dlp`
 - 不配置 API key
