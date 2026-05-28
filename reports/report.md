@@ -1,16 +1,25 @@
 # 陶瓷趋势情报报告
 
-- 生成时间：2026-05-29 01:26
+- 生成时间：2026-05-29 01:40
 - 版本：V0.3.2 Reddit live 本地报告
 - 数据模式：last30days-skill `--quick --search=reddit`
 - 关键词数量：10
-- 相关性分层：高相关 0 条，边缘相关 0 条，跑偏样本 0 条
+- 相关性分层：高相关 4 条，边缘相关 0 条，跑偏样本 2 条
 
-> 说明：当前 live 模式已调用 Reddit-only pipeline，但没有获得可用证据。当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+> 说明：当前报告使用 Reddit live 数据。YouTube、Pinterest、GitHub 等来源尚未接入。
 
 ## 热门内容
 
-- 暂未获得可用 Reddit 证据。mock 模式仍可用于验证报告流程。
+- **ceramic art**：真实 Reddit 热点为“ceramic art discussion”，相关性：暂无证据（0 分）。
+- **pottery**：真实 Reddit 热点为“pottery discussion”，相关性：暂无证据（0 分）。
+- **ceramic glaze**：真实 Reddit 热点为“ceramic glaze discussion”，相关性：暂无证据（0 分）。
+- **AI ceramic design**：真实 Reddit 热点为“AI ceramic design discussion”，相关性：暂无证据（0 分）。
+- **3D printed ceramics**：真实 Reddit 热点为“3D printed ceramics discussion”，相关性：暂无证据（0 分）。
+- **handmade pottery**：真实 Reddit 热点为“Are these defects to be expected when buying on Etsy?”，相关性：高相关（9 分）。
+- **ceramic business**：真实 Reddit 热点为“Scared of Doing Plagiarism.”，相关性：高相关（10 分）。
+- **pottery studio**：真实 Reddit 热点为“Siyutao studio pottery a teapot”，相关性：高相关（9 分）。
+- **ceramic texture**：真实 Reddit 热点为“My Ceramic Keycaps with Crystal Texture 😏”，相关性：相关性较低（-3 分）。
+- **kiln firing**：真实 Reddit 热点为“First firing in new (to me) manual kiln”，相关性：高相关（11 分）。
 
 ## 用户痛点
 
@@ -65,7 +74,12 @@
 
 ## 高相关内容
 
-- 暂无。
+| 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
+|---|---|---|---|---|---|---|
+| handmade pottery | r/ceramics | Are these defects to be expected when buying on Etsy? | 128 upvotes, 65 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramics, handmade, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1t3xxlu/are_these_defects_to_be_expected_when_buying_on/) |
+| ceramic business | r/pottery | Scared of Doing Plagiarism. | 19 upvotes, 45 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：ceramics, pottery；标题或 subreddit 直接相关；命中分类意图：business, sell | [打开](https://www.reddit.com/r/Pottery/comments/1tpeytb/scared_of_doing_plagiarism/) |
+| pottery studio | r/pottery | Siyutao studio pottery a teapot | 296 upvotes, 20 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：pottery, studio；标题或 subreddit 直接相关；命中分类意图：studio | [打开](https://www.reddit.com/r/Pottery/comments/1tbqlax/siyutao_studio_pottery_a_teapot/) |
+| kiln firing | r/ceramics | First firing in new (to me) manual kiln | 2 upvotes, 1 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramics, firing, kiln；标题或 subreddit 直接相关；命中分类意图：firing, kiln | [打开](https://www.reddit.com/r/Ceramics/comments/1tblltv/first_firing_in_new_to_me_manual_kiln/) |
 
 ## 边缘相关内容
 
@@ -73,11 +87,23 @@
 
 ## 跑偏样本
 
-- 暂无。
+> 这些内容不应直接作为陶瓷趋势结论，只用于观察关键词误伤和后续过滤优化。
+
+| 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
+|---|---|---|---|---|---|---|
+| handmade pottery | r/cats | This little one was born hungry 🥹🫣 (handmade pottery) | 17 upvotes, 5 comments | 命中陶瓷词：handmade, pottery；标题或 subreddit 直接相关；跑偏词：cats | [打开](https://www.reddit.com/r/cats/comments/1tlzifs/this_little_one_was_born_hungry_handmade_pottery/) |
+| ceramic texture | r/keyboards | My Ceramic Keycaps with Crystal Texture 😏 | 129 upvotes, 18 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关；跑偏词：keyboards | [打开](https://www.reddit.com/r/keyboards/comments/1tn7jkf/my_ceramic_keycaps_with_crystal_texture/) |
 
 ## 原始证据/链接
 
-- 暂无证据。当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+| 相关性 | 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
+|---|---|---|---|---|---|---|
+| 高相关 | handmade pottery | r/ceramics | Are these defects to be expected when buying on Etsy? | 128 upvotes, 65 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramics, handmade, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1t3xxlu/are_these_defects_to_be_expected_when_buying_on/) |
+| 相关性较低 | handmade pottery | r/cats | This little one was born hungry 🥹🫣 (handmade pottery) | 17 upvotes, 5 comments | 命中陶瓷词：handmade, pottery；标题或 subreddit 直接相关；跑偏词：cats | [打开](https://www.reddit.com/r/cats/comments/1tlzifs/this_little_one_was_born_hungry_handmade_pottery/) |
+| 高相关 | ceramic business | r/pottery | Scared of Doing Plagiarism. | 19 upvotes, 45 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：ceramics, pottery；标题或 subreddit 直接相关；命中分类意图：business, sell | [打开](https://www.reddit.com/r/Pottery/comments/1tpeytb/scared_of_doing_plagiarism/) |
+| 高相关 | pottery studio | r/pottery | Siyutao studio pottery a teapot | 296 upvotes, 20 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：pottery, studio；标题或 subreddit 直接相关；命中分类意图：studio | [打开](https://www.reddit.com/r/Pottery/comments/1tbqlax/siyutao_studio_pottery_a_teapot/) |
+| 相关性较低 | ceramic texture | r/keyboards | My Ceramic Keycaps with Crystal Texture 😏 | 129 upvotes, 18 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关；跑偏词：keyboards | [打开](https://www.reddit.com/r/keyboards/comments/1tn7jkf/my_ceramic_keycaps_with_crystal_texture/) |
+| 高相关 | kiln firing | r/ceramics | First firing in new (to me) manual kiln | 2 upvotes, 1 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramics, firing, kiln；标题或 subreddit 直接相关；命中分类意图：firing, kiln | [打开](https://www.reddit.com/r/Ceramics/comments/1tblltv/first_firing_in_new_to_me_manual_kiln/) |
 
 ## 后续升级接口
 
