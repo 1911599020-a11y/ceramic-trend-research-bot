@@ -1,15 +1,24 @@
 # 陶瓷趋势情报报告
 
-- 生成时间：2026-05-28 23:51
+- 生成时间：2026-05-29 00:26
 - 版本：V0.2 Reddit live 本地报告
 - 数据模式：last30days-skill `--quick --search=reddit`
 - 关键词数量：10
 
-> 说明：当前 live 模式已调用 Reddit-only pipeline，但没有获得可用证据。当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+> 说明：当前报告使用 Reddit live 数据。YouTube、Pinterest、GitHub 等来源尚未接入。
 
 ## 热门内容
 
-- 暂未获得可用 Reddit 证据。mock 模式仍可用于验证报告流程。
+- **ceramic art**：真实 Reddit 热点为“Ceramic “Art” by me”，综合分约 0。
+- **pottery**：真实 Reddit 热点为“The ramen bowl my little sister made for me in pottery class!”，综合分约 33。
+- **ceramic glaze**：真实 Reddit 热点为“First attempt at a faux ceramic glaze”，综合分约 37。
+- **AI ceramic design**：真实 Reddit 热点为“AI Video Consistency Starts Before Motion - Cooking Short Made with GPT-Image-2 + Seedance 2.0”，综合分约 0。
+- **3D printed ceramics**：真实 Reddit 热点为“3d printed generative pattern on ceramics”，综合分约 0。
+- **handmade pottery**：真实 Reddit 热点为“This little one was born hungry 🥹🫣 (handmade pottery)”，综合分约 39。
+- **ceramic business**：真实 Reddit 热点为“Printing on ceramic business”，综合分约 34。
+- **pottery studio**：真实 Reddit 热点为“Siyutao studio pottery a teapot”，综合分约 0。
+- **ceramic texture**：真实 Reddit 热点为“My Ceramic Keycaps with Crystal Texture 😏”，综合分约 0。
+- **kiln firing**：真实 Reddit 热点为“HELP! QUESTION! New to Kiln Firing”，综合分约 33。
 
 ## 用户痛点
 
@@ -63,7 +72,29 @@
 
 ## 原始证据/链接
 
-- 暂无证据。当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+| 关键词 | 来源 | 标题 | 互动 | 链接 |
+|---|---|---|---|---|
+| ceramic art | Reddit | Ceramic “Art” by me | 30 upvotes, 5 comments | [打开](https://www.reddit.com/r/fivenightsatfreddys/comments/1tkwo4v/ceramic_art_by_me/) |
+| pottery | Reddit | The ramen bowl my little sister made for me in pottery class! | 3135 upvotes, 51 comments | [打开](https://www.reddit.com/r/Naruto/comments/1tomo7q/the_ramen_bowl_my_little_sister_made_for_me_in/) |
+| pottery | Reddit | Need help picking a outfit for a casual date - painting pottery | 594 upvotes, 367 comments | [打开](https://www.reddit.com/r/OUTFITS/comments/1tftwve/need_help_picking_a_outfit_for_a_casual_date/) |
+| pottery | Reddit | Denby Pottery Customer Service | 1573 upvotes, 158 comments | [打开](https://www.reddit.com/r/BuyItForLife/comments/1teynbb/denby_pottery_customer_service/) |
+| ceramic glaze | Reddit | First attempt at a faux ceramic glaze | 444 upvotes, 33 comments | [打开](https://www.reddit.com/r/3Dprinting/comments/1tmeksa/first_attempt_at_a_faux_ceramic_glaze/) |
+| ceramic glaze | Reddit | Manta ray ceramic sconce I made | 18626 upvotes, 292 comments | [打开](https://www.reddit.com/r/somethingimade/comments/1thtgxd/manta_ray_ceramic_sconce_i_made/) |
+| ceramic glaze | Reddit | What’s this ceramic/ glass like glaze on our bricks?? | 9 upvotes, 7 comments | [打开](https://www.reddit.com/r/centuryhomes/comments/1tos4t3/whats_this_ceramic_glass_like_glaze_on_our_bricks/) |
+| AI ceramic design | Reddit | AI Video Consistency Starts Before Motion - Cooking Short Made with GPT-Image-2 + Seedance 2.0 | 39 upvotes, 9 comments | [打开](https://www.reddit.com/r/seedance2pro/comments/1tk1bkw/ai_video_consistency_starts_before_motion_cooking/) |
+| 3D printed ceramics | Reddit | 3d printed generative pattern on ceramics | 80 upvotes, 1 comments | [打开](https://www.reddit.com/r/generative/comments/1tepqe0/3d_printed_generative_pattern_on_ceramics/) |
+| 3D printed ceramics | Reddit | Any good 3D printed tools for Pottery? | 5 upvotes, 4 comments | [打开](https://www.reddit.com/r/Ceramics/comments/1tmpvnm/any_good_3d_printed_tools_for_pottery/) |
+| 3D printed ceramics | Reddit | Testing glazes on 3D printed textures. | 45 upvotes, 0 comments | [打开](https://www.reddit.com/r/Ceramics/comments/1te6sk8/testing_glazes_on_3d_printed_textures/) |
+| handmade pottery | Reddit | This little one was born hungry 🥹🫣 (handmade pottery) | 18 upvotes, 5 comments | [打开](https://www.reddit.com/r/cats/comments/1tlzifs/this_little_one_was_born_hungry_handmade_pottery/) |
+| handmade pottery | Reddit | Are these defects to be expected when buying on Etsy? | 125 upvotes, 65 comments | [打开](https://www.reddit.com/r/Ceramics/comments/1t3xxlu/are_these_defects_to_be_expected_when_buying_on/) |
+| ceramic business | Reddit | For people who run their own business & make a living from ceramics | 28 upvotes, 33 comments | [打开](https://www.reddit.com/r/Pottery/comments/1to0px1/for_people_who_run_their_own_business_make_a/) |
+| ceramic business | Reddit | A Vision of Makati the City 1996 PHOTOS | 703 upvotes, 55 comments | [打开](https://www.reddit.com/r/makati/comments/1tg976p/a_vision_of_makati_the_city_1996_photos/) |
+| ceramic business | Reddit | Printing on ceramic business | 4 upvotes, 9 comments | [打开](https://www.reddit.com/r/eufyMakeOfficial/comments/1tgi2eb/printing_on_ceramic_business/) |
+| pottery studio | Reddit | Siyutao studio pottery a teapot | 296 upvotes, 20 comments | [打开](https://www.reddit.com/r/Pottery/comments/1tbqlax/siyutao_studio_pottery_a_teapot/) |
+| ceramic texture | Reddit | My Ceramic Keycaps with Crystal Texture 😏 | 133 upvotes, 18 comments | [打开](https://www.reddit.com/r/keyboards/comments/1tn7jkf/my_ceramic_keycaps_with_crystal_texture/) |
+| kiln firing | Reddit | Help with improving my wood firing downdraft Kiln | 7 upvotes, 21 comments | [打开](https://www.reddit.com/r/Pottery/comments/1toyjlf/help_with_improving_my_wood_firing_downdraft_kiln/) |
+| kiln firing | Reddit | Manta ray ceramic sconce I made | 18632 upvotes, 292 comments | [打开](https://www.reddit.com/r/somethingimade/comments/1thtgxd/manta_ray_ceramic_sconce_i_made/) |
+| kiln firing | Reddit | The ONE time I don’t write down my glaze combo… | 2118 upvotes, 67 comments | [打开](https://www.reddit.com/r/Pottery/comments/1tkmdm3/the_one_time_i_dont_write_down_my_glaze_combo/) |
 
 ## 后续升级接口
 
