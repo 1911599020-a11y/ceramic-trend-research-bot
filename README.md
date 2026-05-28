@@ -48,6 +48,16 @@ reports/report.md
 
 `reports/report.md` 当前是示例报告，可以暂时保留在版本库里，方便确认报告结构。
 
+## Environment Check
+
+在继续真实 Reddit / YouTube 接入前，可以先运行环境诊断：
+
+```bash
+/Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 scripts/check_environment.py
+```
+
+诊断会检查 Python、`last30days-skill` 路径、Reddit/YouTube/GitHub DNS 与 HTTPS、`yt-dlp`、`.env` 文件和关键环境变量。它不会打印真实 key，也不会抓取研究数据。更多说明见 `docs/environment-check.md`。
+
 ## Safety
 
 - 不要把 `.env` 提交到 GitHub。

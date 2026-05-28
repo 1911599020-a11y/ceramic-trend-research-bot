@@ -1,0 +1,53 @@
+# Environment Check
+
+Use this diagnostic before moving from mock reports to live sources.
+
+Run it with the known-good Python 3.12 runtime:
+
+```bash
+/Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 scripts/check_environment.py
+```
+
+The script is read-only. It does not install dependencies, configure API keys, or fetch research data.
+
+## What It Checks
+
+- Python version is 3.12 or newer
+- `last30days-skill` exists at `/Users/zhuyixiao/Documents/GitHub/last30days-skill`
+- `last30days.py` exists inside the skill checkout
+- DNS resolution for `www.reddit.com`, `www.youtube.com`, and `github.com`
+- Minimal HTTPS connectivity to those domains
+- Whether `yt-dlp` is available
+- Whether `.env` and `.env.example` exist
+- Whether key environment variables are configured, without printing secret values
+
+## Reading Results
+
+### PASS
+
+The item is ready or reachable. For environment variables, `configured` only means a value exists; the script does not validate whether the key is correct.
+
+### WARN
+
+The item is optional or expected to be missing at this phase. For example, `yt-dlp` can be missing while the project is still testing Reddit-only live mode.
+
+### FAIL
+
+The item blocks the relevant feature. Examples:
+
+- `Python >= 3.12` failed: run the project with the Codex Python path from README.
+- `last30days-skill repo` failed: clone the upstream project to the expected local path.
+- `DNS www.reddit.com` failed: Reddit live mode cannot work from this environment yet.
+- `HTTPS www.reddit.com` failed: DNS may work, but outbound HTTPS is blocked or intercepted.
+
+## Current Phase Guidance
+
+For V0.2 Reddit live mode, the minimum required checks are:
+
+- Python >= 3.12: PASS
+- `last30days-skill repo`: PASS
+- `last30days.py`: PASS
+- DNS `www.reddit.com`: PASS
+- HTTPS `www.reddit.com`: PASS
+
+YouTube checks can remain WARN until the project intentionally moves to the `yt-dlp` phase.
