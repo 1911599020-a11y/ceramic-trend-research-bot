@@ -1,0 +1,22 @@
+# Local secrets
+.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+
+# macOS
+.DS_Store
+
+# Logs and local outputs
+*.log
+local_outputs/
+temp/
+tmp/
+
+# Agent-local state and credentials
+.claude/
+.codex/

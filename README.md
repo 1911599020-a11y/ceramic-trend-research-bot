@@ -4,7 +4,7 @@
 
 ## Current Status
 
-V0.1 是 **mock 报告生成版本**：
+V0.1 是 **mock 报告生成版本**。V0.1.1 只做项目安全整理与自检：
 
 - 不真实联网
 - 不安装 `yt-dlp`
@@ -37,6 +37,15 @@ V0.1 是 **mock 报告生成版本**：
 reports/report.md
 ```
 
+`reports/report.md` 当前是示例报告，可以暂时保留在版本库里，方便确认报告结构。
+
+## Safety
+
+- 不要把 `.env` 提交到 GitHub。
+- 真实 key 只放在本地 `.env`、系统环境变量、GitHub Secrets 或服务器密钥管理中。
+- `.env.example` 只保留空变量，用作配置模板。
+- 当前 mock 模式不会读取真实 API key，也不会发起真实联网搜索。
+
 ## Project Structure
 
 ```text
@@ -46,6 +55,7 @@ prompts/ceramic_report_prompt.md  # Chinese report structure
 reports/                          # Generated Markdown reports
 docs/automation-roadmap.md        # Future automation paths
 .env.example                      # Future live-mode environment variables
+.gitignore                        # Ignore local secrets and temp files
 ```
 
 ## Future Sources

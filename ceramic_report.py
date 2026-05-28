@@ -27,6 +27,7 @@ DEFAULT_LAST30DAYS_SCRIPT = Path(
     "/Users/zhuyixiao/Documents/GitHub/last30days-skill/"
     "skills/last30days/scripts/last30days.py"
 )
+LAST30DAYS_REPO_HINT = "/Users/zhuyixiao/Documents/GitHub/last30days-skill"
 
 
 @dataclass(frozen=True)
@@ -112,7 +113,11 @@ def build_mock_plan(topic: str) -> dict[str, Any]:
 
 def run_last30days_mock(topic: str, script_path: Path) -> dict[str, Any]:
     if not script_path.exists():
-        raise FileNotFoundError(f"last30days.py not found: {script_path}")
+        raise FileNotFoundError(
+            "找不到 last30days-skill 运行脚本。\n"
+            f"当前查找路径：{script_path}\n"
+            f"请确认 last30days-skill 已克隆到 {LAST30DAYS_REPO_HINT}"
+        )
 
     command = [
         sys.executable,
@@ -319,7 +324,10 @@ def escape_cell(value: str) -> str:
 def main() -> int:
     args = parse_args()
     if args.mode == "live":
-        raise SystemExit("live mode is reserved for the next phase; run with --mode mock for V0.1.")
+        raise SystemExit(
+            "live mode is reserved for the next phase and does not run network calls yet; "
+            "run with --mode mock for V0.1.1."
+        )
 
     topics_path = Path(args.topics).expanduser().resolve()
     output_path = Path(args.output).expanduser().resolve()
