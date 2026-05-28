@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""V0.1 local wrapper for ceramic trend research reports.
+"""Local wrapper for ceramic trend research reports.
 
-This script intentionally runs last30days-skill in mock mode for now. The
-function boundaries are kept small so live Reddit/YouTube search can replace
-the mock call later without changing the report renderer.
+V0.2 supports mock reports and a minimal Reddit-only live mode. YouTube,
+Pinterest, GitHub Actions, and API-key-backed sources are intentionally left
+for later phases.
 """
 
 from __future__ import annotations
@@ -13,6 +13,8 @@ import json
 import os
 import subprocess
 import sys
+import urllib.error
+import urllib.request
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -45,6 +47,7 @@ class TopicRun:
     topic: str
     report: dict[str, Any]
     evidence: list[Evidence]
+    error: str = ""
 
 
 def parse_args() -> argparse.Namespace:
@@ -55,7 +58,7 @@ def parse_args() -> argparse.Namespace:
         "--mode",
         choices=["mock", "live"],
         default="mock",
-        help="Run mode. V0.1 implements mock only; live is reserved.",
+        help="Run mode. live currently uses Reddit only.",
     )
     parser.add_argument(
         "--output",
@@ -89,12 +92,13 @@ def load_topics(path: Path) -> list[str]:
     return cleaned
 
 
-def build_mock_plan(topic: str) -> dict[str, Any]:
+def build_query_plan(topic: str, sources: list[str]) -> dict[str, Any]:
+    source_weights = {source: 1.0 for source in sources}
     return {
         "intent": "opinion",
         "freshness_mode": "balanced_recent",
         "cluster_mode": "debate",
-        "source_weights": {"reddit": 1.0, "youtube": 0.9},
+        "source_weights": source_weights,
         "subqueries": [
             {
                 "label": "community discussion",
@@ -103,15 +107,15 @@ def build_mock_plan(topic: str) -> dict[str, Any]:
                     "What are makers, collectors, and viewers saying about "
                     f"{topic}, including trends, pain points, workflows, and content ideas?"
                 ),
-                "sources": ["reddit", "youtube"],
+                "sources": sources,
                 "weight": 1.0,
             }
         ],
-        "notes": ["ceramic-trend-research-bot V0.1 mock plan"],
+        "notes": ["ceramic-trend-research-bot V0.2 plan"],
     }
 
 
-def run_last30days_mock(topic: str, script_path: Path) -> dict[str, Any]:
+def assert_last30days_script(script_path: Path) -> None:
     if not script_path.exists():
         raise FileNotFoundError(
             "找不到 last30days-skill 运行脚本。\n"
@@ -119,17 +123,34 @@ def run_last30days_mock(topic: str, script_path: Path) -> dict[str, Any]:
             f"请确认 last30days-skill 已克隆到 {LAST30DAYS_REPO_HINT}"
         )
 
+
+def run_last30days_mock(topic: str, script_path: Path) -> dict[str, Any]:
+    return run_last30days(topic, script_path, mode="mock")
+
+
+def run_last30days_live(topic: str, script_path: Path) -> dict[str, Any]:
+    return run_last30days(topic, script_path, mode="live")
+
+
+def run_last30days(topic: str, script_path: Path, mode: str) -> dict[str, Any]:
+    assert_last30days_script(script_path)
+    if mode not in {"mock", "live"}:
+        raise ValueError(f"Unsupported mode: {mode}")
+
+    sources = ["reddit", "youtube"] if mode == "mock" else ["reddit"]
     command = [
         sys.executable,
         str(script_path),
         topic,
-        "--mock",
         "--quick",
         "--emit=json",
-        "--search=reddit,youtube",
+        f"--search={','.join(sources)}",
         "--plan",
-        json.dumps(build_mock_plan(topic), ensure_ascii=False),
+        json.dumps(build_query_plan(topic, sources), ensure_ascii=False),
     ]
+    if mode == "mock":
+        command.insert(3, "--mock")
+
     env = os.environ.copy()
     env.setdefault("FROM_BROWSER", "off")
     env.setdefault("LAST30DAYS_CONFIG_DIR", "")
@@ -145,12 +166,27 @@ def run_last30days_mock(topic: str, script_path: Path) -> dict[str, Any]:
     )
     if result.returncode != 0:
         raise RuntimeError(
-            "last30days mock run failed\n"
+            f"last30days {mode} run failed\n"
             f"topic: {topic}\n"
             f"stdout:\n{result.stdout}\n"
             f"stderr:\n{result.stderr}"
         )
     return extract_json(result.stdout)
+
+
+def check_reddit_connectivity() -> tuple[bool, str]:
+    url = "https://www.reddit.com/search.json?q=ceramic%20art&sort=relevance&t=month&limit=1&raw_json=1"
+    request = urllib.request.Request(
+        url,
+        headers={"User-Agent": "ceramic-trend-research-bot/0.2"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=10) as response:
+            return True, f"Reddit reachable, HTTP {response.status}"
+    except urllib.error.URLError as exc:
+        return False, f"当前网络无法访问 Reddit：{exc}"
+    except Exception as exc:
+        return False, f"当前网络无法访问 Reddit：{type(exc).__name__}: {exc}"
 
 
 def extract_json(stdout: str) -> dict[str, Any]:
@@ -242,7 +278,13 @@ def tool_ideas() -> list[str]:
     ]
 
 
-def render_report(runs: list[TopicRun], prompt_template: str) -> str:
+def render_report(
+    runs: list[TopicRun],
+    prompt_template: str,
+    *,
+    mode: str,
+    connectivity_note: str = "",
+) -> str:
     topics = [run.topic for run in runs]
     all_evidence = [item for run in runs for item in run.evidence]
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -251,21 +293,25 @@ def render_report(runs: list[TopicRun], prompt_template: str) -> str:
         "# 陶瓷趋势情报报告",
         "",
         f"- 生成时间：{generated_at}",
-        "- 版本：V0.1 mock 本地报告",
-        "- 数据模式：last30days-skill `--mock --quick`",
+        f"- 版本：V0.2 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
+        f"- 数据模式：{data_mode_label(mode)}",
         f"- 关键词数量：{len(topics)}",
         "",
-        "> 说明：当前报告使用 mock 数据验证流程与版式，不代表真实社媒趋势。下一阶段接入 live 模式后，将替换为 Reddit、YouTube 等真实来源。",
+        report_note(mode, all_evidence, connectivity_note),
         "",
         "## 热门内容",
         "",
     ]
 
-    for run in runs:
-        top_cluster = (run.report.get("clusters") or [{}])[0]
-        title = top_cluster.get("title") or f"{run.topic} discussion"
-        score = top_cluster.get("score", 0)
-        lines.append(f"- **{run.topic}**：mock 热点为“{title}”，综合分约 {score:.0f}。")
+    if all_evidence:
+        for run in runs:
+            top_cluster = (run.report.get("clusters") or [{}])[0]
+            title = top_cluster.get("title") or f"{run.topic} discussion"
+            score = top_cluster.get("score", 0)
+            prefix = "真实 Reddit 热点" if mode == "live" else "mock 热点"
+            lines.append(f"- **{run.topic}**：{prefix}为“{title}”，综合分约 {score:.0f}。")
+    else:
+        lines.append("- 暂未获得可用 Reddit 证据。mock 模式仍可用于验证报告流程。")
 
     lines.extend(["", "## 用户痛点", ""])
     for topic in topics:
@@ -295,14 +341,17 @@ def render_report(runs: list[TopicRun], prompt_template: str) -> str:
                 f"{escape_cell(item.title)} | {escape_cell(item.engagement)} | {link} |"
             )
     else:
-        lines.append("- 暂无证据。")
+        lines.append(f"- 暂无证据。{connectivity_note or 'live run returned no usable Reddit items.'}")
+        for run in runs:
+            if run.error:
+                lines.append(f"- **{run.topic}**：{run.error}")
 
     lines.extend(
         [
             "",
             "## 后续升级接口",
             "",
-            "- `--mode live` 已预留，下一阶段会移除 `--mock` 并接入真实 Reddit / YouTube 数据源。",
+            "- `--mode live` 当前只接入 Reddit；YouTube、Pinterest、GitHub Actions 留到后续阶段。",
             "- 报告结构来自 `prompts/ceramic_report_prompt.md`，后续可替换为 LLM 中文综合。",
             "- 自动化路线见 `docs/automation-roadmap.md`。",
             "",
@@ -317,18 +366,29 @@ def render_report(runs: list[TopicRun], prompt_template: str) -> str:
     return "\n".join(lines)
 
 
+def data_mode_label(mode: str) -> str:
+    if mode == "live":
+        return "last30days-skill `--quick --search=reddit`"
+    return "last30days-skill `--mock --quick --search=reddit,youtube`"
+
+
+def report_note(mode: str, evidence: list[Evidence], connectivity_note: str) -> str:
+    if mode == "mock":
+        return "> 说明：当前报告使用 mock 数据验证流程与版式，不代表真实社媒趋势。"
+    if evidence:
+        return "> 说明：当前报告使用 Reddit live 数据。YouTube、Pinterest、GitHub 等来源尚未接入。"
+    return (
+        "> 说明：当前 live 模式已调用 Reddit-only pipeline，但没有获得可用证据。"
+        f"{connectivity_note or '请检查本机网络是否能访问 Reddit。'}"
+    )
+
+
 def escape_cell(value: str) -> str:
     return value.replace("|", "\\|").replace("\n", " ").strip()
 
 
 def main() -> int:
     args = parse_args()
-    if args.mode == "live":
-        raise SystemExit(
-            "live mode is reserved for the next phase and does not run network calls yet; "
-            "run with --mode mock for V0.1.1."
-        )
-
     topics_path = Path(args.topics).expanduser().resolve()
     output_path = Path(args.output).expanduser().resolve()
     script_path = Path(args.last30days_script).expanduser().resolve()
@@ -336,14 +396,41 @@ def main() -> int:
 
     topics = load_topics(topics_path)
     prompt_template = prompt_path.read_text(encoding="utf-8")
+    connectivity_note = ""
+    if args.mode == "live":
+        ok, connectivity_note = check_reddit_connectivity()
+        if not ok:
+            print(connectivity_note, file=sys.stderr)
 
     runs: list[TopicRun] = []
     for topic in topics:
-        report = run_last30days_mock(topic, script_path)
-        runs.append(TopicRun(topic=topic, report=report, evidence=collect_evidence(topic, report)))
+        try:
+            if args.mode == "live":
+                report = run_last30days_live(topic, script_path)
+            else:
+                report = run_last30days_mock(topic, script_path)
+            runs.append(
+                TopicRun(
+                    topic=topic,
+                    report=report,
+                    evidence=collect_evidence(topic, report),
+                )
+            )
+        except Exception as exc:
+            if args.mode != "live":
+                raise
+            runs.append(TopicRun(topic=topic, report={"topic": topic}, evidence=[], error=str(exc)))
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(render_report(runs, prompt_template), encoding="utf-8")
+    output_path.write_text(
+        render_report(
+            runs,
+            prompt_template,
+            mode=args.mode,
+            connectivity_note=connectivity_note,
+        ),
+        encoding="utf-8",
+    )
     print(f"Generated {output_path}")
     return 0
 

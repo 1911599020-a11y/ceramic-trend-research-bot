@@ -1,24 +1,15 @@
 # 陶瓷趋势情报报告
 
-- 生成时间：2026-05-28 23:44
-- 版本：V0.1 mock 本地报告
-- 数据模式：last30days-skill `--mock --quick`
+- 生成时间：2026-05-28 23:51
+- 版本：V0.2 Reddit live 本地报告
+- 数据模式：last30days-skill `--quick --search=reddit`
 - 关键词数量：10
 
-> 说明：当前报告使用 mock 数据验证流程与版式，不代表真实社媒趋势。下一阶段接入 live 模式后，将替换为 Reddit、YouTube 等真实来源。
+> 说明：当前 live 模式已调用 Reddit-only pipeline，但没有获得可用证据。当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
 
 ## 热门内容
 
-- **ceramic art**：mock 热点为“ceramic art discussion thread”，综合分约 36。
-- **pottery**：mock 热点为“pottery discussion thread”，综合分约 33。
-- **ceramic glaze**：mock 热点为“ceramic glaze discussion thread”，综合分约 36。
-- **AI ceramic design**：mock 热点为“AI ceramic design discussion thread”，综合分约 42。
-- **3D printed ceramics**：mock 热点为“3D printed ceramics discussion thread”，综合分约 38。
-- **handmade pottery**：mock 热点为“handmade pottery discussion thread”，综合分约 36。
-- **ceramic business**：mock 热点为“ceramic business discussion thread”，综合分约 36。
-- **pottery studio**：mock 热点为“pottery studio discussion thread”，综合分约 36。
-- **ceramic texture**：mock 热点为“ceramic texture discussion thread”，综合分约 36。
-- **kiln firing**：mock 热点为“kiln firing discussion thread”，综合分约 36。
+- 暂未获得可用 Reddit 证据。mock 模式仍可用于验证报告流程。
 
 ## 用户痛点
 
@@ -72,22 +63,11 @@
 
 ## 原始证据/链接
 
-| 关键词 | 来源 | 标题 | 互动 | 链接 |
-|---|---|---|---|---|
-| ceramic art | Reddit | ceramic art discussion thread | 120 upvotes, 48 comments | [打开](https://reddit.com/r/example/comments/1) |
-| pottery | Reddit | pottery discussion thread | 120 upvotes, 48 comments | [打开](https://reddit.com/r/example/comments/1) |
-| ceramic glaze | Reddit | ceramic glaze discussion thread | 120 upvotes, 48 comments | [打开](https://reddit.com/r/example/comments/1) |
-| AI ceramic design | Reddit | AI ceramic design discussion thread | 120 upvotes, 48 comments | [打开](https://reddit.com/r/example/comments/1) |
-| 3D printed ceramics | Reddit | 3D printed ceramics discussion thread | 120 upvotes, 48 comments | [打开](https://reddit.com/r/example/comments/1) |
-| handmade pottery | Reddit | handmade pottery discussion thread | 120 upvotes, 48 comments | [打开](https://reddit.com/r/example/comments/1) |
-| ceramic business | Reddit | ceramic business discussion thread | 120 upvotes, 48 comments | [打开](https://reddit.com/r/example/comments/1) |
-| pottery studio | Reddit | pottery studio discussion thread | 120 upvotes, 48 comments | [打开](https://reddit.com/r/example/comments/1) |
-| ceramic texture | Reddit | ceramic texture discussion thread | 120 upvotes, 48 comments | [打开](https://reddit.com/r/example/comments/1) |
-| kiln firing | Reddit | kiln firing discussion thread | 120 upvotes, 48 comments | [打开](https://reddit.com/r/example/comments/1) |
+- 暂无证据。当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
 
 ## 后续升级接口
 
-- `--mode live` 已预留，下一阶段会移除 `--mock` 并接入真实 Reddit / YouTube 数据源。
+- `--mode live` 当前只接入 Reddit；YouTube、Pinterest、GitHub Actions 留到后续阶段。
 - 报告结构来自 `prompts/ceramic_report_prompt.md`，后续可替换为 LLM 中文综合。
 - 自动化路线见 `docs/automation-roadmap.md`。
 
