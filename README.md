@@ -4,14 +4,16 @@
 
 ## Current Status
 
-V0.2 是 **最小 Reddit live mode 测试版本**：
+V0.3.1 是 **Reddit live relevance filtering 版本**：
 
 - `mock` 模式仍然可用，用于稳定生成示例报告
 - `live` 模式只测试 Reddit，不接 YouTube / Pinterest / GitHub Actions
+- Reddit 结果会按陶瓷相关 subreddit、陶瓷关键词和跑偏词做轻量重排
+- 报告会区分高相关内容、边缘相关内容和跑偏样本
 - 不安装 `yt-dlp`
 - 不配置 API key
 - 不修改 `last30days-skill` 原始代码
-- `live` 模式调用本地 `last30days-skill --quick --search=reddit`
+- `live` 模式调用本地 `last30days-skill --quick --search=reddit`，并传入推荐 subreddit
 - 输出中文 Markdown 到 `reports/report.md`
 
 上游依赖路径：
@@ -70,7 +72,7 @@ reports/report.md
 
 ```text
 ceramic_report.py                 # V0.1 wrapper entry
-config/ceramic_topics.json        # Ceramic keyword list
+config/ceramic_topics.json        # Ceramic keyword, subreddit, and relevance rules
 prompts/ceramic_report_prompt.md  # Chinese report structure
 reports/                          # Generated Markdown reports
 docs/automation-roadmap.md        # Future automation paths
@@ -94,6 +96,9 @@ docs/automation-roadmap.md        # Future automation paths
 报告固定包含：
 
 - 热门内容
+- 高相关内容
+- 边缘相关内容
+- 跑偏样本
 - 用户痛点
 - 趋势判断
 - 内容选题

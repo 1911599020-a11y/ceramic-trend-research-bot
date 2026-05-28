@@ -10,5 +10,97 @@
     "pottery studio",
     "ceramic texture",
     "kiln firing"
-  ]
+  ],
+  "categories": {
+    "pottery_process": [
+      "pottery wheel throwing",
+      "hand building clay",
+      "slab pottery",
+      "handmade pottery"
+    ],
+    "ceramic_glaze": [
+      "ceramic glaze",
+      "glaze testing",
+      "underglaze",
+      "crystalline glaze"
+    ],
+    "kiln_firing": [
+      "kiln firing",
+      "cone 6 glaze",
+      "raku firing",
+      "electric kiln"
+    ],
+    "ceramic_business": [
+      "ceramic business",
+      "pottery studio",
+      "selling handmade pottery",
+      "ceramic pricing"
+    ],
+    "ceramic_texture": [
+      "ceramic texture",
+      "clay texture",
+      "surface design ceramics",
+      "ceramic carving"
+    ],
+    "3d_printed_ceramics": [
+      "3D printed ceramics",
+      "ceramic 3D printing",
+      "clay 3D printer"
+    ],
+    "ai_ceramic_design": [
+      "AI ceramic design",
+      "AI pottery design",
+      "AI generated ceramic pattern"
+    ]
+  },
+  "recommended_subreddits": [
+    "r/Pottery",
+    "r/Ceramics",
+    "r/Ceramic3DPrinting",
+    "r/somethingimade",
+    "r/crafts",
+    "r/ArtistLounge"
+  ],
+  "relevance": {
+    "positive_terms": [
+      "ceramic",
+      "ceramics",
+      "pottery",
+      "potter",
+      "glaze",
+      "kiln",
+      "clay",
+      "handmade",
+      "studio",
+      "firing",
+      "wheel throwing",
+      "slab",
+      "porcelain",
+      "stoneware",
+      "earthenware",
+      "raku",
+      "underglaze",
+      "sculpture",
+      "vase",
+      "mug",
+      "bowl"
+    ],
+    "exclude_terms": [
+      "anime",
+      "cosplay",
+      "cats",
+      "cat",
+      "outfit",
+      "gaming",
+      "fivenightsatfreddys",
+      "five nights at freddy",
+      "fnaf",
+      "makati",
+      "keyboards",
+      "keyboard",
+      "naruto",
+      "ordinary ai video",
+      "ai video"
+    ]
+  }
 }

@@ -40,6 +40,10 @@ class Evidence:
     url: str
     snippet: str
     engagement: str
+    subreddit: str
+    relevance_level: str
+    relevance_score: int
+    relevance_notes: str
 
 
 @dataclass(frozen=True)
@@ -48,6 +52,13 @@ class TopicRun:
     report: dict[str, Any]
     evidence: list[Evidence]
     error: str = ""
+
+
+@dataclass(frozen=True)
+class RelevanceConfig:
+    recommended_subreddits: set[str]
+    positive_terms: list[str]
+    exclude_terms: list[str]
 
 
 def parse_args() -> argparse.Namespace:
@@ -78,10 +89,17 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def load_topics(path: Path) -> list[str]:
+def load_config(path: Path) -> dict[str, Any]:
     if not path.exists():
         raise FileNotFoundError(f"Topic config not found: {path}")
     payload = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(payload, list):
+        return {"topics": payload}
+    return payload
+
+
+def load_topics(path: Path) -> list[str]:
+    payload = load_config(path)
     if isinstance(payload, list):
         topics = payload
     else:
@@ -90,6 +108,27 @@ def load_topics(path: Path) -> list[str]:
     if not cleaned:
         raise ValueError(f"No topics found in {path}")
     return cleaned
+
+
+def load_relevance_config(config: dict[str, Any]) -> RelevanceConfig:
+    relevance = config.get("relevance") or {}
+    return RelevanceConfig(
+        recommended_subreddits={
+            normalize_subreddit(sub)
+            for sub in config.get("recommended_subreddits", [])
+            if normalize_subreddit(sub)
+        },
+        positive_terms=[
+            str(term).strip().lower()
+            for term in relevance.get("positive_terms", [])
+            if str(term).strip()
+        ],
+        exclude_terms=[
+            str(term).strip().lower()
+            for term in relevance.get("exclude_terms", [])
+            if str(term).strip()
+        ],
+    )
 
 
 def build_query_plan(topic: str, sources: list[str]) -> dict[str, Any]:
@@ -128,11 +167,25 @@ def run_last30days_mock(topic: str, script_path: Path) -> dict[str, Any]:
     return run_last30days(topic, script_path, mode="mock")
 
 
-def run_last30days_live(topic: str, script_path: Path) -> dict[str, Any]:
-    return run_last30days(topic, script_path, mode="live")
+def run_last30days_live(
+    topic: str,
+    script_path: Path,
+    recommended_subreddits: set[str] | None = None,
+) -> dict[str, Any]:
+    return run_last30days(
+        topic,
+        script_path,
+        mode="live",
+        recommended_subreddits=recommended_subreddits,
+    )
 
 
-def run_last30days(topic: str, script_path: Path, mode: str) -> dict[str, Any]:
+def run_last30days(
+    topic: str,
+    script_path: Path,
+    mode: str,
+    recommended_subreddits: set[str] | None = None,
+) -> dict[str, Any]:
     assert_last30days_script(script_path)
     if mode not in {"mock", "live"}:
         raise ValueError(f"Unsupported mode: {mode}")
@@ -150,6 +203,8 @@ def run_last30days(topic: str, script_path: Path, mode: str) -> dict[str, Any]:
     ]
     if mode == "mock":
         command.insert(3, "--mock")
+    if mode == "live" and recommended_subreddits:
+        command.extend(["--subreddits", ",".join(sorted(recommended_subreddits))])
 
     env = os.environ.copy()
     env.setdefault("FROM_BROWSER", "off")
@@ -197,10 +252,68 @@ def extract_json(stdout: str) -> dict[str, Any]:
     return json.loads(stdout[start : end + 1])
 
 
+def apply_relevance_ranking(report: dict[str, Any], rules: RelevanceConfig) -> dict[str, Any]:
+    for source, items in (report.get("items_by_source") or {}).items():
+        if source != "reddit" or not isinstance(items, list):
+            continue
+        for item in items:
+            score, level, notes = score_reddit_item(item, rules)
+            metadata = item.setdefault("metadata", {})
+            metadata["ceramic_relevance_score"] = score
+            metadata["ceramic_relevance_level"] = level
+            metadata["ceramic_relevance_notes"] = notes
+        items.sort(
+            key=lambda item: (
+                item.get("metadata", {}).get("ceramic_relevance_score", 0),
+                item.get("local_rank_score") or 0,
+            ),
+            reverse=True,
+        )
+    return report
+
+
+def score_reddit_item(item: dict[str, Any], rules: RelevanceConfig) -> tuple[int, str, str]:
+    title = str(item.get("title") or "")
+    body = str(item.get("body") or item.get("snippet") or "")
+    subreddit = normalize_subreddit(str(item.get("container") or item.get("subreddit") or ""))
+    haystack = " ".join([title, body, subreddit]).lower()
+
+    score = 0
+    notes = []
+    if subreddit and subreddit in rules.recommended_subreddits:
+        score += 4
+        notes.append(f"来自推荐 subreddit r/{subreddit}")
+
+    positive_hits = [term for term in rules.positive_terms if term in haystack]
+    if positive_hits:
+        score += min(5, len(set(positive_hits)))
+        notes.append("命中陶瓷词：" + ", ".join(sorted(set(positive_hits))[:5]))
+
+    title_or_sub = f"{title} {subreddit}".lower()
+    strong_hits = [term for term in rules.positive_terms if term in title_or_sub]
+    if strong_hits:
+        score += 2
+        notes.append("标题或 subreddit 直接相关")
+
+    exclude_hits = [term for term in rules.exclude_terms if term in haystack]
+    if exclude_hits:
+        score -= 5 + min(4, len(set(exclude_hits)))
+        notes.append("跑偏词：" + ", ".join(sorted(set(exclude_hits))[:5]))
+
+    if score >= 5:
+        level = "high"
+    elif score >= 1:
+        level = "edge"
+    else:
+        level = "low"
+    return score, level, "；".join(notes) if notes else "未命中明确陶瓷相关信号"
+
+
 def collect_evidence(topic: str, report: dict[str, Any]) -> list[Evidence]:
     evidence: list[Evidence] = []
     for source, items in (report.get("items_by_source") or {}).items():
-        for item in items[:3]:
+        for item in items[:6]:
+            metadata = item.get("metadata") or {}
             evidence.append(
                 Evidence(
                     topic=topic,
@@ -209,6 +322,12 @@ def collect_evidence(topic: str, report: dict[str, Any]) -> list[Evidence]:
                     url=item.get("url") or "",
                     snippet=item.get("snippet") or item.get("body") or "",
                     engagement=format_engagement(item.get("engagement") or {}),
+                    subreddit=normalize_subreddit(
+                        str(item.get("container") or item.get("subreddit") or "")
+                    ),
+                    relevance_level=metadata.get("ceramic_relevance_level", "edge"),
+                    relevance_score=int(metadata.get("ceramic_relevance_score", 0)),
+                    relevance_notes=metadata.get("ceramic_relevance_notes", ""),
                 )
             )
     return evidence
@@ -287,15 +406,19 @@ def render_report(
 ) -> str:
     topics = [run.topic for run in runs]
     all_evidence = [item for run in runs for item in run.evidence]
+    high_evidence = [item for item in all_evidence if item.relevance_level == "high"]
+    edge_evidence = [item for item in all_evidence if item.relevance_level == "edge"]
+    low_evidence = [item for item in all_evidence if item.relevance_level == "low"]
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
 
     lines = [
         "# 陶瓷趋势情报报告",
         "",
         f"- 生成时间：{generated_at}",
-        f"- 版本：V0.2 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
+        f"- 版本：V0.3.1 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
         f"- 数据模式：{data_mode_label(mode)}",
         f"- 关键词数量：{len(topics)}",
+        f"- 相关性分层：高相关 {len(high_evidence)} 条，边缘相关 {len(edge_evidence)} 条，跑偏样本 {len(low_evidence)} 条",
         "",
         report_note(mode, all_evidence, connectivity_note),
         "",
@@ -305,11 +428,14 @@ def render_report(
 
     if all_evidence:
         for run in runs:
-            top_cluster = (run.report.get("clusters") or [{}])[0]
-            title = top_cluster.get("title") or f"{run.topic} discussion"
-            score = top_cluster.get("score", 0)
+            best = next((item for item in run.evidence if item.relevance_level == "high"), None)
+            if best is None and run.evidence:
+                best = run.evidence[0]
+            title = best.title if best else f"{run.topic} discussion"
+            score = best.relevance_score if best else 0
             prefix = "真实 Reddit 热点" if mode == "live" else "mock 热点"
-            lines.append(f"- **{run.topic}**：{prefix}为“{title}”，综合分约 {score:.0f}。")
+            level = relevance_label(best.relevance_level) if best else "暂无证据"
+            lines.append(f"- **{run.topic}**：{prefix}为“{title}”，相关性：{level}（{score} 分）。")
     else:
         lines.append("- 暂未获得可用 Reddit 证据。mock 模式仍可用于验证报告流程。")
 
@@ -330,16 +456,21 @@ def render_report(
     for idea in tool_ideas():
         lines.append(f"- {idea}")
 
+    lines.extend(["", "## 高相关内容", ""])
+    append_evidence_table(lines, high_evidence)
+
+    lines.extend(["", "## 边缘相关内容", ""])
+    append_evidence_table(lines, edge_evidence)
+
+    lines.extend(["", "## 跑偏样本", ""])
+    if low_evidence:
+        lines.append("> 这些内容不应直接作为陶瓷趋势结论，只用于观察关键词误伤和后续过滤优化。")
+        lines.append("")
+    append_evidence_table(lines, low_evidence)
+
     lines.extend(["", "## 原始证据/链接", ""])
     if all_evidence:
-        lines.extend(["| 关键词 | 来源 | 标题 | 互动 | 链接 |", "|---|---|---|---|---|"])
-        for item in all_evidence:
-            source = item.source.capitalize()
-            link = f"[打开]({item.url})" if item.url else "n/a"
-            lines.append(
-                f"| {escape_cell(item.topic)} | {escape_cell(source)} | "
-                f"{escape_cell(item.title)} | {escape_cell(item.engagement)} | {link} |"
-            )
+        append_evidence_table(lines, all_evidence, include_level=True)
     else:
         lines.append(f"- 暂无证据。{connectivity_note or 'live run returned no usable Reddit items.'}")
         for run in runs:
@@ -372,6 +503,53 @@ def data_mode_label(mode: str) -> str:
     return "last30days-skill `--mock --quick --search=reddit,youtube`"
 
 
+def append_evidence_table(
+    lines: list[str],
+    evidence: list[Evidence],
+    *,
+    include_level: bool = False,
+) -> None:
+    if not evidence:
+        lines.append("- 暂无。")
+        return
+    if include_level:
+        lines.extend(
+            [
+                "| 相关性 | 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |",
+                "|---|---|---|---|---|---|---|",
+            ]
+        )
+    else:
+        lines.extend(
+            [
+                "| 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |",
+                "|---|---|---|---|---|---|---|",
+            ]
+        )
+    for item in evidence:
+        link = f"[打开]({item.url})" if item.url else "n/a"
+        subreddit = f"r/{item.subreddit}" if item.subreddit else "n/a"
+        row = [
+            escape_cell(item.topic),
+            escape_cell(subreddit),
+            escape_cell(item.title),
+            escape_cell(item.engagement),
+            escape_cell(item.relevance_notes),
+            link,
+        ]
+        if include_level:
+            row.insert(0, relevance_label(item.relevance_level))
+        lines.append("| " + " | ".join(row) + " |")
+
+
+def relevance_label(level: str) -> str:
+    return {
+        "high": "高相关",
+        "edge": "边缘相关",
+        "low": "相关性较低",
+    }.get(level, level)
+
+
 def report_note(mode: str, evidence: list[Evidence], connectivity_note: str) -> str:
     if mode == "mock":
         return "> 说明：当前报告使用 mock 数据验证流程与版式，不代表真实社媒趋势。"
@@ -387,6 +565,13 @@ def escape_cell(value: str) -> str:
     return value.replace("|", "\\|").replace("\n", " ").strip()
 
 
+def normalize_subreddit(value: str) -> str:
+    cleaned = value.strip().lower()
+    if cleaned.startswith("r/"):
+        cleaned = cleaned[2:]
+    return cleaned
+
+
 def main() -> int:
     args = parse_args()
     topics_path = Path(args.topics).expanduser().resolve()
@@ -394,7 +579,9 @@ def main() -> int:
     script_path = Path(args.last30days_script).expanduser().resolve()
     prompt_path = DEFAULT_PROMPT_PATH
 
+    config = load_config(topics_path)
     topics = load_topics(topics_path)
+    relevance_config = load_relevance_config(config)
     prompt_template = prompt_path.read_text(encoding="utf-8")
     connectivity_note = ""
     if args.mode == "live":
@@ -406,9 +593,14 @@ def main() -> int:
     for topic in topics:
         try:
             if args.mode == "live":
-                report = run_last30days_live(topic, script_path)
+                report = run_last30days_live(
+                    topic,
+                    script_path,
+                    recommended_subreddits=relevance_config.recommended_subreddits,
+                )
             else:
                 report = run_last30days_mock(topic, script_path)
+            report = apply_relevance_ranking(report, relevance_config)
             runs.append(
                 TopicRun(
                     topic=topic,

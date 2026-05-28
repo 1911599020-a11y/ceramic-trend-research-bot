@@ -1,24 +1,25 @@
 # 陶瓷趋势情报报告
 
-- 生成时间：2026-05-29 00:26
-- 版本：V0.2 Reddit live 本地报告
+- 生成时间：2026-05-29 00:53
+- 版本：V0.3.1 Reddit live 本地报告
 - 数据模式：last30days-skill `--quick --search=reddit`
 - 关键词数量：10
+- 相关性分层：高相关 13 条，边缘相关 2 条，跑偏样本 4 条
 
 > 说明：当前报告使用 Reddit live 数据。YouTube、Pinterest、GitHub 等来源尚未接入。
 
 ## 热门内容
 
-- **ceramic art**：真实 Reddit 热点为“Ceramic “Art” by me”，综合分约 0。
-- **pottery**：真实 Reddit 热点为“The ramen bowl my little sister made for me in pottery class!”，综合分约 33。
-- **ceramic glaze**：真实 Reddit 热点为“First attempt at a faux ceramic glaze”，综合分约 37。
-- **AI ceramic design**：真实 Reddit 热点为“AI Video Consistency Starts Before Motion - Cooking Short Made with GPT-Image-2 + Seedance 2.0”，综合分约 0。
-- **3D printed ceramics**：真实 Reddit 热点为“3d printed generative pattern on ceramics”，综合分约 0。
-- **handmade pottery**：真实 Reddit 热点为“This little one was born hungry 🥹🫣 (handmade pottery)”，综合分约 39。
-- **ceramic business**：真实 Reddit 热点为“Printing on ceramic business”，综合分约 34。
-- **pottery studio**：真实 Reddit 热点为“Siyutao studio pottery a teapot”，综合分约 0。
-- **ceramic texture**：真实 Reddit 热点为“My Ceramic Keycaps with Crystal Texture 😏”，综合分约 0。
-- **kiln firing**：真实 Reddit 热点为“HELP! QUESTION! New to Kiln Firing”，综合分约 33。
+- **ceramic art**：真实 Reddit 热点为“Ceramic art”，相关性：高相关（8 分）。
+- **pottery**：真实 Reddit 热点为“Any ideas what this is? Found in the ground in Asheville.  Glazed pottery”，相关性：高相关（11 分）。
+- **ceramic glaze**：真实 Reddit 热点为“Was making dog slow feeder when I got the good news”，相关性：高相关（10 分）。
+- **AI ceramic design**：真实 Reddit 热点为“UK - where best to sell 1950s(?) ceramic tiles”，相关性：高相关（9 分）。
+- **3D printed ceramics**：真实 Reddit 热点为“Any good 3D printed tools for Pottery?”，相关性：高相关（11 分）。
+- **handmade pottery**：真实 Reddit 热点为“Are these defects to be expected when buying on Etsy?”，相关性：高相关（11 分）。
+- **ceramic business**：真实 Reddit 热点为“Scared of Doing Plagiarism.”，相关性：高相关（10 分）。
+- **pottery studio**：真实 Reddit 热点为“Siyutao studio pottery a teapot”，相关性：高相关（9 分）。
+- **ceramic texture**：真实 Reddit 热点为“My Ceramic Keycaps with Crystal Texture 😏”，相关性：相关性较低（-4 分）。
+- **kiln firing**：真实 Reddit 热点为“First firing in new (to me) manual kiln”，相关性：高相关（10 分）。
 
 ## 用户痛点
 
@@ -70,31 +71,65 @@
 - 烧成失败诊断卡：根据针孔、流釉、变形、开裂等现象给出排查路径。
 - 工作室定价小工具：把泥料、釉料、烧成、工时、损耗和平台费用折算进价格。
 
+## 高相关内容
+
+| 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
+|---|---|---|---|---|---|---|
+| ceramic art | r/ceramics | Ceramic art | 12 upvotes, 0 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1t7kowt/ceramic_art/) |
+| pottery | r/ceramics | Any ideas what this is? Found in the ground in Asheville.  Glazed pottery | 5 upvotes, 4 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, glaze, potter, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1tlzc6t/any_ideas_what_this_is_found_in_the_ground_in/) |
+| ceramic glaze | r/pottery | Was making dog slow feeder when I got the good news | 686 upvotes, 53 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：ceramic, glaze, potter, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Pottery/comments/1tiggdh/was_making_dog_slow_feeder_when_i_got_the_good/) |
+| AI ceramic design | r/ceramics | UK - where best to sell 1950s(?) ceramic tiles | 0 upvotes, 7 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, glaze；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1te3kex/uk_where_best_to_sell_1950s_ceramic_tiles/) |
+| AI ceramic design | r/ceramics | DIY ready-to-paint bisques | 1 upvotes, 9 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1tcfmu9/diy_readytopaint_bisques/) |
+| 3D printed ceramics | r/ceramics | Any good 3D printed tools for Pottery? | 5 upvotes, 4 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, clay, potter, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1tmpvnm/any_good_3d_printed_tools_for_pottery/) |
+| 3D printed ceramics | r/pottery | A new jar | 257 upvotes, 6 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：bowl, ceramic, ceramics, potter, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Pottery/comments/1t9jums/a_new_jar/) |
+| 3D printed ceramics | r/ceramics | Testing glazes on 3D printed textures. | 46 upvotes, 0 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, glaze；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1te6sk8/testing_glazes_on_3d_printed_textures/) |
+| 3D printed ceramics | r/generative | 3d printed generative pattern on ceramics | 78 upvotes, 1 comments | 命中陶瓷词：ceramic, ceramics, clay, glaze；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/generative/comments/1tepqe0/3d_printed_generative_pattern_on_ceramics/) |
+| handmade pottery | r/ceramics | Are these defects to be expected when buying on Etsy? | 126 upvotes, 65 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, handmade, potter, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1t3xxlu/are_these_defects_to_be_expected_when_buying_on/) |
+| ceramic business | r/pottery | Scared of Doing Plagiarism. | 20 upvotes, 43 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：ceramic, ceramics, potter, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Pottery/comments/1tpeytb/scared_of_doing_plagiarism/) |
+| pottery studio | r/pottery | Siyutao studio pottery a teapot | 294 upvotes, 20 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：potter, pottery, studio；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Pottery/comments/1tbqlax/siyutao_studio_pottery_a_teapot/) |
+| kiln firing | r/ceramics | First firing in new (to me) manual kiln | 2 upvotes, 1 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, firing, kiln；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1tblltv/first_firing_in_new_to_me_manual_kiln/) |
+
+## 边缘相关内容
+
+| 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
+|---|---|---|---|---|---|---|
+| AI ceramic design | r/crafts | Just found out the bag I thrifted has AI designs- how should I cover them up? | 4 upvotes, 8 comments | 来自推荐 subreddit r/crafts | [打开](https://www.reddit.com/r/crafts/comments/1tegfrg/just_found_out_the_bag_i_thrifted_has_ai_designs/) |
+| 3D printed ceramics | r/ceramic3dprinting | Finally producing ceramics i feel i can sell. | 1229 upvotes, 29 comments | 来自推荐 subreddit r/ceramic3dprinting；命中陶瓷词：ceramic, ceramics, clay；标题或 subreddit 直接相关；跑偏词：cat | [打开](https://www.reddit.com/r/Ceramic3Dprinting/comments/1syvlkn/finally_producing_ceramics_i_feel_i_can_sell/) |
+
+## 跑偏样本
+
+> 这些内容不应直接作为陶瓷趋势结论，只用于观察关键词误伤和后续过滤优化。
+
+| 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
+|---|---|---|---|---|---|---|
+| AI ceramic design | r/ai_pcb_design_reviews | AI PCB Design Review of  STM32F765VIT6 design by u/Teusner called Caiman | 5 upvotes, 5 comments | 未命中明确陶瓷相关信号 | [打开](https://www.reddit.com/r/AI_PCB_Design_Reviews/comments/1tfkzyt/ai_pcb_design_review_of_stm32f765vit6_design_by/) |
+| AI ceramic design | r/seedance2pro | AI Video Consistency Starts Before Motion - Cooking Short Made with GPT-Image-2 + Seedance 2.0 | 37 upvotes, 9 comments | 跑偏词：ai video | [打开](https://www.reddit.com/r/seedance2pro/comments/1tk1bkw/ai_video_consistency_starts_before_motion_cooking/) |
+| handmade pottery | r/cats | This little one was born hungry 🥹🫣 (handmade pottery) | 16 upvotes, 5 comments | 命中陶瓷词：handmade, potter, pottery；标题或 subreddit 直接相关；跑偏词：cat, cats | [打开](https://www.reddit.com/r/cats/comments/1tlzifs/this_little_one_was_born_hungry_handmade_pottery/) |
+| ceramic texture | r/keyboards | My Ceramic Keycaps with Crystal Texture 😏 | 129 upvotes, 18 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关；跑偏词：keyboard, keyboards | [打开](https://www.reddit.com/r/keyboards/comments/1tn7jkf/my_ceramic_keycaps_with_crystal_texture/) |
+
 ## 原始证据/链接
 
-| 关键词 | 来源 | 标题 | 互动 | 链接 |
-|---|---|---|---|---|
-| ceramic art | Reddit | Ceramic “Art” by me | 30 upvotes, 5 comments | [打开](https://www.reddit.com/r/fivenightsatfreddys/comments/1tkwo4v/ceramic_art_by_me/) |
-| pottery | Reddit | The ramen bowl my little sister made for me in pottery class! | 3135 upvotes, 51 comments | [打开](https://www.reddit.com/r/Naruto/comments/1tomo7q/the_ramen_bowl_my_little_sister_made_for_me_in/) |
-| pottery | Reddit | Need help picking a outfit for a casual date - painting pottery | 594 upvotes, 367 comments | [打开](https://www.reddit.com/r/OUTFITS/comments/1tftwve/need_help_picking_a_outfit_for_a_casual_date/) |
-| pottery | Reddit | Denby Pottery Customer Service | 1573 upvotes, 158 comments | [打开](https://www.reddit.com/r/BuyItForLife/comments/1teynbb/denby_pottery_customer_service/) |
-| ceramic glaze | Reddit | First attempt at a faux ceramic glaze | 444 upvotes, 33 comments | [打开](https://www.reddit.com/r/3Dprinting/comments/1tmeksa/first_attempt_at_a_faux_ceramic_glaze/) |
-| ceramic glaze | Reddit | Manta ray ceramic sconce I made | 18626 upvotes, 292 comments | [打开](https://www.reddit.com/r/somethingimade/comments/1thtgxd/manta_ray_ceramic_sconce_i_made/) |
-| ceramic glaze | Reddit | What’s this ceramic/ glass like glaze on our bricks?? | 9 upvotes, 7 comments | [打开](https://www.reddit.com/r/centuryhomes/comments/1tos4t3/whats_this_ceramic_glass_like_glaze_on_our_bricks/) |
-| AI ceramic design | Reddit | AI Video Consistency Starts Before Motion - Cooking Short Made with GPT-Image-2 + Seedance 2.0 | 39 upvotes, 9 comments | [打开](https://www.reddit.com/r/seedance2pro/comments/1tk1bkw/ai_video_consistency_starts_before_motion_cooking/) |
-| 3D printed ceramics | Reddit | 3d printed generative pattern on ceramics | 80 upvotes, 1 comments | [打开](https://www.reddit.com/r/generative/comments/1tepqe0/3d_printed_generative_pattern_on_ceramics/) |
-| 3D printed ceramics | Reddit | Any good 3D printed tools for Pottery? | 5 upvotes, 4 comments | [打开](https://www.reddit.com/r/Ceramics/comments/1tmpvnm/any_good_3d_printed_tools_for_pottery/) |
-| 3D printed ceramics | Reddit | Testing glazes on 3D printed textures. | 45 upvotes, 0 comments | [打开](https://www.reddit.com/r/Ceramics/comments/1te6sk8/testing_glazes_on_3d_printed_textures/) |
-| handmade pottery | Reddit | This little one was born hungry 🥹🫣 (handmade pottery) | 18 upvotes, 5 comments | [打开](https://www.reddit.com/r/cats/comments/1tlzifs/this_little_one_was_born_hungry_handmade_pottery/) |
-| handmade pottery | Reddit | Are these defects to be expected when buying on Etsy? | 125 upvotes, 65 comments | [打开](https://www.reddit.com/r/Ceramics/comments/1t3xxlu/are_these_defects_to_be_expected_when_buying_on/) |
-| ceramic business | Reddit | For people who run their own business & make a living from ceramics | 28 upvotes, 33 comments | [打开](https://www.reddit.com/r/Pottery/comments/1to0px1/for_people_who_run_their_own_business_make_a/) |
-| ceramic business | Reddit | A Vision of Makati the City 1996 PHOTOS | 703 upvotes, 55 comments | [打开](https://www.reddit.com/r/makati/comments/1tg976p/a_vision_of_makati_the_city_1996_photos/) |
-| ceramic business | Reddit | Printing on ceramic business | 4 upvotes, 9 comments | [打开](https://www.reddit.com/r/eufyMakeOfficial/comments/1tgi2eb/printing_on_ceramic_business/) |
-| pottery studio | Reddit | Siyutao studio pottery a teapot | 296 upvotes, 20 comments | [打开](https://www.reddit.com/r/Pottery/comments/1tbqlax/siyutao_studio_pottery_a_teapot/) |
-| ceramic texture | Reddit | My Ceramic Keycaps with Crystal Texture 😏 | 133 upvotes, 18 comments | [打开](https://www.reddit.com/r/keyboards/comments/1tn7jkf/my_ceramic_keycaps_with_crystal_texture/) |
-| kiln firing | Reddit | Help with improving my wood firing downdraft Kiln | 7 upvotes, 21 comments | [打开](https://www.reddit.com/r/Pottery/comments/1toyjlf/help_with_improving_my_wood_firing_downdraft_kiln/) |
-| kiln firing | Reddit | Manta ray ceramic sconce I made | 18632 upvotes, 292 comments | [打开](https://www.reddit.com/r/somethingimade/comments/1thtgxd/manta_ray_ceramic_sconce_i_made/) |
-| kiln firing | Reddit | The ONE time I don’t write down my glaze combo… | 2118 upvotes, 67 comments | [打开](https://www.reddit.com/r/Pottery/comments/1tkmdm3/the_one_time_i_dont_write_down_my_glaze_combo/) |
+| 相关性 | 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
+|---|---|---|---|---|---|---|
+| 高相关 | ceramic art | r/ceramics | Ceramic art | 12 upvotes, 0 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1t7kowt/ceramic_art/) |
+| 高相关 | pottery | r/ceramics | Any ideas what this is? Found in the ground in Asheville.  Glazed pottery | 5 upvotes, 4 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, glaze, potter, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1tlzc6t/any_ideas_what_this_is_found_in_the_ground_in/) |
+| 高相关 | ceramic glaze | r/pottery | Was making dog slow feeder when I got the good news | 686 upvotes, 53 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：ceramic, glaze, potter, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Pottery/comments/1tiggdh/was_making_dog_slow_feeder_when_i_got_the_good/) |
+| 高相关 | AI ceramic design | r/ceramics | UK - where best to sell 1950s(?) ceramic tiles | 0 upvotes, 7 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, glaze；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1te3kex/uk_where_best_to_sell_1950s_ceramic_tiles/) |
+| 高相关 | AI ceramic design | r/ceramics | DIY ready-to-paint bisques | 1 upvotes, 9 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1tcfmu9/diy_readytopaint_bisques/) |
+| 边缘相关 | AI ceramic design | r/crafts | Just found out the bag I thrifted has AI designs- how should I cover them up? | 4 upvotes, 8 comments | 来自推荐 subreddit r/crafts | [打开](https://www.reddit.com/r/crafts/comments/1tegfrg/just_found_out_the_bag_i_thrifted_has_ai_designs/) |
+| 相关性较低 | AI ceramic design | r/ai_pcb_design_reviews | AI PCB Design Review of  STM32F765VIT6 design by u/Teusner called Caiman | 5 upvotes, 5 comments | 未命中明确陶瓷相关信号 | [打开](https://www.reddit.com/r/AI_PCB_Design_Reviews/comments/1tfkzyt/ai_pcb_design_review_of_stm32f765vit6_design_by/) |
+| 相关性较低 | AI ceramic design | r/seedance2pro | AI Video Consistency Starts Before Motion - Cooking Short Made with GPT-Image-2 + Seedance 2.0 | 37 upvotes, 9 comments | 跑偏词：ai video | [打开](https://www.reddit.com/r/seedance2pro/comments/1tk1bkw/ai_video_consistency_starts_before_motion_cooking/) |
+| 高相关 | 3D printed ceramics | r/ceramics | Any good 3D printed tools for Pottery? | 5 upvotes, 4 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, clay, potter, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1tmpvnm/any_good_3d_printed_tools_for_pottery/) |
+| 高相关 | 3D printed ceramics | r/pottery | A new jar | 257 upvotes, 6 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：bowl, ceramic, ceramics, potter, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Pottery/comments/1t9jums/a_new_jar/) |
+| 高相关 | 3D printed ceramics | r/ceramics | Testing glazes on 3D printed textures. | 46 upvotes, 0 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, glaze；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1te6sk8/testing_glazes_on_3d_printed_textures/) |
+| 高相关 | 3D printed ceramics | r/generative | 3d printed generative pattern on ceramics | 78 upvotes, 1 comments | 命中陶瓷词：ceramic, ceramics, clay, glaze；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/generative/comments/1tepqe0/3d_printed_generative_pattern_on_ceramics/) |
+| 边缘相关 | 3D printed ceramics | r/ceramic3dprinting | Finally producing ceramics i feel i can sell. | 1229 upvotes, 29 comments | 来自推荐 subreddit r/ceramic3dprinting；命中陶瓷词：ceramic, ceramics, clay；标题或 subreddit 直接相关；跑偏词：cat | [打开](https://www.reddit.com/r/Ceramic3Dprinting/comments/1syvlkn/finally_producing_ceramics_i_feel_i_can_sell/) |
+| 高相关 | handmade pottery | r/ceramics | Are these defects to be expected when buying on Etsy? | 126 upvotes, 65 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, handmade, potter, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1t3xxlu/are_these_defects_to_be_expected_when_buying_on/) |
+| 相关性较低 | handmade pottery | r/cats | This little one was born hungry 🥹🫣 (handmade pottery) | 16 upvotes, 5 comments | 命中陶瓷词：handmade, potter, pottery；标题或 subreddit 直接相关；跑偏词：cat, cats | [打开](https://www.reddit.com/r/cats/comments/1tlzifs/this_little_one_was_born_hungry_handmade_pottery/) |
+| 高相关 | ceramic business | r/pottery | Scared of Doing Plagiarism. | 20 upvotes, 43 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：ceramic, ceramics, potter, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Pottery/comments/1tpeytb/scared_of_doing_plagiarism/) |
+| 高相关 | pottery studio | r/pottery | Siyutao studio pottery a teapot | 294 upvotes, 20 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：potter, pottery, studio；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Pottery/comments/1tbqlax/siyutao_studio_pottery_a_teapot/) |
+| 相关性较低 | ceramic texture | r/keyboards | My Ceramic Keycaps with Crystal Texture 😏 | 129 upvotes, 18 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关；跑偏词：keyboard, keyboards | [打开](https://www.reddit.com/r/keyboards/comments/1tn7jkf/my_ceramic_keycaps_with_crystal_texture/) |
+| 高相关 | kiln firing | r/ceramics | First firing in new (to me) manual kiln | 2 upvotes, 1 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, firing, kiln；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1tblltv/first_firing_in_new_to_me_manual_kiln/) |
 
 ## 后续升级接口
 
@@ -113,17 +148,36 @@
 
 - 最近被讨论、观看、收藏或评论最多的内容是什么
 - 每条内容对应的平台、互动信号和简短原因
+- 必须区分高相关内容、边缘相关内容和跑偏样本
+- 不要把低相关 Reddit 热帖当作陶瓷趋势结论
 
 ## 用户痛点
 
 - 创作者、买家、学生、工作室经营者正在抱怨或反复提问的问题
 - 尽量区分工艺痛点、内容痛点、商业痛点和工具痛点
+- 只从高相关内容中提炼主要痛点；边缘内容只能作为补充观察
 
 ## 趋势判断
 
 - 哪些趋势可能只是短期热度
 - 哪些趋势值得持续关注
 - 哪些趋势可以转化为内容、产品或小工具
+- 如果证据来自跑偏样本，必须明确说明它不能支撑陶瓷趋势判断
+
+## 高相关内容
+
+- 来自陶瓷相关 subreddit，或标题/subreddit/正文明确包含 ceramic、pottery、glaze、kiln、clay、handmade、studio、firing 等词
+- 可用于趋势判断、内容选题和工具灵感
+
+## 边缘相关内容
+
+- 与手作、艺术、创作经营、材料或视觉灵感有关，但陶瓷信号不够强
+- 可以作为灵感线索，但不要单独得出趋势结论
+
+## 跑偏样本
+
+- 命中 pottery/ceramic 等词但主题明显偏到 anime、cosplay、cats、gaming、Naruto、FNAF、Makati、keyboards 等
+- 只用于过滤规则复盘，不进入趋势判断
 
 ## 内容选题
 
@@ -138,5 +192,6 @@
 ## 原始证据/链接
 
 - 保留原始标题、平台、链接和互动数据
+- 保留相关性标签和简短原因
 - 不要把未经验证的社媒内容写成确定事实
 ```
