@@ -4,6 +4,13 @@
 
 当前项目的保护规则是：live 成功并拿到可用 Reddit 证据时，才更新 `reports/report.md`；live 失败时，不覆盖上一份成功报告，错误详情写入 `local_outputs/last_error.md`。
 
+live 成功时还会更新：
+
+- `reports/latest.md`
+- `reports/archive/YYYY-MM-DD_HHMM_report.md`
+
+live 失败时不会更新 `reports/latest.md`，也不会新增 archive 报告。这是为了避免失败说明污染历史真实数据。
+
 ## 403 Blocked
 
 含义：
@@ -101,6 +108,48 @@ bash scripts/run_live.sh
 ```bash
 bash scripts/run_live.sh --force
 ```
+
+## 查看最近一次成功报告
+
+最近一次成功 live 报告在：
+
+```text
+reports/latest.md
+```
+
+如果这个文件还不存在，说明当前项目里还没有生成过可归档的成功 live 报告，或者文件尚未被提交。
+
+## 查看历史报告
+
+历史成功 live 报告在：
+
+```text
+reports/archive/
+```
+
+文件名类似：
+
+```text
+2026-06-02_0045_report.md
+```
+
+mock 报告不会进入这里，live 失败报告也不会进入这里。
+
+## 查看趋势对比报告
+
+运行：
+
+```bash
+bash scripts/compare_reports.sh
+```
+
+输出：
+
+```text
+reports/trend_diff.md
+```
+
+如果 `reports/archive/` 里不足两份成功 live 报告，脚本会生成一份“样本不足”的说明，不会崩溃。这种情况下不要把 `trend_diff.md` 当成趋势结论。
 
 ## 什么时候不要用 --force
 

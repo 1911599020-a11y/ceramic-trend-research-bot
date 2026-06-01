@@ -4,7 +4,7 @@
 
 ## Current Status
 
-V0.4 是 **报告洞察质量升级版本**：
+V0.4.2 是 **报告归档 + 多期对比基础版本**：
 
 - `mock` 模式仍然可用，用于稳定生成示例报告
 - `live` 模式只测试 Reddit，不接 YouTube / Pinterest / GitHub Actions
@@ -26,6 +26,9 @@ V0.4 是 **报告洞察质量升级版本**：
 - live 因 DNS / 403 / 429 / 网络问题失败时，不覆盖上一份成功报告
 - live 失败详情会写入 `local_outputs/last_error.md`，运行状态会写入 `local_outputs/run_state.json`
 - live 失败时会按 403 / 429 / DNS / timeout 给出更清楚的本地排障提示
+- live 成功时会同步更新 `reports/report.md`、`reports/latest.md`，并归档到 `reports/archive/`
+- mock 只用于结构验证，不会写入 `reports/latest.md`，也不会进入 `reports/archive/`
+- 新增最近两期 archive 对比脚本，输出 `reports/trend_diff.md`
 - 不安装 `yt-dlp`
 - 不配置 API key
 - 不修改 `last30days-skill` 原始代码
@@ -66,6 +69,12 @@ bash scripts/run_live.sh --force
 
 不要连续多次使用 `--force`，尤其是刚遇到 429 或 403 之后。live 失败不会覆盖上一份成功的 `reports/report.md`，错误详情请看 `local_outputs/last_error.md`。
 
+最近两期成功 live 报告对比：
+
+```bash
+bash scripts/compare_reports.sh
+```
+
 原始 Python 命令仍然可用：
 
 ```bash
@@ -75,10 +84,15 @@ bash scripts/run_live.sh --force
 生成文件：
 
 ```text
-reports/report.md
+reports/report.md       # 当前主要报告；mock 和成功 live 都可以更新
+reports/latest.md       # 最近一次成功 live 报告；mock 和失败 live 不更新
+reports/archive/        # 历史成功 live 报告
+reports/trend_diff.md   # 最近两期 archive 的基础对比
 ```
 
 `reports/report.md` 当前是示例报告，可以暂时保留在版本库里，方便确认报告结构。
+
+如果还没有成功 live，`reports/latest.md` 可能尚未生成。live 失败不会污染 `latest.md` 和 `archive/`。
 
 live 失败时不会覆盖 `reports/report.md`，错误详情保存在：
 
@@ -117,9 +131,14 @@ config/ceramic_topics.json        # Ceramic keyword, subreddit, and relevance ru
 prompts/ceramic_report_prompt.md  # Chinese report structure
 scripts/run_mock.sh               # Local mock runner
 scripts/run_live.sh               # Local live runner with cooldown
+scripts/compare_reports.py        # Compare latest two archived live reports
+scripts/compare_reports.sh        # Local compare runner
 local_outputs/last_error.md       # Ignored live failure details
 local_outputs/run_state.json      # Ignored local run state
 reports/                          # Generated Markdown reports
+reports/latest.md                 # Latest successful live report
+reports/archive/                  # Archived successful live reports
+reports/trend_diff.md             # Latest archive comparison
 docs/automation-roadmap.md        # Future automation paths
 docs/troubleshooting.md           # Local live failure troubleshooting
 .env.example                      # Future live-mode environment variables

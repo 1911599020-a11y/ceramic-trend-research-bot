@@ -25,6 +25,8 @@ from typing import Any
 PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_TOPICS_PATH = PROJECT_ROOT / "config" / "ceramic_topics.json"
 DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "reports" / "report.md"
+DEFAULT_LATEST_PATH = PROJECT_ROOT / "reports" / "latest.md"
+DEFAULT_ARCHIVE_DIR = PROJECT_ROOT / "reports" / "archive"
 DEFAULT_PROMPT_PATH = PROJECT_ROOT / "prompts" / "ceramic_report_prompt.md"
 DEFAULT_STATE_FILE = PROJECT_ROOT / "local_outputs" / "run_state.json"
 DEFAULT_ERROR_FILE = PROJECT_ROOT / "local_outputs" / "last_error.md"
@@ -86,6 +88,16 @@ def parse_args() -> argparse.Namespace:
         "--output",
         default=str(DEFAULT_OUTPUT_PATH),
         help="Markdown report output path.",
+    )
+    parser.add_argument(
+        "--latest",
+        default=os.environ.get("CERAMIC_LATEST_REPORT", str(DEFAULT_LATEST_PATH)),
+        help="Latest successful live report path.",
+    )
+    parser.add_argument(
+        "--archive-dir",
+        default=os.environ.get("CERAMIC_REPORT_ARCHIVE_DIR", str(DEFAULT_ARCHIVE_DIR)),
+        help="Archive directory for successful live reports.",
     )
     parser.add_argument(
         "--topics",
@@ -1308,6 +1320,25 @@ def write_text_file(path: Path, content: str) -> None:
     path.write_text(content, encoding="utf-8")
 
 
+def archive_filename(now: datetime) -> str:
+    return f"{now.strftime('%Y-%m-%d_%H%M')}_report.md"
+
+
+def write_successful_live_report(
+    *,
+    output_path: Path,
+    latest_path: Path,
+    archive_dir: Path,
+    content: str,
+) -> Path:
+    now = datetime.now().astimezone()
+    archive_path = archive_dir / archive_filename(now)
+    write_text_file(output_path, content)
+    write_text_file(latest_path, content)
+    write_text_file(archive_path, content)
+    return archive_path
+
+
 def escape_cell(value: str) -> str:
     return value.replace("|", "\\|").replace("\n", " ").strip()
 
@@ -1323,6 +1354,8 @@ def main() -> int:
     args = parse_args()
     topics_path = Path(args.topics).expanduser().resolve()
     output_path = Path(args.output).expanduser().resolve()
+    latest_path = Path(args.latest).expanduser().resolve()
+    archive_dir = Path(args.archive_dir).expanduser().resolve()
     script_path = Path(args.last30days_script).expanduser().resolve()
     prompt_path = DEFAULT_PROMPT_PATH
     state_path = Path(args.state_file).expanduser().resolve()
@@ -1394,20 +1427,30 @@ def main() -> int:
             counts["usable_evidence_count"],
         )
         if status == "success":
-            write_text_file(output_path, report_markdown)
+            archive_path = write_successful_live_report(
+                output_path=output_path,
+                latest_path=latest_path,
+                archive_dir=archive_dir,
+                content=report_markdown,
+            )
+            run_state = build_run_state(
+                mode=args.mode,
+                status=status,
+                error_type=error_type,
+                output_path=output_path,
+                error_path=error_path,
+                counts=counts,
+                control=control,
+            )
+            run_state["latest_path"] = str(latest_path)
+            run_state["archive_path"] = str(archive_path)
             save_run_state(
                 state_path,
-                build_run_state(
-                    mode=args.mode,
-                    status=status,
-                    error_type=error_type,
-                    output_path=output_path,
-                    error_path=error_path,
-                    counts=counts,
-                    control=control,
-                ),
+                run_state,
             )
             print(f"已更新 {display_path(output_path)}")
+            print(f"已更新 {display_path(latest_path)}")
+            print(f"已归档 {display_path(archive_path)}")
             return 0
 
         write_text_file(
