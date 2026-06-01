@@ -521,81 +521,349 @@ def infer_pain_points(topic: str) -> list[str]:
     return ["创作者需要更快发现用户真正感兴趣的题材。", "从灵感、制作、展示到销售之间缺少连续的决策工具。"]
 
 
-def trend_insights(topics: list[str], high_evidence: list[Evidence]) -> list[str]:
-    insights = ["本轮 Reddit 数据样本有限，趋势判断仅代表当前抓取结果。"]
-    high_topics = {item.topic for item in high_evidence}
-    high_text = " ".join([item.topic + " " + item.title + " " + item.relevance_notes for item in high_evidence]).lower()
+def build_conclusion_summary(
+    topics: list[str],
+    high_evidence: list[Evidence],
+    edge_evidence: list[Evidence],
+    low_evidence: list[Evidence],
+    *,
+    mode: str,
+) -> list[str]:
+    high_sorted = sort_evidence(high_evidence)
+    top_topics = unique_in_order([item.topic for item in high_sorted])
+
+    if mode == "mock":
+        return [
+            "当前是 mock 报告，只用于检查结构、分区和中文表达，不代表真实 Reddit 趋势。",
+            f"mock 中有 {len(high_evidence)} 条高相关样例，可用于验证趋势摘要、选题和小工具模块的展示方式。",
+            f"高相关样例主要落在 {format_topic_list(top_topics[:3]) or '少数关键词'}，但这些不是实际社媒热度。",
+            f"边缘相关 {len(edge_evidence)} 条、跑偏样本 {len(low_evidence)} 条，只用于测试相关性分层是否清楚。",
+            "正式判断仍需要 live 模式拿到真实 Reddit 证据后再做。",
+        ]
 
     if not high_evidence:
-        insights.append("本轮未获得高相关 Reddit 证据，因此不生成确定性趋势判断。")
-        return insights
+        return [
+            "本轮没有获得高相关 Reddit 证据，不适合做趋势判断。",
+            "本轮样本有限，当前结果只能说明搜索或网络状态需要继续调整。",
+            f"边缘相关 {len(edge_evidence)} 条、跑偏样本 {len(low_evidence)} 条，均不进入趋势结论。",
+            "内容选题和小工具灵感应先标记为观察方向，不应当作已验证机会。",
+            "下一轮应优先收窄关键词，并确认 Reddit live 能稳定返回陶瓷相关帖子。",
+        ]
 
-    if any(term in high_text for term in ("handmade", "pottery", "ceramics", "etsy")):
-        insights.append("高相关证据显示，手作陶瓷的购买预期、成品瑕疵和工艺说明仍是值得关注的内容切口。")
-    if any(term in high_text for term in ("business", "pricing", "etsy", "customer", "studio", "sell")):
-        insights.append("高相关证据中出现经营、销售或客户语境时，可以优先围绕定价、原创性、订单沟通和工作室运营做后续观察。")
-    if any(term in high_text for term in ("kiln", "firing", "cone", "temperature", "bisque")):
-        insights.append("高相关证据支持继续关注烧成环节，尤其是新窑、手动窑、温度控制和失败复盘。")
-    if any(term in high_text for term in ("glaze", "underglaze", "recipe", "test tile")):
-        insights.append("高相关证据支持继续观察釉料测试、配方选择和釉面缺陷排查。")
-    if any(term in high_text for term in ("ai", "generative", "digital", "prompt", "pattern")):
-        insights.append("高相关证据支持继续观察 AI/数字设计如何转译为陶瓷图案、肌理或制作流程。")
+    summary = []
+    if len(high_evidence) < 4:
+        summary.append("本轮样本有限，高相关证据少于 4 条，结论只适合作为早期观察。")
+    elif len(high_evidence) < 8:
+        summary.append("本轮高相关证据达到中等规模，可以提炼线索，但仍不宜过度外推。")
+    else:
+        summary.append("本轮高相关证据较充足，可以作为短期 Reddit 趋势简报参考。")
 
+    lead = high_sorted[0]
+    summary.append(f"最值得注意的线索来自 {evidence_ref(lead)}，它比普通热帖更贴近陶瓷创作者的真实语境。")
+    if len(high_sorted) > 1:
+        summary.append(f"另一个可跟进信号是 {evidence_ref(high_sorted[1])}，适合继续观察评论里的具体问题。")
+    summary.append(f"高相关证据覆盖 {format_topic_list(top_topics[:4])}，这些方向可以优先进入内容选题池。")
+    if edge_evidence:
+        summary.append(f"边缘相关有 {len(edge_evidence)} 条，只能作为补充灵感，不足以单独支撑趋势结论。")
+    if low_evidence:
+        summary.append(f"跑偏样本有 {len(low_evidence)} 条，主要用于复盘过滤规则，不计入本轮趋势判断。")
+    summary.append("下一轮应围绕证据不足的关键词改写搜索词，减少宽泛词带来的噪音。")
+    return summary[:8]
+
+
+def credibility_assessment(
+    high_evidence: list[Evidence],
+    edge_evidence: list[Evidence],
+    low_evidence: list[Evidence],
+    *,
+    mode: str,
+    connectivity_note: str = "",
+) -> tuple[str, str]:
+    high_count = len(high_evidence)
+    edge_count = len(edge_evidence)
+    low_count = len(low_evidence)
+
+    if mode == "mock":
+        return (
+            "低",
+            "当前是 mock 数据，只能验证报告流程，不能代表真实 Reddit 趋势。",
+        )
+    if connectivity_note and high_count == 0:
+        return (
+            "低",
+            "live 未拿到可用证据，本轮不适合做趋势判断。",
+        )
+    if high_count >= 8:
+        level = "高"
+        reason = "高相关证据不少于 8 条，可以作为本轮 Reddit 陶瓷圈观察依据。"
+    elif high_count >= 4:
+        level = "中"
+        reason = "高相关证据在 4 到 7 条之间，可以提炼方向，但仍需下一轮扩大样本。"
+    else:
+        level = "低"
+        reason = "高相关证据少于 4 条，本轮不适合做确定性趋势判断。"
+
+    if edge_count or low_count:
+        reason += f" 边缘相关 {edge_count} 条、跑偏样本 {low_count} 条已从趋势判断中降权处理。"
+    return level, reason
+
+
+def trend_insights(
+    topics: list[str],
+    high_evidence: list[Evidence],
+    *,
+    mode: str,
+) -> list[str]:
+    if mode == "mock":
+        return ["当前为 mock 模式，本节只展示报告结构，不从模拟数据生成真实趋势判断。"]
+    if not high_evidence:
+        return ["本轮未获得高相关 Reddit 证据，因此不生成确定性趋势判断。"]
+
+    insights = ["本轮 Reddit 数据样本有限，趋势判断仅代表当前抓取结果。"]
+    signal_rules = [
+        (
+            ("glaze", "underglaze", "recipe", "test tile", "defect"),
+            "釉料与表面结果的讨论更像“问题求诊断”而不是单纯晒图，适合继续观察配方、测试片和缺陷排查内容。",
+        ),
+        (
+            ("kiln", "firing", "cone", "temperature", "bisque", "schedule"),
+            "烧成环节仍是高价值讨论点，用户更需要可复盘的温度、锥度、窑位和失败原因整理。",
+        ),
+        (
+            ("business", "pricing", "etsy", "customer", "studio", "sell", "order"),
+            "经营类问题如果持续出现，说明工作室定价、订单沟通和销售解释是中文内容可以切入的实用主题。",
+        ),
+        (
+            ("ai", "generative", "digital", "prompt", "pattern", "computational"),
+            "AI/数字设计目前需要看是否真的落到陶瓷制作流程；只有同时出现 AI 与陶瓷工艺语境时，才适合判断为趋势信号。",
+        ),
+        (
+            ("3d", "printing", "printed", "extrusion", "paste"),
+            "3D 打印陶瓷更适合作为技术观察线索，重点应放在材料、成型失败和可制作性，而不是只看视觉新鲜感。",
+        ),
+    ]
+
+    for terms, analysis in signal_rules:
+        matches = [item for item in sort_evidence(high_evidence) if evidence_has_any(item, terms)]
+        if not matches:
+            continue
+        refs = ", ".join(evidence_ref(item) for item in matches[:2])
+        qualifier = "目前更像观察信号，不足以判断为稳定趋势" if len(matches) < 2 else "可作为本轮优先跟进方向"
+        insights.append(f"{analysis} 证据：{refs}；{qualifier}。")
+
+    if len(insights) == 1 and high_evidence:
+        lead = sort_evidence(high_evidence)[0]
+        insights.append(
+            f"本轮最强信号来自 {evidence_ref(lead)}，但还需要更多同类证据，暂时更适合做单篇内容切口。"
+        )
+
+    high_topics = {item.topic for item in high_evidence}
     unsupported = [topic for topic in topics if topic not in high_topics]
     if unsupported:
         insights.append("以下方向本轮高相关证据不足，暂不形成趋势判断：" + "、".join(unsupported) + "。")
     return insights
 
 
-def supported_content_ideas(high_evidence: list[Evidence]) -> list[str]:
+def supported_content_ideas(high_evidence: list[Evidence], *, mode: str) -> list[str]:
+    if mode != "live":
+        return []
     ideas = []
     seen_topics = set()
-    for item in high_evidence:
+    for item in sort_evidence(high_evidence):
         if item.topic in seen_topics:
             continue
         seen_topics.add(item.topic)
         ideas.append(
-            f"《{item.topic}：从 Reddit 热帖看用户真正关心什么》 - 基于 r/{item.subreddit} 的高相关证据：{item.title}"
+            f"《{item.topic}：把一个 Reddit 真实问题讲透》 - 值得做：{content_reason(item)} 证据：{evidence_ref(item)}。"
         )
     return ideas
 
 
-def observation_content_ideas(topics: list[str], high_evidence: list[Evidence]) -> list[str]:
+def observation_content_ideas(
+    topics: list[str],
+    high_evidence: list[Evidence],
+    edge_evidence: list[Evidence],
+) -> list[str]:
     high_topics = {item.topic for item in high_evidence}
-    ideas = [
-        f"《{topic} 最近 30 天是否形成趋势？》 - 本轮高相关证据不足，建议扩大 Reddit/YouTube/Pinterest 后再判断。"
-        for topic in topics
-        if topic not in high_topics
-    ]
+    edge_by_topic = group_by_topic(edge_evidence)
+    ideas = []
+    for topic in topics:
+        if topic in high_topics:
+            continue
+        if edge_by_topic.get(topic):
+            sample = sort_evidence(edge_by_topic[topic])[0]
+            ideas.append(
+                f"观察方向：《{topic} 是否值得继续追？》 - 只有边缘证据 {evidence_ref(sample)}，下一轮需要更具体关键词验证。"
+            )
+        else:
+            ideas.append(
+                f"观察方向：《{topic} 最近 30 天是否形成趋势？》 - 本轮缺少高相关证据，建议扩大或改写搜索词后再判断。"
+            )
     ideas.extend(
         [
-            "《一个陶瓷作品从灵感到烧成失败复盘》 - 长期内容方向，需后续用更多真实证据验证。",
-            "《釉色测试片如何变成可售卖系列》 - 长期内容方向，适合等待更多 glaze / business 证据后展开。",
-            "《AI 生成纹样到真实陶瓷表面的完整流程》 - 长期内容方向，本轮若缺少 AI 高相关证据则不视为已验证趋势。",
+            "观察方向：《陶瓷作品从灵感到烧成失败复盘》 - 长期内容方向，需用更多真实失败案例验证。",
+            "观察方向：《釉色测试片如何变成可售卖系列》 - 适合等待更多 glaze / business 证据后展开。",
+            "观察方向：《AI 生成纹样到真实陶瓷表面的完整流程》 - 只有在 AI 与陶瓷制作同时出现时，才可升级为证据支撑选题。",
         ]
     )
     return ideas
 
 
-def evidence_backed_tool_ideas(high_evidence: list[Evidence]) -> list[str]:
+def evidence_backed_tool_ideas(high_evidence: list[Evidence], *, mode: str) -> list[str]:
+    if mode != "live":
+        return []
     ideas = []
-    text = " ".join([item.topic + " " + item.title + " " + item.relevance_notes for item in high_evidence]).lower()
-    if any(term in text for term in ("kiln", "firing", "cone", "temperature")):
-        ideas.append("烧成失败诊断卡：来自 kiln/firing 高相关证据，可用于记录温度、锥度、窑位和失败现象。")
-    if any(term in text for term in ("business", "etsy", "pricing", "customer", "sell", "studio")):
-        ideas.append("工作室定价与客户沟通小工具：来自经营类高相关证据，可用于整理成本、瑕疵说明、订单和售后问题。")
-    if any(term in text for term in ("glaze", "recipe", "test tile", "underglaze")):
-        ideas.append("釉色实验记录器：来自 glaze 高相关证据，可用于记录配方、测试片、烧成条件和成品照片。")
+    seen = set()
+    for item in sort_evidence(high_evidence):
+        text = evidence_text(item)
+        if any(term in text for term in ("kiln", "firing", "cone", "temperature", "bisque", "schedule")):
+            key = "kiln"
+            idea = f"烧成失败诊断卡：本轮证据 {evidence_ref(item)} 指向烧成复盘需求，可记录温度、锥度、窑位和失败现象。"
+        elif any(term in text for term in ("business", "etsy", "pricing", "customer", "sell", "studio", "order")):
+            key = "business"
+            idea = f"工作室定价与客户沟通表：本轮证据 {evidence_ref(item)} 指向经营解释成本，可整理定价、订单、瑕疵说明和售后话术。"
+        elif any(term in text for term in ("glaze", "recipe", "test tile", "underglaze", "defect")):
+            key = "glaze"
+            idea = f"釉色实验记录器：本轮证据 {evidence_ref(item)} 指向釉料测试和缺陷排查，可记录配方、厚度、烧成条件和结果照片。"
+        elif any(term in text for term in ("ai", "generative", "digital", "prompt", "pattern")):
+            key = "ai"
+            idea = f"AI 陶瓷纹样落地检查表：本轮证据 {evidence_ref(item)} 指向数字灵感到工艺执行的断层，可把 prompt、纹样、泥料和烧成限制放在同一页。"
+        else:
+            continue
+        if key not in seen:
+            seen.add(key)
+            ideas.append(idea)
     return ideas
 
 
 def long_term_tool_ideas() -> list[str]:
     return [
-        "陶瓷内容选题雷达：长期产品方向，后续需要更多 Reddit/YouTube/Pinterest 证据验证。",
-        "AI 陶瓷纹样 Prompt 生成器：长期产品方向，本轮若缺少 AI ceramic design 高相关证据则不算已验证需求。",
-        "釉色实验记录器：长期产品方向，可在更多 glaze / kiln 证据出现后优先化。",
-        "工作室定价小工具：长期产品方向，可在更多 business / studio 证据出现后优先化。",
+        "陶瓷内容选题雷达：长期产品方向，不是本轮数据直接证明，后续需要更多 Reddit/YouTube/Pinterest 证据验证。",
+        "AI 陶瓷纹样 Prompt 生成器：长期产品方向，不是本轮数据直接证明，需等 AI ceramic design 出现真实高相关证据后优先化。",
+        "釉色实验记录器：长期产品方向，不是本轮数据直接证明，可在更多 glaze / kiln 证据出现后优先化。",
+        "工作室定价小工具：长期产品方向，不是本轮数据直接证明，可在更多 business / studio 证据出现后优先化。",
     ]
+
+
+def next_search_suggestions(
+    topics: list[str],
+    high_evidence: list[Evidence],
+    edge_evidence: list[Evidence],
+    low_evidence: list[Evidence],
+    *,
+    mode: str,
+) -> list[str]:
+    high_by_topic = group_by_topic(high_evidence)
+    edge_by_topic = group_by_topic(edge_evidence)
+    suggestions = []
+
+    if mode == "mock":
+        suggestions.append("当前是 mock 报告，下一轮应使用 live 模式验证真实 Reddit 结果，再根据证据调整关键词。")
+
+    for topic in topics:
+        high_count = len(high_by_topic.get(topic, []))
+        edge_count = len(edge_by_topic.get(topic, []))
+        terms = suggested_keywords_for_topic(topic)
+        if high_count == 0:
+            suggestions.append(
+                f"**{topic}**：本轮高相关证据不足，建议下一轮尝试更具体关键词：{format_code_terms(terms)}。"
+            )
+        elif high_count < 2:
+            suggestions.append(
+                f"**{topic}**：只有 {high_count} 条高相关证据、{edge_count} 条边缘证据，建议保留原词并加入：{format_code_terms(terms[:3])}。"
+            )
+
+    if low_evidence:
+        samples = ", ".join(short_title(item.title, 24) for item in low_evidence[:3])
+        suggestions.append(
+            f"**过滤规则**：本轮跑偏样本包括 {samples}；下一轮继续把 anime、gaming、地区词和非陶瓷消费品降权。"
+        )
+    if not suggestions:
+        suggestions.append("本轮高相关证据较稳定，下一轮可以保持关键词，同时增加 YouTube/Pinterest 后再比较跨平台一致性。")
+    return suggestions
+
+
+def suggested_keywords_for_topic(topic: str) -> list[str]:
+    text = topic.lower()
+    if "ai" in text:
+        return ["AI pottery workflow", "generative ceramic pattern", "computational ceramics", "ceramic prompt design"]
+    if "business" in text or "studio" in text:
+        return ["Etsy pottery pricing", "pottery commission", "ceramic studio marketing", "handmade ceramics pricing"]
+    if "kiln" in text or "firing" in text:
+        return ["cone 6", "bisque firing", "electric kiln", "glaze defects", "kiln schedule"]
+    if "glaze" in text:
+        return ["ceramic glaze defects", "cone 6 glaze", "glaze test tiles", "underglaze technique"]
+    if "3d" in text or "printed" in text:
+        return ["ceramic 3D printing clay", "clay paste extrusion", "3D printed pottery", "ceramic printing failure"]
+    if "texture" in text:
+        return ["ceramic surface texture", "clay texture tools", "handbuilt texture", "carved pottery surface"]
+    return ["handmade pottery process", "ceramic artist studio", "pottery critique", "clay handbuilding techniques"]
+
+
+def sort_evidence(evidence: list[Evidence]) -> list[Evidence]:
+    return sorted(evidence, key=lambda item: item.relevance_score, reverse=True)
+
+
+def unique_in_order(values: list[str]) -> list[str]:
+    seen = set()
+    result = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        result.append(value)
+    return result
+
+
+def format_topic_list(topics: list[str]) -> str:
+    return "、".join(topics)
+
+
+def group_by_topic(evidence: list[Evidence]) -> dict[str, list[Evidence]]:
+    grouped: dict[str, list[Evidence]] = {}
+    for item in evidence:
+        grouped.setdefault(item.topic, []).append(item)
+    return grouped
+
+
+def evidence_ref(item: Evidence) -> str:
+    subreddit = f"r/{item.subreddit}" if item.subreddit else "Reddit"
+    return f"{subreddit} 的“{short_title(item.title, 42)}”"
+
+
+def evidence_text(item: Evidence) -> str:
+    return " ".join([item.topic, item.title, item.snippet, item.relevance_notes]).lower()
+
+
+def evidence_has_any(item: Evidence, terms: tuple[str, ...]) -> bool:
+    text = evidence_text(item)
+    return any(term in text for term in terms)
+
+
+def content_reason(item: Evidence) -> str:
+    text = evidence_text(item)
+    if any(term in text for term in ("kiln", "firing", "cone", "temperature", "bisque", "schedule")):
+        return "它把烧成失败、温度控制或窑炉选择变成可拆解步骤，适合做避坑型内容。"
+    if any(term in text for term in ("glaze", "recipe", "test tile", "underglaze", "defect")):
+        return "它对应釉色测试和缺陷排查，读者通常会需要配方、变量和前后对照。"
+    if any(term in text for term in ("business", "etsy", "pricing", "customer", "sell", "studio", "order")):
+        return "它贴近工作室经营场景，能转成定价、客户沟通或销售复盘内容。"
+    if any(term in text for term in ("ai", "generative", "digital", "prompt", "pattern", "computational")):
+        return "它连接数字灵感与真实制作，适合讲清楚从图案到泥料、釉料和烧成的落地过程。"
+    if any(term in text for term in ("3d", "printing", "printed", "extrusion")):
+        return "它涉及新工艺落地，适合用案例解释材料、成型限制和失败成本。"
+    return "它来自高相关陶瓷语境，适合围绕真实问题做解释、复盘或案例拆解。"
+
+
+def format_code_terms(terms: list[str]) -> str:
+    return "、".join(f"`{term}`" for term in terms)
+
+
+def short_title(title: str, limit: int) -> str:
+    cleaned = " ".join(str(title).split())
+    if len(cleaned) <= limit:
+        return cleaned
+    return cleaned[: limit - 1].rstrip() + "..."
 
 
 def render_report(
@@ -611,21 +879,56 @@ def render_report(
     edge_evidence = [item for item in all_evidence if item.relevance_level == "edge"]
     low_evidence = [item for item in all_evidence if item.relevance_level == "low"]
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+    credibility_level, credibility_reason = credibility_assessment(
+        high_evidence,
+        edge_evidence,
+        low_evidence,
+        mode=mode,
+        connectivity_note=connectivity_note,
+    )
 
     lines = [
         "# 陶瓷趋势情报报告",
         "",
         f"- 生成时间：{generated_at}",
-        f"- 版本：V0.3.5 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
+        f"- 版本：V0.4 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
         f"- 数据模式：{data_mode_label(mode)}",
         f"- 关键词数量：{len(topics)}",
         f"- 相关性分层：高相关 {len(high_evidence)} 条，边缘相关 {len(edge_evidence)} 条，跑偏样本 {len(low_evidence)} 条",
         "",
         report_note(mode, all_evidence, connectivity_note),
         "",
-        "## 热门内容",
+        "## 本轮结论摘要",
         "",
     ]
+
+    for summary in build_conclusion_summary(
+        topics,
+        high_evidence,
+        edge_evidence,
+        low_evidence,
+        mode=mode,
+    ):
+        lines.append(f"- {summary}")
+
+    lines.extend(
+        [
+            "",
+            "## 本轮可信度",
+            "",
+            f"- 可信度：**{credibility_level}**",
+            f"- 判断：{credibility_reason}",
+            f"- 证据结构：高相关 {len(high_evidence)} 条，边缘相关 {len(edge_evidence)} 条，跑偏样本 {len(low_evidence)} 条。",
+            "",
+        ]
+    )
+
+    lines.extend(
+        [
+        "## 热门内容",
+        "",
+        ]
+    )
 
     if all_evidence:
         for run in runs:
@@ -654,34 +957,48 @@ def render_report(
             lines.append(f"- **{topic}**：{pain}")
 
     lines.extend(["", "## 趋势判断", ""])
-    for insight in trend_insights(topics, high_evidence):
+    for insight in trend_insights(topics, high_evidence, mode=mode):
         lines.append(f"- {insight}")
 
     lines.extend(["", "## 内容选题", ""])
-    lines.append("### A. 有 Reddit 高相关证据支撑的选题")
-    supported_ideas = supported_content_ideas(high_evidence)
+    lines.append("### 有 Reddit 高相关证据支撑的选题")
+    supported_ideas = supported_content_ideas(high_evidence, mode=mode)
     if supported_ideas:
         for idea in supported_ideas:
             lines.append(f"- {idea}")
+    elif mode == "mock":
+        lines.append("- 当前为 mock 模式，暂无真实 Reddit 高相关证据支撑的选题。")
     else:
         lines.append("- 本轮暂无高相关 Reddit 证据支撑的选题。")
     lines.append("")
-    lines.append("### B. 暂无充分证据但值得后续观察的选题")
-    for idea in observation_content_ideas(topics, high_evidence):
+    lines.append("### 暂无充分证据但值得后续观察的选题")
+    for idea in observation_content_ideas(topics, high_evidence, edge_evidence):
         lines.append(f"- {idea}")
 
     lines.extend(["", "## 小工具灵感", ""])
-    lines.append("### 来自高相关证据的灵感")
-    backed_tools = evidence_backed_tool_ideas(high_evidence)
+    lines.append("### 本轮证据直接支持的小工具")
+    backed_tools = evidence_backed_tool_ideas(high_evidence, mode=mode)
     if backed_tools:
         for idea in backed_tools:
             lines.append(f"- {idea}")
+    elif mode == "mock":
+        lines.append("- 当前为 mock 模式，不把模拟数据写成本轮证据直接支持的小工具。")
     else:
         lines.append("- 本轮暂无足够高相关证据直接支撑具体小工具需求。")
     lines.append("")
-    lines.append("### 长期产品方向（非本轮数据直接证明）")
+    lines.append("### 长期产品方向")
     for idea in long_term_tool_ideas():
         lines.append(f"- {idea}")
+
+    lines.extend(["", "## 下一轮搜索建议", ""])
+    for suggestion in next_search_suggestions(
+        topics,
+        high_evidence,
+        edge_evidence,
+        low_evidence,
+        mode=mode,
+    ):
+        lines.append(f"- {suggestion}")
 
     lines.extend(["", "## 高相关内容", ""])
     append_evidence_table(lines, high_evidence)
@@ -691,7 +1008,9 @@ def render_report(
 
     lines.extend(["", "## 跑偏样本", ""])
     if low_evidence:
-        lines.append("> 这些内容不应直接作为陶瓷趋势结论，只用于观察关键词误伤和后续过滤优化。")
+        lines.append("> 跑偏样本只用于过滤规则复盘，不计入趋势判断。")
+        lines.append("")
+        append_low_relevance_review(lines, low_evidence)
         lines.append("")
     append_evidence_table(lines, low_evidence)
 
@@ -767,6 +1086,26 @@ def append_evidence_table(
         if include_level:
             row.insert(0, relevance_label(item.relevance_level))
         lines.append("| " + " | ".join(row) + " |")
+
+
+def append_low_relevance_review(lines: list[str], evidence: list[Evidence]) -> None:
+    lines.append("### 过滤复盘")
+    for item in evidence[:5]:
+        lines.append(
+            f"- **{short_title(item.title, 44)}**：{low_relevance_reason(item)} "
+            f"下次可通过更具体关键词或排除词降低误伤。"
+        )
+
+
+def low_relevance_reason(item: Evidence) -> str:
+    notes = item.relevance_notes
+    if "跑偏词" in notes:
+        return f"命中了跑偏信号（{notes}），主题不应进入陶瓷趋势判断。"
+    if "未命中当前关键词意图" in notes:
+        return "虽然可能碰到陶瓷词，但没有满足当前关键词意图。"
+    if item.subreddit:
+        return f"来自 r/{item.subreddit}，陶瓷语境不足或与本轮分类目标不一致。"
+    return "陶瓷语境不足或主题偏离本轮分类目标。"
 
 
 def relevance_label(level: str) -> str:
