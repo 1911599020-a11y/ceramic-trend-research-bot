@@ -17,7 +17,7 @@ import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +26,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 DEFAULT_TOPICS_PATH = PROJECT_ROOT / "config" / "ceramic_topics.json"
 DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "reports" / "report.md"
 DEFAULT_PROMPT_PATH = PROJECT_ROOT / "prompts" / "ceramic_report_prompt.md"
+DEFAULT_STATE_FILE = PROJECT_ROOT / "local_outputs" / "run_state.json"
 DEFAULT_LAST30DAYS_SCRIPT = Path(
     "/Users/zhuyixiao/Documents/GitHub/last30days-skill/"
     "skills/last30days/scripts/last30days.py"
@@ -63,6 +64,13 @@ class RelevanceConfig:
     topic_rules: dict[str, dict[str, Any]]
 
 
+@dataclass(frozen=True)
+class RunControl:
+    state_file: Path
+    cooldown_minutes: int
+    force: bool = False
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Generate a Chinese ceramic trend intelligence report."
@@ -87,6 +95,22 @@ def parse_args() -> argparse.Namespace:
         "--last30days-script",
         default=os.environ.get("LAST30DAYS_SCRIPT", str(DEFAULT_LAST30DAYS_SCRIPT)),
         help="Path to last30days.py.",
+    )
+    parser.add_argument(
+        "--state-file",
+        default=os.environ.get("CERAMIC_RUN_STATE_FILE", str(DEFAULT_STATE_FILE)),
+        help="Path to local run-state JSON.",
+    )
+    parser.add_argument(
+        "--cooldown-minutes",
+        type=int,
+        default=int(os.environ.get("CERAMIC_LIVE_COOLDOWN_MINUTES", "30")),
+        help="Minimum minutes between live runs. Use 0 to disable.",
+    )
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Bypass the live cooldown guard.",
     )
     return parser.parse_args()
 
@@ -245,6 +269,60 @@ def check_reddit_connectivity() -> tuple[bool, str]:
         return False, f"当前网络无法访问 Reddit：{exc}"
     except Exception as exc:
         return False, f"当前网络无法访问 Reddit：{type(exc).__name__}: {exc}"
+
+
+def load_run_state(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+
+
+def save_run_state(path: Path, state: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def cooldown_message(state: dict[str, Any], control: RunControl) -> str:
+    if control.force or control.cooldown_minutes <= 0:
+        return ""
+    if state.get("mode") != "live":
+        return ""
+    last_run_at = str(state.get("last_run_at") or "")
+    if not last_run_at:
+        return ""
+    try:
+        last_dt = datetime.fromisoformat(last_run_at)
+    except ValueError:
+        return ""
+    elapsed = datetime.now().astimezone() - last_dt
+    cooldown = timedelta(minutes=control.cooldown_minutes)
+    if elapsed >= cooldown:
+        return ""
+    remaining = cooldown - elapsed
+    minutes = max(1, int(remaining.total_seconds() // 60) + 1)
+    status = state.get("status", "unknown")
+    error_type = state.get("error_type", "")
+    return (
+        f"刚刚跑过 live（状态：{status}{'，错误：' + error_type if error_type else ''}）。"
+        f" 为了减少 Reddit 429，建议约 {minutes} 分钟后再跑。"
+        " 如确实需要立即运行，请加 --force。"
+    )
+
+
+def classify_error(text: str) -> str:
+    lowered = text.lower()
+    if "429" in lowered or "too many requests" in lowered:
+        return "rate_limited_429"
+    if "nodename nor servname" in lowered or "name or service not known" in lowered:
+        return "dns_failure"
+    if "无法访问 reddit" in text:
+        return "network_unreachable"
+    if text:
+        return "error"
+    return ""
 
 
 def extract_json(stdout: str) -> dict[str, Any]:
@@ -518,7 +596,7 @@ def render_report(
         "# 陶瓷趋势情报报告",
         "",
         f"- 生成时间：{generated_at}",
-        f"- 版本：V0.3.3 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
+        f"- 版本：V0.3.4 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
         f"- 数据模式：{data_mode_label(mode)}",
         f"- 关键词数量：{len(topics)}",
         f"- 相关性分层：高相关 {len(high_evidence)} 条，边缘相关 {len(edge_evidence)} 条，跑偏样本 {len(low_evidence)} 条",
@@ -707,20 +785,39 @@ def main() -> int:
     output_path = Path(args.output).expanduser().resolve()
     script_path = Path(args.last30days_script).expanduser().resolve()
     prompt_path = DEFAULT_PROMPT_PATH
+    state_path = Path(args.state_file).expanduser().resolve()
+    control = RunControl(
+        state_file=state_path,
+        cooldown_minutes=args.cooldown_minutes,
+        force=args.force,
+    )
 
     config = load_config(topics_path)
     topics = load_topics(topics_path)
     relevance_config = load_relevance_config(config)
     prompt_template = prompt_path.read_text(encoding="utf-8")
     connectivity_note = ""
+    state = load_run_state(state_path)
+    if args.mode == "live":
+        message = cooldown_message(state, control)
+        if message:
+            print(message)
+            print(f"上次报告路径：{state.get('output_path', 'unknown')}")
+            return 0
+
+    skip_live_retrieval = False
     if args.mode == "live":
         ok, connectivity_note = check_reddit_connectivity()
         if not ok:
             print(connectivity_note, file=sys.stderr)
+            skip_live_retrieval = True
 
     runs: list[TopicRun] = []
     for topic in topics:
         try:
+            if args.mode == "live" and skip_live_retrieval:
+                runs.append(TopicRun(topic=topic, report={"topic": topic}, evidence=[], error=connectivity_note))
+                continue
             if args.mode == "live":
                 report = run_last30days_live(
                     topic,
@@ -751,6 +848,26 @@ def main() -> int:
             connectivity_note=connectivity_note,
         ),
         encoding="utf-8",
+    )
+    errors = [run.error for run in runs if run.error]
+    evidence_count = sum(len(run.evidence) for run in runs)
+    error_text = "\n".join(errors + ([connectivity_note] if connectivity_note else []))
+    error_type = classify_error(error_text)
+    status = "success"
+    if error_type == "rate_limited_429":
+        status = "rate_limited"
+    elif errors or (args.mode == "live" and connectivity_note and evidence_count == 0):
+        status = "failed"
+    save_run_state(
+        state_path,
+        {
+            "last_run_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+            "mode": args.mode,
+            "status": status,
+            "error_type": error_type,
+            "output_path": str(output_path),
+            "evidence_count": evidence_count,
+        },
     )
     print(f"Generated {output_path}")
     return 0

@@ -4,7 +4,7 @@
 
 ## Current Status
 
-V0.3.3 是 **报告质量修正版本**：
+V0.3.4 是 **运行稳定性优化版本**：
 
 - `mock` 模式仍然可用，用于稳定生成示例报告
 - `live` 模式只测试 Reddit，不接 YouTube / Pinterest / GitHub Actions
@@ -15,6 +15,8 @@ V0.3.3 是 **报告质量修正版本**：
 - 热门内容不再把低相关结果显示成趋势，也不再输出生硬的“暂无证据（0 分）”
 - 趋势判断更严格依赖高相关证据；证据不足的方向会明确标注为暂不判断
 - 内容选题和小工具灵感会区分“高相关证据支撑”和“长期建议方向”
+- 新增本地运行脚本，避免重复复制长 Python 命令
+- live 模式新增冷却提醒和本地运行状态记录，减少短时间重复请求导致的 Reddit 429
 - 不安装 `yt-dlp`
 - 不配置 API key
 - 不修改 `last30days-skill` 原始代码
@@ -38,10 +40,22 @@ V0.3.3 是 **报告质量修正版本**：
 mock 示例报告：
 
 ```bash
-/Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 ceramic_report.py --mode mock --output reports/report.md
+bash scripts/run_mock.sh
 ```
 
 Reddit live 最小测试：
+
+```bash
+bash scripts/run_live.sh
+```
+
+如果刚刚跑过 live，脚本会读取 `local_outputs/run_state.json` 并提示稍后再跑，避免频繁触发 Reddit 429。确实需要立即运行时可以加：
+
+```bash
+bash scripts/run_live.sh --force
+```
+
+原始 Python 命令仍然可用：
 
 ```bash
 /Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 ceramic_report.py --mode live --output reports/report.md
@@ -79,6 +93,8 @@ reports/report.md
 ceramic_report.py                 # V0.1 wrapper entry
 config/ceramic_topics.json        # Ceramic keyword, subreddit, and relevance rules
 prompts/ceramic_report_prompt.md  # Chinese report structure
+scripts/run_mock.sh               # Local mock runner
+scripts/run_live.sh               # Local live runner with cooldown
 reports/                          # Generated Markdown reports
 docs/automation-roadmap.md        # Future automation paths
 .env.example                      # Future live-mode environment variables

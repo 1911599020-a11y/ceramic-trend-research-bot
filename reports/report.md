@@ -1,7 +1,7 @@
 # 陶瓷趋势情报报告
 
-- 生成时间：2026-06-01 23:24
-- 版本：V0.3.3 Reddit live 本地报告
+- 生成时间：2026-06-02 00:10
+- 版本：V0.3.4 Reddit live 本地报告
 - 数据模式：last30days-skill `--quick --search=reddit`
 - 关键词数量：10
 - 相关性分层：高相关 0 条，边缘相关 0 条，跑偏样本 0 条
@@ -86,6 +86,16 @@
 ## 原始证据/链接
 
 - 暂无证据。当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+- **ceramic art**：当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+- **pottery**：当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+- **ceramic glaze**：当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+- **AI ceramic design**：当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+- **3D printed ceramics**：当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+- **handmade pottery**：当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+- **ceramic business**：当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+- **pottery studio**：当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+- **ceramic texture**：当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
+- **kiln firing**：当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
 
 ## 后续升级接口
 
