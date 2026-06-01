@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Local wrapper for ceramic trend research reports.
 
-V0.2 supports mock reports and a minimal Reddit-only live mode. YouTube,
-Pinterest, GitHub Actions, and API-key-backed sources are intentionally left
-for later phases.
+Supports mock reports and a minimal Reddit-only live mode. YouTube, Pinterest,
+GitHub Actions, and API-key-backed sources are intentionally left for later
+phases.
 """
 
 from __future__ import annotations
@@ -27,6 +27,7 @@ DEFAULT_TOPICS_PATH = PROJECT_ROOT / "config" / "ceramic_topics.json"
 DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "reports" / "report.md"
 DEFAULT_PROMPT_PATH = PROJECT_ROOT / "prompts" / "ceramic_report_prompt.md"
 DEFAULT_STATE_FILE = PROJECT_ROOT / "local_outputs" / "run_state.json"
+DEFAULT_ERROR_FILE = PROJECT_ROOT / "local_outputs" / "last_error.md"
 DEFAULT_LAST30DAYS_SCRIPT = Path(
     "/Users/zhuyixiao/Documents/GitHub/last30days-skill/"
     "skills/last30days/scripts/last30days.py"
@@ -100,6 +101,11 @@ def parse_args() -> argparse.Namespace:
         "--state-file",
         default=os.environ.get("CERAMIC_RUN_STATE_FILE", str(DEFAULT_STATE_FILE)),
         help="Path to local run-state JSON.",
+    )
+    parser.add_argument(
+        "--error-file",
+        default=os.environ.get("CERAMIC_LAST_ERROR_FILE", str(DEFAULT_ERROR_FILE)),
+        help="Path to local live error Markdown.",
     )
     parser.add_argument(
         "--cooldown-minutes",
@@ -316,10 +322,24 @@ def classify_error(text: str) -> str:
     lowered = text.lower()
     if "429" in lowered or "too many requests" in lowered:
         return "rate_limited_429"
-    if "nodename nor servname" in lowered or "name or service not known" in lowered:
-        return "dns_failure"
-    if "无法访问 reddit" in text:
-        return "network_unreachable"
+    if "403" in lowered or "forbidden" in lowered or "blocked" in lowered:
+        return "forbidden_403"
+    if (
+        "nodename nor servname" in lowered
+        or "name or service not known" in lowered
+        or "temporary failure in name resolution" in lowered
+        or "failed to resolve" in lowered
+    ):
+        return "dns_error"
+    if (
+        "无法访问 reddit" in text
+        or "timed out" in lowered
+        or "timeout" in lowered
+        or "network is unreachable" in lowered
+        or "connection refused" in lowered
+        or "connection reset" in lowered
+    ):
+        return "network_error"
     if text:
         return "error"
     return ""
@@ -596,7 +616,7 @@ def render_report(
         "# 陶瓷趋势情报报告",
         "",
         f"- 生成时间：{generated_at}",
-        f"- 版本：V0.3.4 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
+        f"- 版本：V0.3.5 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
         f"- 数据模式：{data_mode_label(mode)}",
         f"- 关键词数量：{len(topics)}",
         f"- 相关性分层：高相关 {len(high_evidence)} 条，边缘相关 {len(edge_evidence)} 条，跑偏样本 {len(low_evidence)} 条",
@@ -768,6 +788,116 @@ def report_note(mode: str, evidence: list[Evidence], connectivity_note: str) -> 
     )
 
 
+def display_path(path: Path) -> str:
+    try:
+        return str(path.relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(path)
+
+
+def evidence_summary(runs: list[TopicRun]) -> dict[str, int]:
+    all_evidence = [item for run in runs for item in run.evidence]
+    high = [item for item in all_evidence if item.relevance_level == "high"]
+    edge = [item for item in all_evidence if item.relevance_level == "edge"]
+    low = [item for item in all_evidence if item.relevance_level == "low"]
+    return {
+        "evidence_count": len(all_evidence),
+        "usable_evidence_count": len(high) + len(edge),
+        "high_relevance_count": len(high),
+        "edge_relevance_count": len(edge),
+        "low_relevance_count": len(low),
+    }
+
+
+def collect_error_text(runs: list[TopicRun], connectivity_note: str = "") -> str:
+    messages: list[str] = []
+    for message in [run.error for run in runs] + [connectivity_note]:
+        cleaned = str(message or "").strip()
+        if cleaned and cleaned not in messages:
+            messages.append(cleaned)
+    return "\n".join(messages)
+
+
+def live_status_and_error_type(
+    runs: list[TopicRun],
+    connectivity_note: str,
+    usable_evidence_count: int,
+) -> tuple[str, str, str]:
+    error_text = collect_error_text(runs, connectivity_note)
+    error_type = classify_error(error_text)
+    if error_type == "rate_limited_429":
+        status = "rate_limited"
+    elif error_text or usable_evidence_count == 0:
+        status = "failed"
+    else:
+        status = "success"
+    if status != "success" and not error_type:
+        error_type = "no_usable_reddit_evidence"
+    return status, error_type, error_text
+
+
+def render_live_error_report(
+    *,
+    runs: list[TopicRun],
+    output_path: Path,
+    error_type: str,
+    error_text: str,
+    connectivity_note: str,
+    evidence_counts: dict[str, int],
+) -> str:
+    generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+    lines = [
+        "# Reddit live 运行失败记录",
+        "",
+        f"- 时间：{generated_at}",
+        f"- 失败类型：{error_type or 'unknown'}",
+        f"- 正式报告：{display_path(output_path)}",
+        f"- 已保留上一份成功报告：是",
+        f"- 本次抓到证据总数：{evidence_counts['evidence_count']}",
+        f"- 本次可用证据数：{evidence_counts['usable_evidence_count']}",
+        "",
+        "## 说明",
+        "",
+        "live 失败，未覆盖 `reports/report.md`。如果这是 Reddit 403 / 429 / DNS 问题，建议稍后再运行 live，mock 模式仍可继续用于测试报告流程。",
+        "",
+        "## 错误摘要",
+        "",
+    ]
+    if error_text:
+        lines.append("```text")
+        lines.append(error_text.strip())
+        lines.append("```")
+    else:
+        lines.append("- 本次没有拿到高相关或边缘相关 Reddit 证据，因此没有更新正式报告。")
+
+    if connectivity_note:
+        lines.extend(["", "## Reddit 预检", "", f"- {connectivity_note}"])
+
+    topic_errors = [(run.topic, run.error) for run in runs if run.error]
+    if topic_errors:
+        lines.extend(["", "## 关键词错误", ""])
+        for topic, error in topic_errors:
+            lines.append(f"- **{topic}**：{error}")
+
+    lines.extend(
+        [
+            "",
+            "## NEXT STEPS",
+            "",
+            "- 如果是 `forbidden_403`：通常是 Reddit 阻挡当前网络或请求方式，稍后换网络或降低频率再试。",
+            "- 如果是 `rate_limited_429`：不要立刻重复运行，等待冷却时间后再试。",
+            "- 如果是 `dns_error`：先确认本机能解析并访问 `www.reddit.com`。",
+            "- 如果是 `network_error`：先确认当前网络能打开 Reddit，再运行 `bash scripts/run_live.sh --force`。",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
+def write_text_file(path: Path, content: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(content, encoding="utf-8")
+
+
 def escape_cell(value: str) -> str:
     return value.replace("|", "\\|").replace("\n", " ").strip()
 
@@ -786,6 +916,7 @@ def main() -> int:
     script_path = Path(args.last30days_script).expanduser().resolve()
     prompt_path = DEFAULT_PROMPT_PATH
     state_path = Path(args.state_file).expanduser().resolve()
+    error_path = Path(args.error_file).expanduser().resolve()
     control = RunControl(
         state_file=state_path,
         cooldown_minutes=args.cooldown_minutes,
@@ -839,37 +970,75 @@ def main() -> int:
                 raise
             runs.append(TopicRun(topic=topic, report={"topic": topic}, evidence=[], error=str(exc)))
 
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(
-        render_report(
-            runs,
-            prompt_template,
-            mode=args.mode,
-            connectivity_note=connectivity_note,
-        ),
-        encoding="utf-8",
+    report_markdown = render_report(
+        runs,
+        prompt_template,
+        mode=args.mode,
+        connectivity_note=connectivity_note,
     )
-    errors = [run.error for run in runs if run.error]
-    evidence_count = sum(len(run.evidence) for run in runs)
-    error_text = "\n".join(errors + ([connectivity_note] if connectivity_note else []))
-    error_type = classify_error(error_text)
-    status = "success"
-    if error_type == "rate_limited_429":
-        status = "rate_limited"
-    elif errors or (args.mode == "live" and connectivity_note and evidence_count == 0):
-        status = "failed"
+    counts = evidence_summary(runs)
+    if args.mode == "live":
+        status, error_type, error_text = live_status_and_error_type(
+            runs,
+            connectivity_note,
+            counts["usable_evidence_count"],
+        )
+        if status == "success":
+            write_text_file(output_path, report_markdown)
+            save_run_state(
+                state_path,
+                {
+                    "last_run_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+                    "mode": args.mode,
+                    "status": status,
+                    "error_type": error_type,
+                    "output_path": str(output_path),
+                    "error_path": str(error_path),
+                    **counts,
+                },
+            )
+            print(f"已更新 {display_path(output_path)}")
+            return 0
+
+        write_text_file(
+            error_path,
+            render_live_error_report(
+                runs=runs,
+                output_path=output_path,
+                error_type=error_type,
+                error_text=error_text,
+                connectivity_note=connectivity_note,
+                evidence_counts=counts,
+            ),
+        )
+        save_run_state(
+            state_path,
+            {
+                "last_run_at": datetime.now().astimezone().isoformat(timespec="seconds"),
+                "mode": args.mode,
+                "status": status,
+                "error_type": error_type,
+                "output_path": str(output_path),
+                "error_path": str(error_path),
+                **counts,
+            },
+        )
+        print(f"live 失败，已保留上一份成功报告；错误详情见 {display_path(error_path)}")
+        return 0
+
+    write_text_file(output_path, report_markdown)
     save_run_state(
         state_path,
         {
             "last_run_at": datetime.now().astimezone().isoformat(timespec="seconds"),
             "mode": args.mode,
-            "status": status,
-            "error_type": error_type,
+            "status": "success",
+            "error_type": "",
             "output_path": str(output_path),
-            "evidence_count": evidence_count,
+            **counts,
         },
     )
-    print(f"Generated {output_path}")
+    print(f"已更新 {display_path(output_path)}")
     return 0
 
 

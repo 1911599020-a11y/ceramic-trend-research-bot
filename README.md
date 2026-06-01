@@ -4,7 +4,7 @@
 
 ## Current Status
 
-V0.3.4 是 **运行稳定性优化版本**：
+V0.3.5 是 **live 失败保护版本**：
 
 - `mock` 模式仍然可用，用于稳定生成示例报告
 - `live` 模式只测试 Reddit，不接 YouTube / Pinterest / GitHub Actions
@@ -17,6 +17,9 @@ V0.3.4 是 **运行稳定性优化版本**：
 - 内容选题和小工具灵感会区分“高相关证据支撑”和“长期建议方向”
 - 新增本地运行脚本，避免重复复制长 Python 命令
 - live 模式新增冷却提醒和本地运行状态记录，减少短时间重复请求导致的 Reddit 429
+- live 成功并拿到可用 Reddit 证据时，才会更新 `reports/report.md`
+- live 因 DNS / 403 / 429 / 网络问题失败时，不覆盖上一份成功报告
+- live 失败详情会写入 `local_outputs/last_error.md`，运行状态会写入 `local_outputs/run_state.json`
 - 不安装 `yt-dlp`
 - 不配置 API key
 - 不修改 `last30days-skill` 原始代码
@@ -69,6 +72,14 @@ reports/report.md
 
 `reports/report.md` 当前是示例报告，可以暂时保留在版本库里，方便确认报告结构。
 
+live 失败时不会覆盖 `reports/report.md`，错误详情保存在：
+
+```text
+local_outputs/last_error.md
+```
+
+`local_outputs/` 已被 `.gitignore` 忽略，不会作为报告样例提交到 GitHub。
+
 ## Environment Check
 
 在继续真实 Reddit / YouTube 接入前，可以先运行环境诊断：
@@ -85,7 +96,8 @@ reports/report.md
 - 真实 key 只放在本地 `.env`、系统环境变量、GitHub Secrets 或服务器密钥管理中。
 - `.env.example` 只保留空变量，用作配置模板。
 - `mock` 模式不会读取真实 API key，也不会发起真实联网搜索。
-- `live` 模式当前只访问 Reddit 公共数据源；如果当前网络无法访问 Reddit，会生成带失败原因的报告，不会影响 mock 模式。
+- `mock` 模式可以覆盖 `reports/report.md`，因为它是测试流程。
+- `live` 模式当前只访问 Reddit 公共数据源；如果当前网络无法访问 Reddit，会保留上一份成功报告，并把失败原因写入 `local_outputs/last_error.md`。
 
 ## Project Structure
 
@@ -95,6 +107,8 @@ config/ceramic_topics.json        # Ceramic keyword, subreddit, and relevance ru
 prompts/ceramic_report_prompt.md  # Chinese report structure
 scripts/run_mock.sh               # Local mock runner
 scripts/run_live.sh               # Local live runner with cooldown
+local_outputs/last_error.md       # Ignored live failure details
+local_outputs/run_state.json      # Ignored local run state
 reports/                          # Generated Markdown reports
 docs/automation-roadmap.md        # Future automation paths
 .env.example                      # Future live-mode environment variables
