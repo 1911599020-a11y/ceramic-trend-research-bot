@@ -4,7 +4,7 @@
 
 ## Current Status
 
-V0.3.2 是 **分类相关性规则精修版本**：
+V0.3.3 是 **报告质量修正版本**：
 
 - `mock` 模式仍然可用，用于稳定生成示例报告
 - `live` 模式只测试 Reddit，不接 YouTube / Pinterest / GitHub Actions
@@ -12,6 +12,9 @@ V0.3.2 是 **分类相关性规则精修版本**：
 - AI ceramic design、ceramic business、kiln firing 等分类有独立 required / boost / exclude 规则
 - 跑偏词使用完整单词/短语匹配，降低 `cat` 这类词的误伤
 - 报告会区分高相关内容、边缘相关内容和跑偏样本
+- 热门内容不再把低相关结果显示成趋势，也不再输出生硬的“暂无证据（0 分）”
+- 趋势判断更严格依赖高相关证据；证据不足的方向会明确标注为暂不判断
+- 内容选题和小工具灵感会区分“高相关证据支撑”和“长期建议方向”
 - 不安装 `yt-dlp`
 - 不配置 API key
 - 不修改 `last30days-skill` 原始代码

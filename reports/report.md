@@ -1,25 +1,16 @@
 # 陶瓷趋势情报报告
 
-- 生成时间：2026-05-29 01:40
-- 版本：V0.3.2 Reddit live 本地报告
+- 生成时间：2026-06-01 23:24
+- 版本：V0.3.3 Reddit live 本地报告
 - 数据模式：last30days-skill `--quick --search=reddit`
 - 关键词数量：10
-- 相关性分层：高相关 4 条，边缘相关 0 条，跑偏样本 2 条
+- 相关性分层：高相关 0 条，边缘相关 0 条，跑偏样本 0 条
 
-> 说明：当前报告使用 Reddit live 数据。YouTube、Pinterest、GitHub 等来源尚未接入。
+> 说明：当前 live 模式已调用 Reddit-only pipeline，但没有获得可用证据。当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
 
 ## 热门内容
 
-- **ceramic art**：真实 Reddit 热点为“ceramic art discussion”，相关性：暂无证据（0 分）。
-- **pottery**：真实 Reddit 热点为“pottery discussion”，相关性：暂无证据（0 分）。
-- **ceramic glaze**：真实 Reddit 热点为“ceramic glaze discussion”，相关性：暂无证据（0 分）。
-- **AI ceramic design**：真实 Reddit 热点为“AI ceramic design discussion”，相关性：暂无证据（0 分）。
-- **3D printed ceramics**：真实 Reddit 热点为“3D printed ceramics discussion”，相关性：暂无证据（0 分）。
-- **handmade pottery**：真实 Reddit 热点为“Are these defects to be expected when buying on Etsy?”，相关性：高相关（9 分）。
-- **ceramic business**：真实 Reddit 热点为“Scared of Doing Plagiarism.”，相关性：高相关（10 分）。
-- **pottery studio**：真实 Reddit 热点为“Siyutao studio pottery a teapot”，相关性：高相关（9 分）。
-- **ceramic texture**：真实 Reddit 热点为“My Ceramic Keycaps with Crystal Texture 😏”，相关性：相关性较低（-3 分）。
-- **kiln firing**：真实 Reddit 热点为“First firing in new (to me) manual kiln”，相关性：高相关（11 分）。
+- 暂未获得可用 Reddit 证据。mock 模式仍可用于验证报告流程。
 
 ## 用户痛点
 
@@ -46,40 +37,43 @@
 
 ## 趋势判断
 
-- 手作陶瓷仍然适合用“过程感”表达价值，用户更容易被制作细节、失败修正和前后对比吸引。
-- 釉色、肌理、窑变这类视觉信号适合做短视频和图文系列，因为它们天然具备收藏、评论和二次提问空间。
-- 趋势判断应优先来自高相关内容；边缘相关内容只能作为灵感补充，跑偏样本不进入趋势结论。
-- AI 与 3D 打印更适合作为灵感生成和打样辅助，而不是直接替代手作叙事。
-- 陶瓷工作室的内容不应只展示成品，也可以展示定价、排课、工具选择和经营复盘。
-- 烧成知识是高信任内容入口，适合沉淀成检查清单、记录表和案例库。
+- 本轮 Reddit 数据样本有限，趋势判断仅代表当前抓取结果。
+- 本轮未获得高相关 Reddit 证据，因此不生成确定性趋势判断。
 
 ## 内容选题
 
-- 《ceramic art 最近 30 天大家在讨论什么？》
-- 《pottery 最近 30 天大家在讨论什么？》
-- 《ceramic glaze 最近 30 天大家在讨论什么？》
-- 《AI ceramic design 最近 30 天大家在讨论什么？》
-- 《3D printed ceramics 最近 30 天大家在讨论什么？》
-- 《一个陶瓷作品从灵感到烧成失败复盘》
-- 《釉色测试片如何变成可售卖系列》
-- 《AI 生成纹样到真实陶瓷表面的完整流程》
+### A. 有 Reddit 高相关证据支撑的选题
+- 本轮暂无高相关 Reddit 证据支撑的选题。
+
+### B. 暂无充分证据但值得后续观察的选题
+- 《ceramic art 最近 30 天是否形成趋势？》 - 本轮高相关证据不足，建议扩大 Reddit/YouTube/Pinterest 后再判断。
+- 《pottery 最近 30 天是否形成趋势？》 - 本轮高相关证据不足，建议扩大 Reddit/YouTube/Pinterest 后再判断。
+- 《ceramic glaze 最近 30 天是否形成趋势？》 - 本轮高相关证据不足，建议扩大 Reddit/YouTube/Pinterest 后再判断。
+- 《AI ceramic design 最近 30 天是否形成趋势？》 - 本轮高相关证据不足，建议扩大 Reddit/YouTube/Pinterest 后再判断。
+- 《3D printed ceramics 最近 30 天是否形成趋势？》 - 本轮高相关证据不足，建议扩大 Reddit/YouTube/Pinterest 后再判断。
+- 《handmade pottery 最近 30 天是否形成趋势？》 - 本轮高相关证据不足，建议扩大 Reddit/YouTube/Pinterest 后再判断。
+- 《ceramic business 最近 30 天是否形成趋势？》 - 本轮高相关证据不足，建议扩大 Reddit/YouTube/Pinterest 后再判断。
+- 《pottery studio 最近 30 天是否形成趋势？》 - 本轮高相关证据不足，建议扩大 Reddit/YouTube/Pinterest 后再判断。
+- 《ceramic texture 最近 30 天是否形成趋势？》 - 本轮高相关证据不足，建议扩大 Reddit/YouTube/Pinterest 后再判断。
+- 《kiln firing 最近 30 天是否形成趋势？》 - 本轮高相关证据不足，建议扩大 Reddit/YouTube/Pinterest 后再判断。
+- 《一个陶瓷作品从灵感到烧成失败复盘》 - 长期内容方向，需后续用更多真实证据验证。
+- 《釉色测试片如何变成可售卖系列》 - 长期内容方向，适合等待更多 glaze / business 证据后展开。
+- 《AI 生成纹样到真实陶瓷表面的完整流程》 - 长期内容方向，本轮若缺少 AI 高相关证据则不视为已验证趋势。
 
 ## 小工具灵感
 
-- 釉色实验记录器：记录配方、厚度、窑温、位置和成品照片。
-- 陶瓷内容选题雷达：按 Reddit/YouTube/Pinterest 热点聚合中文选题。
-- AI 陶瓷纹样 Prompt 生成器：把风格、器型、釉色和工艺限制组合成提示词。
-- 烧成失败诊断卡：根据针孔、流釉、变形、开裂等现象给出排查路径。
-- 工作室定价小工具：把泥料、釉料、烧成、工时、损耗和平台费用折算进价格。
+### 来自高相关证据的灵感
+- 本轮暂无足够高相关证据直接支撑具体小工具需求。
+
+### 长期产品方向（非本轮数据直接证明）
+- 陶瓷内容选题雷达：长期产品方向，后续需要更多 Reddit/YouTube/Pinterest 证据验证。
+- AI 陶瓷纹样 Prompt 生成器：长期产品方向，本轮若缺少 AI ceramic design 高相关证据则不算已验证需求。
+- 釉色实验记录器：长期产品方向，可在更多 glaze / kiln 证据出现后优先化。
+- 工作室定价小工具：长期产品方向，可在更多 business / studio 证据出现后优先化。
 
 ## 高相关内容
 
-| 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
-|---|---|---|---|---|---|---|
-| handmade pottery | r/ceramics | Are these defects to be expected when buying on Etsy? | 128 upvotes, 65 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramics, handmade, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1t3xxlu/are_these_defects_to_be_expected_when_buying_on/) |
-| ceramic business | r/pottery | Scared of Doing Plagiarism. | 19 upvotes, 45 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：ceramics, pottery；标题或 subreddit 直接相关；命中分类意图：business, sell | [打开](https://www.reddit.com/r/Pottery/comments/1tpeytb/scared_of_doing_plagiarism/) |
-| pottery studio | r/pottery | Siyutao studio pottery a teapot | 296 upvotes, 20 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：pottery, studio；标题或 subreddit 直接相关；命中分类意图：studio | [打开](https://www.reddit.com/r/Pottery/comments/1tbqlax/siyutao_studio_pottery_a_teapot/) |
-| kiln firing | r/ceramics | First firing in new (to me) manual kiln | 2 upvotes, 1 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramics, firing, kiln；标题或 subreddit 直接相关；命中分类意图：firing, kiln | [打开](https://www.reddit.com/r/Ceramics/comments/1tblltv/first_firing_in_new_to_me_manual_kiln/) |
+- 暂无。
 
 ## 边缘相关内容
 
@@ -87,23 +81,11 @@
 
 ## 跑偏样本
 
-> 这些内容不应直接作为陶瓷趋势结论，只用于观察关键词误伤和后续过滤优化。
-
-| 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
-|---|---|---|---|---|---|---|
-| handmade pottery | r/cats | This little one was born hungry 🥹🫣 (handmade pottery) | 17 upvotes, 5 comments | 命中陶瓷词：handmade, pottery；标题或 subreddit 直接相关；跑偏词：cats | [打开](https://www.reddit.com/r/cats/comments/1tlzifs/this_little_one_was_born_hungry_handmade_pottery/) |
-| ceramic texture | r/keyboards | My Ceramic Keycaps with Crystal Texture 😏 | 129 upvotes, 18 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关；跑偏词：keyboards | [打开](https://www.reddit.com/r/keyboards/comments/1tn7jkf/my_ceramic_keycaps_with_crystal_texture/) |
+- 暂无。
 
 ## 原始证据/链接
 
-| 相关性 | 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
-|---|---|---|---|---|---|---|
-| 高相关 | handmade pottery | r/ceramics | Are these defects to be expected when buying on Etsy? | 128 upvotes, 65 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramics, handmade, pottery；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/1t3xxlu/are_these_defects_to_be_expected_when_buying_on/) |
-| 相关性较低 | handmade pottery | r/cats | This little one was born hungry 🥹🫣 (handmade pottery) | 17 upvotes, 5 comments | 命中陶瓷词：handmade, pottery；标题或 subreddit 直接相关；跑偏词：cats | [打开](https://www.reddit.com/r/cats/comments/1tlzifs/this_little_one_was_born_hungry_handmade_pottery/) |
-| 高相关 | ceramic business | r/pottery | Scared of Doing Plagiarism. | 19 upvotes, 45 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：ceramics, pottery；标题或 subreddit 直接相关；命中分类意图：business, sell | [打开](https://www.reddit.com/r/Pottery/comments/1tpeytb/scared_of_doing_plagiarism/) |
-| 高相关 | pottery studio | r/pottery | Siyutao studio pottery a teapot | 296 upvotes, 20 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：pottery, studio；标题或 subreddit 直接相关；命中分类意图：studio | [打开](https://www.reddit.com/r/Pottery/comments/1tbqlax/siyutao_studio_pottery_a_teapot/) |
-| 相关性较低 | ceramic texture | r/keyboards | My Ceramic Keycaps with Crystal Texture 😏 | 129 upvotes, 18 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关；跑偏词：keyboards | [打开](https://www.reddit.com/r/keyboards/comments/1tn7jkf/my_ceramic_keycaps_with_crystal_texture/) |
-| 高相关 | kiln firing | r/ceramics | First firing in new (to me) manual kiln | 2 upvotes, 1 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramics, firing, kiln；标题或 subreddit 直接相关；命中分类意图：firing, kiln | [打开](https://www.reddit.com/r/Ceramics/comments/1tblltv/first_firing_in_new_to_me_manual_kiln/) |
+- 暂无证据。当前网络无法访问 Reddit：<urlopen error [Errno 8] nodename nor servname provided, or not known>
 
 ## 后续升级接口
 
@@ -131,6 +113,7 @@
 - 每条内容对应的平台、互动信号和简短原因
 - 必须区分高相关内容、边缘相关内容和跑偏样本
 - 不要把低相关 Reddit 热帖当作陶瓷趋势结论
+- 没有高质量证据时，写“证据不足”或“暂不纳入趋势判断”，不要强行总结
 
 ## 用户痛点
 
@@ -143,7 +126,11 @@
 - 哪些趋势可能只是短期热度
 - 哪些趋势值得持续关注
 - 哪些趋势可以转化为内容、产品或小工具
+- 高相关证据可以进入趋势判断
+- 边缘相关只能作为补充观察
+- 跑偏样本只能用于过滤复盘
 - 如果证据来自跑偏样本，必须明确说明它不能支撑陶瓷趋势判断
+- 如果某个关键词没有高相关证据，不要生成确定性判断
 
 ## 高相关内容
 
@@ -166,11 +153,14 @@
 
 - 适合中文社媒、YouTube、小红书、博客或 newsletter 的选题
 - 每个选题尽量说明目标受众和切入角度
+- 分成“有高相关证据支撑的选题”和“暂无充分证据但值得后续观察的选题”
+- 不要把没有证据的方向写成已经发生的趋势
 
 ## 小工具灵感
 
 - 可以帮助陶瓷创作者或工作室节省时间的小工具
 - 优先考虑轻量工具，例如记录表、Prompt 生成器、选题雷达、定价计算器、烧成排查清单
+- 标注哪些灵感来自高相关证据，哪些只是长期产品方向
 
 ## 原始证据/链接
 

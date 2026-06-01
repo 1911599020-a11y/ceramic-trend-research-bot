@@ -423,40 +423,80 @@ def infer_pain_points(topic: str) -> list[str]:
     return ["创作者需要更快发现用户真正感兴趣的题材。", "从灵感、制作、展示到销售之间缺少连续的决策工具。"]
 
 
-def trend_insights(topics: list[str]) -> list[str]:
-    joined = " ".join(topics).lower()
-    insights = [
-        "手作陶瓷仍然适合用“过程感”表达价值，用户更容易被制作细节、失败修正和前后对比吸引。",
-        "釉色、肌理、窑变这类视觉信号适合做短视频和图文系列，因为它们天然具备收藏、评论和二次提问空间。",
-        "趋势判断应优先来自高相关内容；边缘相关内容只能作为灵感补充，跑偏样本不进入趋势结论。",
-    ]
-    if "ai" in joined or "3d" in joined:
-        insights.append("AI 与 3D 打印更适合作为灵感生成和打样辅助，而不是直接替代手作叙事。")
-    if "business" in joined or "studio" in joined:
-        insights.append("陶瓷工作室的内容不应只展示成品，也可以展示定价、排课、工具选择和经营复盘。")
-    if "kiln" in joined or "firing" in joined:
-        insights.append("烧成知识是高信任内容入口，适合沉淀成检查清单、记录表和案例库。")
+def trend_insights(topics: list[str], high_evidence: list[Evidence]) -> list[str]:
+    insights = ["本轮 Reddit 数据样本有限，趋势判断仅代表当前抓取结果。"]
+    high_topics = {item.topic for item in high_evidence}
+    high_text = " ".join([item.topic + " " + item.title + " " + item.relevance_notes for item in high_evidence]).lower()
+
+    if not high_evidence:
+        insights.append("本轮未获得高相关 Reddit 证据，因此不生成确定性趋势判断。")
+        return insights
+
+    if any(term in high_text for term in ("handmade", "pottery", "ceramics", "etsy")):
+        insights.append("高相关证据显示，手作陶瓷的购买预期、成品瑕疵和工艺说明仍是值得关注的内容切口。")
+    if any(term in high_text for term in ("business", "pricing", "etsy", "customer", "studio", "sell")):
+        insights.append("高相关证据中出现经营、销售或客户语境时，可以优先围绕定价、原创性、订单沟通和工作室运营做后续观察。")
+    if any(term in high_text for term in ("kiln", "firing", "cone", "temperature", "bisque")):
+        insights.append("高相关证据支持继续关注烧成环节，尤其是新窑、手动窑、温度控制和失败复盘。")
+    if any(term in high_text for term in ("glaze", "underglaze", "recipe", "test tile")):
+        insights.append("高相关证据支持继续观察釉料测试、配方选择和釉面缺陷排查。")
+    if any(term in high_text for term in ("ai", "generative", "digital", "prompt", "pattern")):
+        insights.append("高相关证据支持继续观察 AI/数字设计如何转译为陶瓷图案、肌理或制作流程。")
+
+    unsupported = [topic for topic in topics if topic not in high_topics]
+    if unsupported:
+        insights.append("以下方向本轮高相关证据不足，暂不形成趋势判断：" + "、".join(unsupported) + "。")
     return insights
 
 
-def content_ideas(topics: list[str]) -> list[str]:
-    return [
-        f"《{topic} 最近 30 天大家在讨论什么？》"
-        for topic in topics[:5]
-    ] + [
-        "《一个陶瓷作品从灵感到烧成失败复盘》",
-        "《釉色测试片如何变成可售卖系列》",
-        "《AI 生成纹样到真实陶瓷表面的完整流程》",
+def supported_content_ideas(high_evidence: list[Evidence]) -> list[str]:
+    ideas = []
+    seen_topics = set()
+    for item in high_evidence:
+        if item.topic in seen_topics:
+            continue
+        seen_topics.add(item.topic)
+        ideas.append(
+            f"《{item.topic}：从 Reddit 热帖看用户真正关心什么》 - 基于 r/{item.subreddit} 的高相关证据：{item.title}"
+        )
+    return ideas
+
+
+def observation_content_ideas(topics: list[str], high_evidence: list[Evidence]) -> list[str]:
+    high_topics = {item.topic for item in high_evidence}
+    ideas = [
+        f"《{topic} 最近 30 天是否形成趋势？》 - 本轮高相关证据不足，建议扩大 Reddit/YouTube/Pinterest 后再判断。"
+        for topic in topics
+        if topic not in high_topics
     ]
+    ideas.extend(
+        [
+            "《一个陶瓷作品从灵感到烧成失败复盘》 - 长期内容方向，需后续用更多真实证据验证。",
+            "《釉色测试片如何变成可售卖系列》 - 长期内容方向，适合等待更多 glaze / business 证据后展开。",
+            "《AI 生成纹样到真实陶瓷表面的完整流程》 - 长期内容方向，本轮若缺少 AI 高相关证据则不视为已验证趋势。",
+        ]
+    )
+    return ideas
 
 
-def tool_ideas() -> list[str]:
+def evidence_backed_tool_ideas(high_evidence: list[Evidence]) -> list[str]:
+    ideas = []
+    text = " ".join([item.topic + " " + item.title + " " + item.relevance_notes for item in high_evidence]).lower()
+    if any(term in text for term in ("kiln", "firing", "cone", "temperature")):
+        ideas.append("烧成失败诊断卡：来自 kiln/firing 高相关证据，可用于记录温度、锥度、窑位和失败现象。")
+    if any(term in text for term in ("business", "etsy", "pricing", "customer", "sell", "studio")):
+        ideas.append("工作室定价与客户沟通小工具：来自经营类高相关证据，可用于整理成本、瑕疵说明、订单和售后问题。")
+    if any(term in text for term in ("glaze", "recipe", "test tile", "underglaze")):
+        ideas.append("釉色实验记录器：来自 glaze 高相关证据，可用于记录配方、测试片、烧成条件和成品照片。")
+    return ideas
+
+
+def long_term_tool_ideas() -> list[str]:
     return [
-        "釉色实验记录器：记录配方、厚度、窑温、位置和成品照片。",
-        "陶瓷内容选题雷达：按 Reddit/YouTube/Pinterest 热点聚合中文选题。",
-        "AI 陶瓷纹样 Prompt 生成器：把风格、器型、釉色和工艺限制组合成提示词。",
-        "烧成失败诊断卡：根据针孔、流釉、变形、开裂等现象给出排查路径。",
-        "工作室定价小工具：把泥料、釉料、烧成、工时、损耗和平台费用折算进价格。",
+        "陶瓷内容选题雷达：长期产品方向，后续需要更多 Reddit/YouTube/Pinterest 证据验证。",
+        "AI 陶瓷纹样 Prompt 生成器：长期产品方向，本轮若缺少 AI ceramic design 高相关证据则不算已验证需求。",
+        "釉色实验记录器：长期产品方向，可在更多 glaze / kiln 证据出现后优先化。",
+        "工作室定价小工具：长期产品方向，可在更多 business / studio 证据出现后优先化。",
     ]
 
 
@@ -478,7 +518,7 @@ def render_report(
         "# 陶瓷趋势情报报告",
         "",
         f"- 生成时间：{generated_at}",
-        f"- 版本：V0.3.2 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
+        f"- 版本：V0.3.3 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
         f"- 数据模式：{data_mode_label(mode)}",
         f"- 关键词数量：{len(topics)}",
         f"- 相关性分层：高相关 {len(high_evidence)} 条，边缘相关 {len(edge_evidence)} 条，跑偏样本 {len(low_evidence)} 条",
@@ -492,13 +532,21 @@ def render_report(
     if all_evidence:
         for run in runs:
             best = next((item for item in run.evidence if item.relevance_level == "high"), None)
-            if best is None and run.evidence:
-                best = run.evidence[0]
-            title = best.title if best else f"{run.topic} discussion"
-            score = best.relevance_score if best else 0
             prefix = "真实 Reddit 热点" if mode == "live" else "mock 热点"
-            level = relevance_label(best.relevance_level) if best else "暂无证据"
-            lines.append(f"- **{run.topic}**：{prefix}为“{title}”，相关性：{level}（{score} 分）。")
+            if best:
+                subreddit = f"r/{best.subreddit}" if best.subreddit else "n/a"
+                lines.append(
+                    f"- **{run.topic}**：{prefix}为“{best.title}”（{subreddit}，{best.engagement}），"
+                    f"相关性：高相关（{best.relevance_score} 分）。"
+                )
+            elif any(item.relevance_level in {"edge", "low"} for item in run.evidence):
+                lines.append(
+                    f"- **{run.topic}**：本轮仅发现低相关或跑偏结果，建议后续扩大数据源后再判断。"
+                )
+            else:
+                lines.append(
+                    f"- **{run.topic}**：本轮未获得高质量 Reddit 证据，暂不纳入趋势判断。"
+                )
     else:
         lines.append("- 暂未获得可用 Reddit 证据。mock 模式仍可用于验证报告流程。")
 
@@ -508,15 +556,33 @@ def render_report(
             lines.append(f"- **{topic}**：{pain}")
 
     lines.extend(["", "## 趋势判断", ""])
-    for insight in trend_insights(topics):
+    for insight in trend_insights(topics, high_evidence):
         lines.append(f"- {insight}")
 
     lines.extend(["", "## 内容选题", ""])
-    for idea in content_ideas(topics):
+    lines.append("### A. 有 Reddit 高相关证据支撑的选题")
+    supported_ideas = supported_content_ideas(high_evidence)
+    if supported_ideas:
+        for idea in supported_ideas:
+            lines.append(f"- {idea}")
+    else:
+        lines.append("- 本轮暂无高相关 Reddit 证据支撑的选题。")
+    lines.append("")
+    lines.append("### B. 暂无充分证据但值得后续观察的选题")
+    for idea in observation_content_ideas(topics, high_evidence):
         lines.append(f"- {idea}")
 
     lines.extend(["", "## 小工具灵感", ""])
-    for idea in tool_ideas():
+    lines.append("### 来自高相关证据的灵感")
+    backed_tools = evidence_backed_tool_ideas(high_evidence)
+    if backed_tools:
+        for idea in backed_tools:
+            lines.append(f"- {idea}")
+    else:
+        lines.append("- 本轮暂无足够高相关证据直接支撑具体小工具需求。")
+    lines.append("")
+    lines.append("### 长期产品方向（非本轮数据直接证明）")
+    for idea in long_term_tool_ideas():
         lines.append(f"- {idea}")
 
     lines.extend(["", "## 高相关内容", ""])
