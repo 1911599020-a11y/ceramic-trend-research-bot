@@ -309,12 +309,14 @@ def cooldown_message(state: dict[str, Any], control: RunControl) -> str:
         return ""
     remaining = cooldown - elapsed
     minutes = max(1, int(remaining.total_seconds() // 60) + 1)
-    status = state.get("status", "unknown")
-    error_type = state.get("error_type", "")
+    status = state.get("last_status") or state.get("status", "unknown")
+    error_type = state.get("last_error_type") or state.get("error_type", "")
+    cooldown_until = state.get("cooldown_until", "")
     return (
         f"刚刚跑过 live（状态：{status}{'，错误：' + error_type if error_type else ''}）。"
         f" 为了减少 Reddit 429，建议约 {minutes} 分钟后再跑。"
-        " 如确实需要立即运行，请加 --force。"
+        f"{' 冷却到：' + cooldown_until + '。' if cooldown_until else ''}"
+        " 如确实需要立即运行，请加 --force，但不要连续多次强制运行。"
     )
 
 
@@ -324,6 +326,8 @@ def classify_error(text: str) -> str:
         return "rate_limited_429"
     if "403" in lowered or "forbidden" in lowered or "blocked" in lowered:
         return "forbidden_403"
+    if "timed out" in lowered or "timeout" in lowered or "connection reset" in lowered:
+        return "timeout"
     if (
         "nodename nor servname" in lowered
         or "name or service not known" in lowered
@@ -333,11 +337,8 @@ def classify_error(text: str) -> str:
         return "dns_error"
     if (
         "无法访问 reddit" in text
-        or "timed out" in lowered
-        or "timeout" in lowered
         or "network is unreachable" in lowered
         or "connection refused" in lowered
-        or "connection reset" in lowered
     ):
         return "network_error"
     if text:
@@ -1175,6 +1176,68 @@ def live_status_and_error_type(
     return status, error_type, error_text
 
 
+def live_error_guidance(error_type: str) -> str:
+    guidance = {
+        "forbidden_403": (
+            "Reddit 已拒绝当前请求，通常是代理出口、IP、User-Agent 或 Reddit 访问策略导致。"
+            "建议换代理节点，确认终端代理生效，稍后再试。代码和报告生成逻辑通常没有坏。"
+        ),
+        "rate_limited_429": (
+            "Reddit 临时限流。请至少等待 30 分钟，不要连续使用 --force。"
+            "可以先用 mock 模式调整报告结构。"
+        ),
+        "dns_error": (
+            "当前运行环境无法解析 Reddit 域名。请检查网络、代理、DNS，或换到本地终端运行。"
+        ),
+        "timeout": (
+            "网络连接不稳定或代理出口被重置。建议检查代理节点或稍后再试。"
+        ),
+        "network_error": (
+            "当前网络无法稳定访问 Reddit。请检查代理、网络连通性，或稍后再试。"
+        ),
+        "no_usable_reddit_evidence": (
+            "本次没有拿到可用 Reddit 证据。可以先用 mock 模式调整报告结构，再换更具体关键词重试 live。"
+        ),
+    }
+    return guidance.get(
+        error_type,
+        "live 运行失败，但已保留上一份成功报告。请查看原始错误后再决定是否重试。",
+    )
+
+
+def cooldown_until_iso(now: datetime, control: RunControl) -> str:
+    if control.cooldown_minutes <= 0:
+        return ""
+    return (now + timedelta(minutes=control.cooldown_minutes)).isoformat(timespec="seconds")
+
+
+def build_run_state(
+    *,
+    mode: str,
+    status: str,
+    error_type: str,
+    output_path: Path,
+    error_path: Path | None,
+    counts: dict[str, int],
+    control: RunControl,
+) -> dict[str, Any]:
+    now = datetime.now().astimezone()
+    state = {
+        "last_run_at": now.isoformat(timespec="seconds"),
+        "mode": mode,
+        "status": status,
+        "error_type": error_type,
+        "last_status": status,
+        "last_error_type": error_type,
+        "output_path": str(output_path),
+        "cooldown_until": cooldown_until_iso(now, control) if mode == "live" else "",
+        **counts,
+    }
+    if error_path is not None:
+        state["error_path"] = str(error_path)
+    return state
+
+
 def render_live_error_report(
     *,
     runs: list[TopicRun],
@@ -1185,19 +1248,26 @@ def render_live_error_report(
     evidence_counts: dict[str, int],
 ) -> str:
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
+    guidance = live_error_guidance(error_type)
     lines = [
         "# Reddit live 运行失败记录",
         "",
-        f"- 时间：{generated_at}",
-        f"- 失败类型：{error_type or 'unknown'}",
+        f"- 发生时间：{generated_at}",
+        f"- 错误类型：{error_type or 'unknown'}",
         f"- 正式报告：{display_path(output_path)}",
-        f"- 已保留上一份成功报告：是",
+        f"- 当前采取的保护动作：未覆盖 `reports/report.md`，已保留上一份成功报告",
         f"- 本次抓到证据总数：{evidence_counts['evidence_count']}",
         f"- 本次可用证据数：{evidence_counts['usable_evidence_count']}",
         "",
         "## 说明",
         "",
         "live 失败，未覆盖 `reports/report.md`。如果这是 Reddit 403 / 429 / DNS 问题，建议稍后再运行 live，mock 模式仍可继续用于测试报告流程。",
+        "",
+        "## 建议下一步操作",
+        "",
+        f"- {guidance}",
+        "- 不要连续多次使用 `--force`，尤其是 429 限流后。",
+        "- 需要继续改报告结构时，先运行 `bash scripts/run_mock.sh`。",
         "",
         "## 错误摘要",
         "",
@@ -1226,6 +1296,7 @@ def render_live_error_report(
             "- 如果是 `forbidden_403`：通常是 Reddit 阻挡当前网络或请求方式，稍后换网络或降低频率再试。",
             "- 如果是 `rate_limited_429`：不要立刻重复运行，等待冷却时间后再试。",
             "- 如果是 `dns_error`：先确认本机能解析并访问 `www.reddit.com`。",
+            "- 如果是 `timeout`：检查代理出口稳定性，或稍后再试。",
             "- 如果是 `network_error`：先确认当前网络能打开 Reddit，再运行 `bash scripts/run_live.sh --force`。",
         ]
     )
@@ -1326,15 +1397,15 @@ def main() -> int:
             write_text_file(output_path, report_markdown)
             save_run_state(
                 state_path,
-                {
-                    "last_run_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-                    "mode": args.mode,
-                    "status": status,
-                    "error_type": error_type,
-                    "output_path": str(output_path),
-                    "error_path": str(error_path),
-                    **counts,
-                },
+                build_run_state(
+                    mode=args.mode,
+                    status=status,
+                    error_type=error_type,
+                    output_path=output_path,
+                    error_path=error_path,
+                    counts=counts,
+                    control=control,
+                ),
             )
             print(f"已更新 {display_path(output_path)}")
             return 0
@@ -1352,15 +1423,15 @@ def main() -> int:
         )
         save_run_state(
             state_path,
-            {
-                "last_run_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-                "mode": args.mode,
-                "status": status,
-                "error_type": error_type,
-                "output_path": str(output_path),
-                "error_path": str(error_path),
-                **counts,
-            },
+            build_run_state(
+                mode=args.mode,
+                status=status,
+                error_type=error_type,
+                output_path=output_path,
+                error_path=error_path,
+                counts=counts,
+                control=control,
+            ),
         )
         print(f"live 失败，已保留上一份成功报告；错误详情见 {display_path(error_path)}")
         return 0
@@ -1368,14 +1439,15 @@ def main() -> int:
     write_text_file(output_path, report_markdown)
     save_run_state(
         state_path,
-        {
-            "last_run_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-            "mode": args.mode,
-            "status": "success",
-            "error_type": "",
-            "output_path": str(output_path),
-            **counts,
-        },
+        build_run_state(
+            mode=args.mode,
+            status="success",
+            error_type="",
+            output_path=output_path,
+            error_path=None,
+            counts=counts,
+            control=control,
+        ),
     )
     print(f"已更新 {display_path(output_path)}")
     return 0

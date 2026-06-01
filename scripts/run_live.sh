@@ -15,3 +15,38 @@ cd "$ROOT_DIR"
   --error-file "$ERROR_FILE" \
   --cooldown-minutes "$COOLDOWN_MINUTES" \
   "$@"
+
+if [[ -f "$STATE_FILE" ]]; then
+  "$PYTHON_BIN" - "$STATE_FILE" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+state_path = Path(sys.argv[1])
+try:
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+except Exception:
+    raise SystemExit(0)
+
+if state.get("mode") != "live":
+    raise SystemExit(0)
+
+status = state.get("last_status") or state.get("status")
+error_type = state.get("last_error_type") or state.get("error_type")
+if status not in {"failed", "rate_limited"}:
+    raise SystemExit(0)
+
+messages = {
+    "forbidden_403": "Reddit 已拒绝当前请求，通常是代理出口、IP、User-Agent 或 Reddit 访问策略导致。建议换代理节点，确认终端代理生效，稍后再试。代码和报告生成逻辑通常没有坏。",
+    "rate_limited_429": "Reddit 临时限流。请至少等待 30 分钟，不要连续使用 --force。可以先用 mock 模式调整报告结构。",
+    "dns_error": "当前运行环境无法解析 Reddit 域名。请检查网络、代理、DNS，或换到本地终端运行。",
+    "timeout": "网络连接不稳定或代理出口被重置。建议检查代理节点或稍后再试。",
+    "network_error": "网络连接异常。请检查代理、DNS 和终端网络环境，稍后再试。",
+}
+
+print("")
+print("Live 运行提示：")
+print(messages.get(error_type, "live 运行失败，已保留上一份成功报告。请查看 local_outputs/last_error.md。"))
+print("错误详情：local_outputs/last_error.md")
+PY
+fi

@@ -25,6 +25,7 @@ V0.4 是 **报告洞察质量升级版本**：
 - live 成功并拿到可用 Reddit 证据时，才会更新 `reports/report.md`
 - live 因 DNS / 403 / 429 / 网络问题失败时，不覆盖上一份成功报告
 - live 失败详情会写入 `local_outputs/last_error.md`，运行状态会写入 `local_outputs/run_state.json`
+- live 失败时会按 403 / 429 / DNS / timeout 给出更清楚的本地排障提示
 - 不安装 `yt-dlp`
 - 不配置 API key
 - 不修改 `last30days-skill` 原始代码
@@ -63,6 +64,8 @@ bash scripts/run_live.sh
 bash scripts/run_live.sh --force
 ```
 
+不要连续多次使用 `--force`，尤其是刚遇到 429 或 403 之后。live 失败不会覆盖上一份成功的 `reports/report.md`，错误详情请看 `local_outputs/last_error.md`。
+
 原始 Python 命令仍然可用：
 
 ```bash
@@ -84,6 +87,8 @@ local_outputs/last_error.md
 ```
 
 `local_outputs/` 已被 `.gitignore` 忽略，不会作为报告样例提交到 GitHub。
+
+更多排障说明见 [docs/troubleshooting.md](docs/troubleshooting.md)。
 
 ## Environment Check
 
@@ -116,6 +121,7 @@ local_outputs/last_error.md       # Ignored live failure details
 local_outputs/run_state.json      # Ignored local run state
 reports/                          # Generated Markdown reports
 docs/automation-roadmap.md        # Future automation paths
+docs/troubleshooting.md           # Local live failure troubleshooting
 .env.example                      # Future live-mode environment variables
 .gitignore                        # Ignore local secrets and temp files
 ```
