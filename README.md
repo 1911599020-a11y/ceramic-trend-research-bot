@@ -4,7 +4,17 @@
 
 ## Current Status
 
-V0.4.2 是 **报告归档 + 多期对比基础版本**：
+V0.5.0 是 **数据源适配层（data-source adapter）版本**：
+
+- 新增 `sources/` 适配层，定义统一的 `TrendSource` 契约：`fetch(topic, *, recommended_subreddits)`，输出统一的 `last30days` 形状报告 dict
+- `mock` 模式改由 `MockSource` 读取仓库内 `data/mock_samples.json`，**零配置、零联网、零外部依赖**，在 Windows / CI 上也能稳定出报告
+- `live` 模式由 `Last30DaysSource` 承接，子进程命令构造与 V0.4.2 逐项一致，行为不变
+- 打分（`score_reddit_item`）和渲染是**冻结行为**，输出与 V0.4.2 完全一致
+- 新增 `tests/` 单元测试（`unittest`），覆盖词匹配、打分契约和数据源适配层
+- 新增 `AGENTS.md` / `CLAUDE.md` 工作说明，以及 `docs/changes/` 变更记录
+- 架构说明见 [docs/changes/0001-data-source-adapter.md](docs/changes/0001-data-source-adapter.md) 与 [AGENTS.md](AGENTS.md)
+
+继承自 V0.4.2 的 **报告归档 + 多期对比基础版本** 行为：
 
 - `mock` 模式仍然可用，用于稳定生成示例报告
 - `live` 模式只测试 Reddit，不接 YouTube / Pinterest / GitHub Actions
@@ -104,6 +114,28 @@ local_outputs/last_error.md
 
 更多排障说明见 [docs/troubleshooting.md](docs/troubleshooting.md)。
 
+## Tests
+
+本仓库使用标准库 `unittest`，无需安装第三方依赖。在仓库根目录运行：
+
+```bash
+python -m unittest discover tests
+```
+
+测试覆盖：
+
+```text
+tests/test_term_matching.py   # 词边界 / 短语分隔符匹配
+tests/test_scoring.py         # 打分契约：exclude 扣分、required 缺失压分、level 阈值
+tests/test_sources.py         # MockSource 可被消化；Last30DaysSource 命令逐项一致（mock subprocess）
+```
+
+mock 报告零配置生成（不联网、不依赖外部 skill）：
+
+```bash
+python ceramic_report.py --mode mock
+```
+
 ## Environment Check
 
 在继续真实 Reddit / YouTube 接入前，可以先运行环境诊断：
@@ -126,9 +158,17 @@ local_outputs/last_error.md
 ## Project Structure
 
 ```text
-ceramic_report.py                 # V0.1 wrapper entry
+ceramic_report.py                 # 打分 + 渲染 + CLI 入口
+sources/__init__.py               # TrendSource 契约（数据源适配层）
+sources/mock_source.py            # MockSource：读 data/mock_samples.json，离线
+sources/last30days_source.py      # Last30DaysSource：外部 last30days-skill 子进程（live）
 config/ceramic_topics.json        # Ceramic keyword, subreddit, and relevance rules
+data/mock_samples.json            # mock 证据样例（last30days --emit=json 形状）
 prompts/ceramic_report_prompt.md  # Chinese report structure
+tests/                            # unittest 用例（term matching / scoring / sources）
+docs/changes/                     # 变更记录（每个改动一份编号文档）
+AGENTS.md                         # 代理 / 贡献者工作说明
+CLAUDE.md                         # 指向 AGENTS.md
 scripts/run_mock.sh               # Local mock runner
 scripts/run_live.sh               # Local live runner with cooldown
 scripts/compare_reports.py        # Compare latest two archived live reports

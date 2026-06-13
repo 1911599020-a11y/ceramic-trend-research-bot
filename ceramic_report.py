@@ -4,6 +4,12 @@
 Supports mock reports and a minimal Reddit-only live mode. YouTube, Pinterest,
 GitHub Actions, and API-key-backed sources are intentionally left for later
 phases.
+
+Since V0.5.0 data collection lives in the sources/ adapter layer: mock mode
+reads repository-local data/mock_samples.json (works on Windows / CI with no
+external skill), while live mode keeps shelling out to last30days-skill with
+the exact V0.4.2 command construction. Scoring and rendering in this file are
+frozen behaviour: their output must stay identical to V0.4.2.
 """
 
 from __future__ import annotations
@@ -12,7 +18,6 @@ import argparse
 import json
 import os
 import re
-import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -20,6 +25,21 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
+
+from sources import TrendSource
+from sources.last30days_source import (  # noqa: F401  (re-exported for compatibility)
+    DEFAULT_LAST30DAYS_SCRIPT,
+    LAST30DAYS_REPO_HINT,
+    Last30DaysSource,
+    assert_last30days_script,
+    build_query_plan,
+    extract_json,
+    resolve_last30days_script,
+    run_last30days,
+    run_last30days_live,
+    run_last30days_mock,
+)
+from sources.mock_source import DEFAULT_MOCK_SAMPLES_PATH, MockSource  # noqa: F401
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -30,11 +50,6 @@ DEFAULT_ARCHIVE_DIR = PROJECT_ROOT / "reports" / "archive"
 DEFAULT_PROMPT_PATH = PROJECT_ROOT / "prompts" / "ceramic_report_prompt.md"
 DEFAULT_STATE_FILE = PROJECT_ROOT / "local_outputs" / "run_state.json"
 DEFAULT_ERROR_FILE = PROJECT_ROOT / "local_outputs" / "last_error.md"
-DEFAULT_LAST30DAYS_SCRIPT = Path(
-    "/Users/zhuyixiao/Documents/GitHub/last30days-skill/"
-    "skills/last30days/scripts/last30days.py"
-)
-LAST30DAYS_REPO_HINT = "/Users/zhuyixiao/Documents/GitHub/last30days-skill"
 
 
 @dataclass(frozen=True)
@@ -106,8 +121,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--last30days-script",
-        default=os.environ.get("LAST30DAYS_SCRIPT", str(DEFAULT_LAST30DAYS_SCRIPT)),
-        help="Path to last30days.py.",
+        default=None,
+        help=(
+            "Path to last30days.py (live mode only). Resolution order: this "
+            "flag > CERAMIC_LAST30DAYS_SCRIPT > LAST30DAYS_SCRIPT (legacy) > "
+            f"{DEFAULT_LAST30DAYS_SCRIPT}"
+        ),
     )
     parser.add_argument(
         "--state-file",
@@ -174,104 +193,6 @@ def load_relevance_config(config: dict[str, Any]) -> RelevanceConfig:
         ],
         topic_rules=config.get("topic_rules") or {},
     )
-
-
-def build_query_plan(topic: str, sources: list[str]) -> dict[str, Any]:
-    source_weights = {source: 1.0 for source in sources}
-    return {
-        "intent": "opinion",
-        "freshness_mode": "balanced_recent",
-        "cluster_mode": "debate",
-        "source_weights": source_weights,
-        "subqueries": [
-            {
-                "label": "community discussion",
-                "search_query": topic,
-                "ranking_query": (
-                    "What are makers, collectors, and viewers saying about "
-                    f"{topic}, including trends, pain points, workflows, and content ideas?"
-                ),
-                "sources": sources,
-                "weight": 1.0,
-            }
-        ],
-        "notes": ["ceramic-trend-research-bot V0.2 plan"],
-    }
-
-
-def assert_last30days_script(script_path: Path) -> None:
-    if not script_path.exists():
-        raise FileNotFoundError(
-            "找不到 last30days-skill 运行脚本。\n"
-            f"当前查找路径：{script_path}\n"
-            f"请确认 last30days-skill 已克隆到 {LAST30DAYS_REPO_HINT}"
-        )
-
-
-def run_last30days_mock(topic: str, script_path: Path) -> dict[str, Any]:
-    return run_last30days(topic, script_path, mode="mock")
-
-
-def run_last30days_live(
-    topic: str,
-    script_path: Path,
-    recommended_subreddits: set[str] | None = None,
-) -> dict[str, Any]:
-    return run_last30days(
-        topic,
-        script_path,
-        mode="live",
-        recommended_subreddits=recommended_subreddits,
-    )
-
-
-def run_last30days(
-    topic: str,
-    script_path: Path,
-    mode: str,
-    recommended_subreddits: set[str] | None = None,
-) -> dict[str, Any]:
-    assert_last30days_script(script_path)
-    if mode not in {"mock", "live"}:
-        raise ValueError(f"Unsupported mode: {mode}")
-
-    sources = ["reddit", "youtube"] if mode == "mock" else ["reddit"]
-    command = [
-        sys.executable,
-        str(script_path),
-        topic,
-        "--quick",
-        "--emit=json",
-        f"--search={','.join(sources)}",
-        "--plan",
-        json.dumps(build_query_plan(topic, sources), ensure_ascii=False),
-    ]
-    if mode == "mock":
-        command.insert(3, "--mock")
-    if mode == "live" and recommended_subreddits:
-        command.extend(["--subreddits", ",".join(sorted(recommended_subreddits))])
-
-    env = os.environ.copy()
-    env.setdefault("FROM_BROWSER", "off")
-    env.setdefault("LAST30DAYS_CONFIG_DIR", "")
-
-    result = subprocess.run(
-        command,
-        cwd=str(script_path.parent),
-        env=env,
-        capture_output=True,
-        text=True,
-        timeout=60,
-        check=False,
-    )
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"last30days {mode} run failed\n"
-            f"topic: {topic}\n"
-            f"stdout:\n{result.stdout}\n"
-            f"stderr:\n{result.stderr}"
-        )
-    return extract_json(result.stdout)
 
 
 def check_reddit_connectivity() -> tuple[bool, str]:
@@ -356,14 +277,6 @@ def classify_error(text: str) -> str:
     if text:
         return "error"
     return ""
-
-
-def extract_json(stdout: str) -> dict[str, Any]:
-    start = stdout.find("{")
-    end = stdout.rfind("}")
-    if start == -1 or end == -1 or end <= start:
-        raise ValueError(f"No JSON payload found in last30days output:\n{stdout}")
-    return json.loads(stdout[start : end + 1])
 
 
 def apply_relevance_ranking(
@@ -1356,7 +1269,7 @@ def main() -> int:
     output_path = Path(args.output).expanduser().resolve()
     latest_path = Path(args.latest).expanduser().resolve()
     archive_dir = Path(args.archive_dir).expanduser().resolve()
-    script_path = Path(args.last30days_script).expanduser().resolve()
+    script_path = resolve_last30days_script(args.last30days_script).expanduser().resolve()
     prompt_path = DEFAULT_PROMPT_PATH
     state_path = Path(args.state_file).expanduser().resolve()
     error_path = Path(args.error_file).expanduser().resolve()
@@ -1386,20 +1299,23 @@ def main() -> int:
             print(connectivity_note, file=sys.stderr)
             skip_live_retrieval = True
 
+    # V0.5.0 data-source adapter wiring: mock reads repository-local sample
+    # data (no external skill needed); live keeps the V0.4.2 subprocess path.
+    if args.mode == "live":
+        source: TrendSource = Last30DaysSource(script_path, mode="live")
+    else:
+        source = MockSource()
+
     runs: list[TopicRun] = []
     for topic in topics:
         try:
             if args.mode == "live" and skip_live_retrieval:
                 runs.append(TopicRun(topic=topic, report={"topic": topic}, evidence=[], error=connectivity_note))
                 continue
-            if args.mode == "live":
-                report = run_last30days_live(
-                    topic,
-                    script_path,
-                    recommended_subreddits=relevance_config.recommended_subreddits,
-                )
-            else:
-                report = run_last30days_mock(topic, script_path)
+            report = source.fetch(
+                topic,
+                recommended_subreddits=relevance_config.recommended_subreddits,
+            )
             report = apply_relevance_ranking(report, relevance_config, topic)
             runs.append(
                 TopicRun(

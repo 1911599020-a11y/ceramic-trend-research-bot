@@ -1,39 +1,39 @@
 # 陶瓷趋势情报报告
 
-- 生成时间：2026-06-02 01:39
+- 生成时间：2026-06-13 11:45
 - 版本：V0.4 mock 本地报告
 - 数据模式：last30days-skill `--mock --quick --search=reddit,youtube`
 - 关键词数量：10
-- 相关性分层：高相关 5 条，边缘相关 5 条，跑偏样本 0 条
+- 相关性分层：高相关 10 条，边缘相关 5 条，跑偏样本 2 条
 
 > 说明：当前报告使用 mock 数据验证流程与版式，不代表真实社媒趋势。
 
 ## 本轮结论摘要
 
 - 当前是 mock 报告，只用于检查结构、分区和中文表达，不代表真实 Reddit 趋势。
-- mock 中有 5 条高相关样例，可用于验证趋势摘要、选题和小工具模块的展示方式。
-- 高相关样例主要落在 kiln firing、ceramic glaze、AI ceramic design，但这些不是实际社媒热度。
-- 边缘相关 5 条、跑偏样本 0 条，只用于测试相关性分层是否清楚。
+- mock 中有 10 条高相关样例，可用于验证趋势摘要、选题和小工具模块的展示方式。
+- 高相关样例主要落在 pottery studio、kiln firing、ceramic business，但这些不是实际社媒热度。
+- 边缘相关 5 条、跑偏样本 2 条，只用于测试相关性分层是否清楚。
 - 正式判断仍需要 live 模式拿到真实 Reddit 证据后再做。
 
 ## 本轮可信度
 
 - 可信度：**低**
 - 判断：当前是 mock 数据，只能验证报告流程，不能代表真实 Reddit 趋势。
-- 证据结构：高相关 5 条，边缘相关 5 条，跑偏样本 0 条。
+- 证据结构：高相关 10 条，边缘相关 5 条，跑偏样本 2 条。
 
 ## 热门内容
 
-- **ceramic art**：本轮仅发现低相关或跑偏结果，建议后续扩大数据源后再判断。
-- **pottery**：本轮仅发现低相关或跑偏结果，建议后续扩大数据源后再判断。
-- **ceramic glaze**：mock 热点为“ceramic glaze discussion thread”（r/example，120 upvotes, 48 comments），相关性：高相关（5 分）。
-- **AI ceramic design**：mock 热点为“AI ceramic design discussion thread”（r/example，120 upvotes, 48 comments），相关性：高相关（5 分）。
-- **3D printed ceramics**：mock 热点为“3D printed ceramics discussion thread”（r/example，120 upvotes, 48 comments），相关性：高相关（5 分）。
-- **handmade pottery**：本轮仅发现低相关或跑偏结果，建议后续扩大数据源后再判断。
-- **ceramic business**：本轮仅发现低相关或跑偏结果，建议后续扩大数据源后再判断。
-- **pottery studio**：mock 热点为“pottery studio discussion thread”（r/example，120 upvotes, 48 comments），相关性：高相关（5 分）。
-- **ceramic texture**：本轮仅发现低相关或跑偏结果，建议后续扩大数据源后再判断。
-- **kiln firing**：mock 热点为“kiln firing discussion thread”（r/example，120 upvotes, 48 comments），相关性：高相关（6 分）。
+- **ceramic art**：mock 热点为“Finished a ceramic art sculpture with a new glaze in my studio”（r/ceramics，412 upvotes, 57 comments），相关性：高相关（11 分）。
+- **pottery**：mock 热点为“My first pottery wheel throwing session results”（r/pottery，286 upvotes, 41 comments），相关性：高相关（9 分）。
+- **ceramic glaze**：mock 热点为“Cone 6 glaze recipe keeps getting pinholes on stoneware”（r/pottery，174 upvotes, 63 comments），相关性：高相关（14 分）。
+- **AI ceramic design**：mock 热点为“Using AI to design a surface pattern for my ceramic mugs”（r/ceramics，198 upvotes, 74 comments），相关性：高相关（13 分）。
+- **3D printed ceramics**：mock 热点为“Clay paste extrusion settings for my delta printer”（r/ceramic3dprinting，89 upvotes, 27 comments），相关性：高相关（13 分）。
+- **handmade pottery**：mock 热点为“Handmade pottery mug set I made for my sister's wedding”（r/somethingimade，530 upvotes, 88 comments），相关性：高相关（11 分）。
+- **ceramic business**：mock 热点为“How do you price handmade ceramic mugs on Etsy?”（r/pottery，143 upvotes, 96 comments），相关性：高相关（15 分）。
+- **pottery studio**：mock 热点为“Our community studio added a beginner wheel class”（r/pottery，211 upvotes, 45 comments），相关性：高相关（17 分）。
+- **ceramic texture**：mock 热点为“Carved texture experiments on a porcelain vase”（r/ceramics，324 upvotes, 39 comments），相关性：高相关（11 分）。
+- **kiln firing**：mock 热点为“Bisque firing schedule for my new electric kiln”（r/pottery，167 upvotes, 58 comments），相关性：高相关（16 分）。
 
 ## 用户痛点
 
@@ -68,11 +68,6 @@
 - 当前为 mock 模式，暂无真实 Reddit 高相关证据支撑的选题。
 
 ### 暂无充分证据但值得后续观察的选题
-- 观察方向：《ceramic art 是否值得继续追？》 - 只有边缘证据 r/example 的“ceramic art discussion thread”，下一轮需要更具体关键词验证。
-- 观察方向：《pottery 是否值得继续追？》 - 只有边缘证据 r/example 的“pottery discussion thread”，下一轮需要更具体关键词验证。
-- 观察方向：《handmade pottery 是否值得继续追？》 - 只有边缘证据 r/example 的“handmade pottery discussion thread”，下一轮需要更具体关键词验证。
-- 观察方向：《ceramic business 是否值得继续追？》 - 只有边缘证据 r/example 的“ceramic business discussion thread”，下一轮需要更具体关键词验证。
-- 观察方向：《ceramic texture 是否值得继续追？》 - 只有边缘证据 r/example 的“ceramic texture discussion thread”，下一轮需要更具体关键词验证。
 - 观察方向：《陶瓷作品从灵感到烧成失败复盘》 - 长期内容方向，需用更多真实失败案例验证。
 - 观察方向：《釉色测试片如何变成可售卖系列》 - 适合等待更多 glaze / business 证据后展开。
 - 观察方向：《AI 生成纹样到真实陶瓷表面的完整流程》 - 只有在 AI 与陶瓷制作同时出现时，才可升级为证据支撑选题。
@@ -91,55 +86,77 @@
 ## 下一轮搜索建议
 
 - 当前是 mock 报告，下一轮应使用 live 模式验证真实 Reddit 结果，再根据证据调整关键词。
-- **ceramic art**：本轮高相关证据不足，建议下一轮尝试更具体关键词：`handmade pottery process`、`ceramic artist studio`、`pottery critique`、`clay handbuilding techniques`。
-- **pottery**：本轮高相关证据不足，建议下一轮尝试更具体关键词：`handmade pottery process`、`ceramic artist studio`、`pottery critique`、`clay handbuilding techniques`。
-- **ceramic glaze**：只有 1 条高相关证据、0 条边缘证据，建议保留原词并加入：`ceramic glaze defects`、`cone 6 glaze`、`glaze test tiles`。
+- **ceramic art**：只有 1 条高相关证据、1 条边缘证据，建议保留原词并加入：`handmade pottery process`、`ceramic artist studio`、`pottery critique`。
+- **pottery**：只有 1 条高相关证据、0 条边缘证据，建议保留原词并加入：`handmade pottery process`、`ceramic artist studio`、`pottery critique`。
+- **ceramic glaze**：只有 1 条高相关证据、1 条边缘证据，建议保留原词并加入：`ceramic glaze defects`、`cone 6 glaze`、`glaze test tiles`。
 - **AI ceramic design**：只有 1 条高相关证据、0 条边缘证据，建议保留原词并加入：`AI pottery workflow`、`generative ceramic pattern`、`computational ceramics`。
 - **3D printed ceramics**：只有 1 条高相关证据、0 条边缘证据，建议保留原词并加入：`ceramic 3D printing clay`、`clay paste extrusion`、`3D printed pottery`。
-- **handmade pottery**：本轮高相关证据不足，建议下一轮尝试更具体关键词：`handmade pottery process`、`ceramic artist studio`、`pottery critique`、`clay handbuilding techniques`。
-- **ceramic business**：本轮高相关证据不足，建议下一轮尝试更具体关键词：`Etsy pottery pricing`、`pottery commission`、`ceramic studio marketing`、`handmade ceramics pricing`。
+- **handmade pottery**：只有 1 条高相关证据、1 条边缘证据，建议保留原词并加入：`handmade pottery process`、`ceramic artist studio`、`pottery critique`。
+- **ceramic business**：只有 1 条高相关证据、1 条边缘证据，建议保留原词并加入：`Etsy pottery pricing`、`pottery commission`、`ceramic studio marketing`。
 - **pottery studio**：只有 1 条高相关证据、0 条边缘证据，建议保留原词并加入：`Etsy pottery pricing`、`pottery commission`、`ceramic studio marketing`。
-- **ceramic texture**：本轮高相关证据不足，建议下一轮尝试更具体关键词：`ceramic surface texture`、`clay texture tools`、`handbuilt texture`、`carved pottery surface`。
-- **kiln firing**：只有 1 条高相关证据、0 条边缘证据，建议保留原词并加入：`cone 6`、`bisque firing`、`electric kiln`。
+- **ceramic texture**：只有 1 条高相关证据、0 条边缘证据，建议保留原词并加入：`ceramic surface texture`、`clay texture tools`、`handbuilt texture`。
+- **kiln firing**：只有 1 条高相关证据、1 条边缘证据，建议保留原词并加入：`cone 6`、`bisque firing`、`electric kiln`。
+- **过滤规则**：本轮跑偏样本包括 My cat sleeping in a mi..., This AI video of anime...；下一轮继续把 anime、gaming、地区词和非陶瓷消费品降权。
 
 ## 高相关内容
 
 | 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
 |---|---|---|---|---|---|---|
-| ceramic glaze | r/example | ceramic glaze discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：ceramic, glaze；标题或 subreddit 直接相关；命中分类意图：glaze | [打开](https://reddit.com/r/example/comments/1) |
-| AI ceramic design | r/example | AI ceramic design discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关；命中分类意图：ai, design | [打开](https://reddit.com/r/example/comments/1) |
-| 3D printed ceramics | r/example | 3D printed ceramics discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：ceramics；标题或 subreddit 直接相关；命中分类意图：3d, printed | [打开](https://reddit.com/r/example/comments/1) |
-| pottery studio | r/example | pottery studio discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：pottery, studio；标题或 subreddit 直接相关；命中分类意图：studio | [打开](https://reddit.com/r/example/comments/1) |
-| kiln firing | r/example | kiln firing discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：firing, kiln；标题或 subreddit 直接相关；命中分类意图：firing, kiln | [打开](https://reddit.com/r/example/comments/1) |
+| ceramic art | r/ceramics | Finished a ceramic art sculpture with a new glaze in my studio | 412 upvotes, 57 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, glaze, kiln, porcelain；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/mk0001/ceramic_art_sculpture/) |
+| pottery | r/pottery | My first pottery wheel throwing session results | 286 upvotes, 41 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：clay, pottery, wheel throwing；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Pottery/comments/mk0003/first_wheel_throwing/) |
+| ceramic glaze | r/pottery | Cone 6 glaze recipe keeps getting pinholes on stoneware | 174 upvotes, 63 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：firing, glaze, pottery, stoneware；标题或 subreddit 直接相关；命中分类意图：cone, glaze, pinholes, recipe, test tile | [打开](https://www.reddit.com/r/Pottery/comments/mk0005/cone6_pinholes/) |
+| AI ceramic design | r/ceramics | Using AI to design a surface pattern for my ceramic mugs | 198 upvotes, 74 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, clay；标题或 subreddit 直接相关；命中分类意图：ai, design, pattern；分类加权：stable diffusion | [打开](https://www.reddit.com/r/Ceramics/comments/mk0007/ai_surface_pattern/) |
+| 3D printed ceramics | r/ceramic3dprinting | Clay paste extrusion settings for my delta printer | 89 upvotes, 27 comments | 来自推荐 subreddit r/ceramic3dprinting；命中陶瓷词：clay, porcelain；标题或 subreddit 直接相关；命中分类意图：printer, printing；分类加权：delta printer, gcode, paste extrusion | [打开](https://www.reddit.com/r/Ceramic3DPrinting/comments/mk0009/paste_extrusion_settings/) |
+| handmade pottery | r/somethingimade | Handmade pottery mug set I made for my sister's wedding | 530 upvotes, 88 comments | 来自推荐 subreddit r/somethingimade；命中陶瓷词：clay, glaze, handmade, kiln, mug；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/somethingimade/comments/mk0010/wedding_mug_set/) |
+| ceramic business | r/pottery | How do you price handmade ceramic mugs on Etsy? | 143 upvotes, 96 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：ceramic, firing, glaze, handmade, mug；标题或 subreddit 直接相关；命中分类意图：customer, etsy, pricing；分类加权：cost | [打开](https://www.reddit.com/r/Pottery/comments/mk0012/etsy_mug_pricing/) |
+| pottery studio | r/pottery | Our community studio added a beginner wheel class | 211 upvotes, 45 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：firing, kiln, pottery, studio；标题或 subreddit 直接相关；命中分类意图：class, kiln, membership, studio；分类加权：beginner, booking, community studio | [打开](https://www.reddit.com/r/Pottery/comments/mk0014/community_studio_class/) |
+| ceramic texture | r/ceramics | Carved texture experiments on a porcelain vase | 324 upvotes, 39 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramics, clay, glaze, handmade, porcelain；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/mk0015/carved_texture_vase/) |
+| kiln firing | r/pottery | Bisque firing schedule for my new electric kiln | 167 upvotes, 58 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：firing, kiln, pottery, slab；标题或 subreddit 直接相关；命中分类意图：bisque, firing, kiln, temperature；分类加权：electric kiln, schedule | [打开](https://www.reddit.com/r/Pottery/comments/mk0016/bisque_schedule/) |
 
 ## 边缘相关内容
 
 | 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
 |---|---|---|---|---|---|---|
-| ceramic art | r/example | ceramic art discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关 | [打开](https://reddit.com/r/example/comments/1) |
-| pottery | r/example | pottery discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：pottery；标题或 subreddit 直接相关 | [打开](https://reddit.com/r/example/comments/1) |
-| handmade pottery | r/example | handmade pottery discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：handmade, pottery；标题或 subreddit 直接相关 | [打开](https://reddit.com/r/example/comments/1) |
-| ceramic business | r/example | ceramic business discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关；命中分类意图：business | [打开](https://reddit.com/r/example/comments/1) |
-| ceramic texture | r/example | ceramic texture discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关 | [打开](https://reddit.com/r/example/comments/1) |
+| ceramic art | r/artfundamentals | Where do you find inspiration for sculptural forms? | 38 upvotes, 12 comments | 命中陶瓷词：ceramic | [打开](https://www.reddit.com/r/ArtFundamentals/comments/mk0002/sculptural_forms/) |
+| ceramic glaze | r/crafts | What paint can I use to seal an unfired clay pot? | 52 upvotes, 19 comments | 来自推荐 subreddit r/crafts；命中陶瓷词：clay；标题或 subreddit 直接相关；陶瓷相关，但未命中当前关键词意图 | [打开](https://www.reddit.com/r/crafts/comments/mk0006/seal_clay_pot/) |
+| handmade pottery | r/giftideas | Looking for a handmade gift idea for my mom | 21 upvotes, 16 comments | 命中陶瓷词：handmade；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/GiftIdeas/comments/mk0011/handmade_gift/) |
+| ceramic business | r/smallbusiness | Starting a small handmade business from my kitchen | 67 upvotes, 33 comments | 命中陶瓷词：handmade；标题或 subreddit 直接相关；命中分类意图：business | [打开](https://www.reddit.com/r/smallbusiness/comments/mk0013/kitchen_business/) |
+| kiln firing | r/bbq | Repurposing an old kiln shelf for a pizza oven | 76 upvotes, 24 comments | 命中陶瓷词：kiln；标题或 subreddit 直接相关；命中分类意图：kiln | [打开](https://www.reddit.com/r/BBQ/comments/mk0017/kiln_shelf_pizza/) |
 
 ## 跑偏样本
 
-- 暂无。
+> 跑偏样本只用于过滤规则复盘，不计入趋势判断。
+
+### 过滤复盘
+- **My cat sleeping in a mixing bowl**：命中了跑偏信号（命中陶瓷词：bowl；标题或 subreddit 直接相关；跑偏词：cat, cats），主题不应进入陶瓷趋势判断。 下次可通过更具体关键词或排除词降低误伤。
+- **This AI video of anime characters is unreal**：命中了跑偏信号（跑偏词：ai video, anime, ordinary ai video；命中分类意图：ai），主题不应进入陶瓷趋势判断。 下次可通过更具体关键词或排除词降低误伤。
+
+| 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
+|---|---|---|---|---|---|---|
+| pottery | r/cats | My cat sleeping in a mixing bowl | 951 upvotes, 103 comments | 命中陶瓷词：bowl；标题或 subreddit 直接相关；跑偏词：cat, cats | [打开](https://www.reddit.com/r/cats/comments/mk0004/cat_in_bowl/) |
+| AI ceramic design | r/anime | This AI video of anime characters is unreal | 1420 upvotes, 312 comments | 跑偏词：ai video, anime, ordinary ai video；命中分类意图：ai | [打开](https://www.reddit.com/r/anime/comments/mk0008/ai_anime_video/) |
 
 ## 原始证据/链接
 
 | 相关性 | 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |
 |---|---|---|---|---|---|---|
-| 边缘相关 | ceramic art | r/example | ceramic art discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关 | [打开](https://reddit.com/r/example/comments/1) |
-| 边缘相关 | pottery | r/example | pottery discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：pottery；标题或 subreddit 直接相关 | [打开](https://reddit.com/r/example/comments/1) |
-| 高相关 | ceramic glaze | r/example | ceramic glaze discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：ceramic, glaze；标题或 subreddit 直接相关；命中分类意图：glaze | [打开](https://reddit.com/r/example/comments/1) |
-| 高相关 | AI ceramic design | r/example | AI ceramic design discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关；命中分类意图：ai, design | [打开](https://reddit.com/r/example/comments/1) |
-| 高相关 | 3D printed ceramics | r/example | 3D printed ceramics discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：ceramics；标题或 subreddit 直接相关；命中分类意图：3d, printed | [打开](https://reddit.com/r/example/comments/1) |
-| 边缘相关 | handmade pottery | r/example | handmade pottery discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：handmade, pottery；标题或 subreddit 直接相关 | [打开](https://reddit.com/r/example/comments/1) |
-| 边缘相关 | ceramic business | r/example | ceramic business discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关；命中分类意图：business | [打开](https://reddit.com/r/example/comments/1) |
-| 高相关 | pottery studio | r/example | pottery studio discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：pottery, studio；标题或 subreddit 直接相关；命中分类意图：studio | [打开](https://reddit.com/r/example/comments/1) |
-| 边缘相关 | ceramic texture | r/example | ceramic texture discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：ceramic；标题或 subreddit 直接相关 | [打开](https://reddit.com/r/example/comments/1) |
-| 高相关 | kiln firing | r/example | kiln firing discussion thread | 120 upvotes, 48 comments | 命中陶瓷词：firing, kiln；标题或 subreddit 直接相关；命中分类意图：firing, kiln | [打开](https://reddit.com/r/example/comments/1) |
+| 高相关 | ceramic art | r/ceramics | Finished a ceramic art sculpture with a new glaze in my studio | 412 upvotes, 57 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, glaze, kiln, porcelain；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/mk0001/ceramic_art_sculpture/) |
+| 边缘相关 | ceramic art | r/artfundamentals | Where do you find inspiration for sculptural forms? | 38 upvotes, 12 comments | 命中陶瓷词：ceramic | [打开](https://www.reddit.com/r/ArtFundamentals/comments/mk0002/sculptural_forms/) |
+| 高相关 | pottery | r/pottery | My first pottery wheel throwing session results | 286 upvotes, 41 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：clay, pottery, wheel throwing；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Pottery/comments/mk0003/first_wheel_throwing/) |
+| 相关性较低 | pottery | r/cats | My cat sleeping in a mixing bowl | 951 upvotes, 103 comments | 命中陶瓷词：bowl；标题或 subreddit 直接相关；跑偏词：cat, cats | [打开](https://www.reddit.com/r/cats/comments/mk0004/cat_in_bowl/) |
+| 高相关 | ceramic glaze | r/pottery | Cone 6 glaze recipe keeps getting pinholes on stoneware | 174 upvotes, 63 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：firing, glaze, pottery, stoneware；标题或 subreddit 直接相关；命中分类意图：cone, glaze, pinholes, recipe, test tile | [打开](https://www.reddit.com/r/Pottery/comments/mk0005/cone6_pinholes/) |
+| 边缘相关 | ceramic glaze | r/crafts | What paint can I use to seal an unfired clay pot? | 52 upvotes, 19 comments | 来自推荐 subreddit r/crafts；命中陶瓷词：clay；标题或 subreddit 直接相关；陶瓷相关，但未命中当前关键词意图 | [打开](https://www.reddit.com/r/crafts/comments/mk0006/seal_clay_pot/) |
+| 高相关 | AI ceramic design | r/ceramics | Using AI to design a surface pattern for my ceramic mugs | 198 upvotes, 74 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramic, ceramics, clay；标题或 subreddit 直接相关；命中分类意图：ai, design, pattern；分类加权：stable diffusion | [打开](https://www.reddit.com/r/Ceramics/comments/mk0007/ai_surface_pattern/) |
+| 相关性较低 | AI ceramic design | r/anime | This AI video of anime characters is unreal | 1420 upvotes, 312 comments | 跑偏词：ai video, anime, ordinary ai video；命中分类意图：ai | [打开](https://www.reddit.com/r/anime/comments/mk0008/ai_anime_video/) |
+| 高相关 | 3D printed ceramics | r/ceramic3dprinting | Clay paste extrusion settings for my delta printer | 89 upvotes, 27 comments | 来自推荐 subreddit r/ceramic3dprinting；命中陶瓷词：clay, porcelain；标题或 subreddit 直接相关；命中分类意图：printer, printing；分类加权：delta printer, gcode, paste extrusion | [打开](https://www.reddit.com/r/Ceramic3DPrinting/comments/mk0009/paste_extrusion_settings/) |
+| 高相关 | handmade pottery | r/somethingimade | Handmade pottery mug set I made for my sister's wedding | 530 upvotes, 88 comments | 来自推荐 subreddit r/somethingimade；命中陶瓷词：clay, glaze, handmade, kiln, mug；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/somethingimade/comments/mk0010/wedding_mug_set/) |
+| 边缘相关 | handmade pottery | r/giftideas | Looking for a handmade gift idea for my mom | 21 upvotes, 16 comments | 命中陶瓷词：handmade；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/GiftIdeas/comments/mk0011/handmade_gift/) |
+| 高相关 | ceramic business | r/pottery | How do you price handmade ceramic mugs on Etsy? | 143 upvotes, 96 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：ceramic, firing, glaze, handmade, mug；标题或 subreddit 直接相关；命中分类意图：customer, etsy, pricing；分类加权：cost | [打开](https://www.reddit.com/r/Pottery/comments/mk0012/etsy_mug_pricing/) |
+| 边缘相关 | ceramic business | r/smallbusiness | Starting a small handmade business from my kitchen | 67 upvotes, 33 comments | 命中陶瓷词：handmade；标题或 subreddit 直接相关；命中分类意图：business | [打开](https://www.reddit.com/r/smallbusiness/comments/mk0013/kitchen_business/) |
+| 高相关 | pottery studio | r/pottery | Our community studio added a beginner wheel class | 211 upvotes, 45 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：firing, kiln, pottery, studio；标题或 subreddit 直接相关；命中分类意图：class, kiln, membership, studio；分类加权：beginner, booking, community studio | [打开](https://www.reddit.com/r/Pottery/comments/mk0014/community_studio_class/) |
+| 高相关 | ceramic texture | r/ceramics | Carved texture experiments on a porcelain vase | 324 upvotes, 39 comments | 来自推荐 subreddit r/ceramics；命中陶瓷词：ceramics, clay, glaze, handmade, porcelain；标题或 subreddit 直接相关 | [打开](https://www.reddit.com/r/Ceramics/comments/mk0015/carved_texture_vase/) |
+| 高相关 | kiln firing | r/pottery | Bisque firing schedule for my new electric kiln | 167 upvotes, 58 comments | 来自推荐 subreddit r/pottery；命中陶瓷词：firing, kiln, pottery, slab；标题或 subreddit 直接相关；命中分类意图：bisque, firing, kiln, temperature；分类加权：electric kiln, schedule | [打开](https://www.reddit.com/r/Pottery/comments/mk0016/bisque_schedule/) |
+| 边缘相关 | kiln firing | r/bbq | Repurposing an old kiln shelf for a pizza oven | 76 upvotes, 24 comments | 命中陶瓷词：kiln；标题或 subreddit 直接相关；命中分类意图：kiln | [打开](https://www.reddit.com/r/BBQ/comments/mk0017/kiln_shelf_pizza/) |
 
 ## 后续升级接口
 
