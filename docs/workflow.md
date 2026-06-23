@@ -1,0 +1,166 @@
+# Daily Workflow
+
+这份操作手册用于 Mac mini 上的日常运行，也方便 Codex、Claude Code 或其他开发者快速接手项目。
+
+## 开始前
+
+项目路径：
+
+```text
+/Users/zhuyixiao/Documents/GitHub/ceramic-trend-research-bot
+```
+
+上游 `last30days-skill` 路径：
+
+```text
+/Users/zhuyixiao/Documents/GitHub/last30days-skill
+```
+
+当前报告生成方式：
+
+```text
+MODEL_PROVIDER=rules
+```
+
+`rules` 表示报告由本地规则生成，不调用外部大模型，不需要 API key。
+
+## 日常推荐顺序
+
+### 1. 进入项目目录
+
+```bash
+cd /Users/zhuyixiao/Documents/GitHub/ceramic-trend-research-bot
+```
+
+### 2. 先跑环境诊断
+
+```bash
+/Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 scripts/check_environment.py
+```
+
+重点看：
+
+- Reddit DNS / HTTPS 是否可用
+- `last30days-skill` 路径是否存在
+- `MODEL_PROVIDER` 是否为 `rules`
+- `.env` 是否安全
+
+### 3. 调整报告结构时跑 mock
+
+```bash
+bash scripts/run_mock.sh
+```
+
+mock 会更新：
+
+```text
+reports/report.md
+```
+
+mock 不会更新：
+
+```text
+reports/latest.md
+reports/archive/
+```
+
+因此 mock 不会污染真实历史报告。
+
+### 4. 获取真实 Reddit 数据时跑 live
+
+```bash
+bash scripts/run_live.sh
+```
+
+只有 live 成功并取得可用 Reddit 证据时，才会更新：
+
+```text
+reports/report.md
+reports/latest.md
+reports/archive/YYYY-MM-DD_HHMM_report.md
+```
+
+`reports/latest.md` 是最近一次成功 live 报告；`reports/archive/` 保存历史成功 live 报告。
+
+### 5. 强制跳过冷却
+
+```bash
+bash scripts/run_live.sh --force
+```
+
+只在明确需要时使用。遇到 403、429、DNS 或 timeout 后不要连续使用 `--force`。
+
+### 6. 对比最近两期报告
+
+```bash
+bash scripts/compare_reports.sh
+```
+
+输出：
+
+```text
+reports/trend_diff.md
+```
+
+如果 archive 不足两份，脚本会生成“样本不足”说明，不会崩溃。
+
+## live 失败时看哪里
+
+错误详情：
+
+```text
+local_outputs/last_error.md
+```
+
+运行状态：
+
+```text
+local_outputs/run_state.json
+```
+
+常见错误：
+
+- `forbidden_403`：Reddit 拒绝当前请求
+- `rate_limited_429`：请求过于频繁
+- `dns_error`：无法解析 Reddit 域名
+- `timeout`：网络或代理连接不稳定
+- `network_error`：其他网络连接问题
+
+live 失败不会覆盖：
+
+```text
+reports/report.md
+reports/latest.md
+reports/archive/
+```
+
+详细排障见 [troubleshooting.md](troubleshooting.md)。
+
+## 报告文件说明
+
+| 文件 | 用途 |
+|---|---|
+| `reports/report.md` | 当前主要报告，mock 或成功 live 都可以更新 |
+| `reports/latest.md` | 最近一次成功 live 报告 |
+| `reports/archive/` | 历史成功 live 报告 |
+| `reports/trend_diff.md` | 最近两期成功 live 报告的基础对比 |
+| `local_outputs/last_error.md` | 最近一次 live 失败详情，不进入 Git |
+| `local_outputs/run_state.json` | 冷却、状态和错误类型，不进入 Git |
+
+## 推荐的日常节奏
+
+- 改代码或报告格式：跑 mock
+- 网络正常且需要新数据：跑一次 live
+- live 成功积累两期以上：跑 compare
+- live 失败：先看错误，不要连续重试
+- 提交前：确认 `git status` 中没有 `.env` 或 `local_outputs/`
+
+## 交接给新 Agent
+
+新对话可直接使用：
+
+```text
+请先读取 README.md、docs/workflow.md、docs/troubleshooting.md 和最近 Git 提交，恢复项目状态后继续。
+```
+
+这样不需要复制完整历史对话。

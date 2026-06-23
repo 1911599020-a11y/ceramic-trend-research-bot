@@ -31,6 +31,7 @@ ENV_KEYS = [
     "LAST30DAYS_MEMORY_DIR",
     "FROM_BROWSER",
 ]
+SUPPORTED_MODEL_PROVIDERS = {"rules"}
 
 
 @dataclass
@@ -47,6 +48,7 @@ def main() -> int:
     checks.extend(check_domains())
     checks.extend(check_tools())
     checks.extend(check_env_files())
+    checks.extend(check_model_provider())
     checks.extend(check_env_vars())
 
     print_section("PASS", checks, "PASS")
@@ -147,6 +149,21 @@ def check_env_vars() -> list[Check]:
     return checks
 
 
+def check_model_provider() -> list[Check]:
+    configured = os.environ.get("MODEL_PROVIDER", "rules").strip().lower()
+    if configured in SUPPORTED_MODEL_PROVIDERS:
+        source = "environment" if os.environ.get("MODEL_PROVIDER") else "default"
+        return [Check("PASS", "MODEL_PROVIDER", f"{configured} ({source})")]
+    supported = ", ".join(sorted(SUPPORTED_MODEL_PROVIDERS))
+    return [
+        Check(
+            "FAIL",
+            "MODEL_PROVIDER",
+            f"unsupported: {configured}; currently supported: {supported}",
+        )
+    ]
+
+
 def print_section(title: str, checks: list[Check], status: str) -> None:
     print(f"\n## {title}")
     section = [check for check in checks if check.status == status]
@@ -172,6 +189,8 @@ def print_next_steps(checks: list[Check]) -> None:
         print("- Keep YouTube disabled until the project moves past Reddit live mode.")
     if ".env.example" in failures:
         print("- Restore .env.example from the repository before configuring live-mode keys.")
+    if "MODEL_PROVIDER" in failures:
+        print("- Set MODEL_PROVIDER=rules. Other model providers are reserved for future versions.")
     if not failures:
         print("- Mock mode is ready. For Reddit live mode, verify Reddit DNS/HTTPS PASS in this report.")
     print("- Do not commit .env or real API keys.")

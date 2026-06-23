@@ -4,7 +4,7 @@
 
 ## Current Status
 
-V0.4.2 是 **报告归档 + 多期对比基础版本**：
+V0.4.4 是 **项目交接与陶瓷 AI 证据库版本**：
 
 - `mock` 模式仍然可用，用于稳定生成示例报告
 - `live` 模式只测试 Reddit，不接 YouTube / Pinterest / GitHub Actions
@@ -29,6 +29,9 @@ V0.4.2 是 **报告归档 + 多期对比基础版本**：
 - live 成功时会同步更新 `reports/report.md`、`reports/latest.md`，并归档到 `reports/archive/`
 - mock 只用于结构验证，不会写入 `reports/latest.md`，也不会进入 `reports/archive/`
 - 新增最近两期 archive 对比脚本，输出 `reports/trend_diff.md`
+- 新增 `docs/workflow.md`，统一说明日常 mock / live / compare 操作
+- 新增 `MODEL_PROVIDER=rules` 预留接口；当前不调用外部大模型
+- 新增 `research/ceramic-ai-evidence.md`，收录陶瓷 AI 一手研究证据
 - 不安装 `yt-dlp`
 - 不配置 API key
 - 不修改 `last30days-skill` 原始代码
@@ -46,6 +49,14 @@ V0.4.2 是 **报告归档 + 多期对比基础版本**：
 ```text
 /Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3
 ```
+
+当前报告生成 provider：
+
+```text
+MODEL_PROVIDER=rules
+```
+
+V0.4.4 只支持 `rules`。`openai`、`anthropic`、`ollama` 等 provider 仅作为未来扩展方向，当前不会调用。
 
 ## Run
 
@@ -104,6 +115,10 @@ local_outputs/last_error.md
 
 更多排障说明见 [docs/troubleshooting.md](docs/troubleshooting.md)。
 
+完整日常操作与项目交接流程见 [docs/workflow.md](docs/workflow.md)。
+
+陶瓷 AI 研究素材见 [research/ceramic-ai-evidence.md](research/ceramic-ai-evidence.md)。
+
 ## Environment Check
 
 在继续真实 Reddit / YouTube 接入前，可以先运行环境诊断：
@@ -112,7 +127,7 @@ local_outputs/last_error.md
 /Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 scripts/check_environment.py
 ```
 
-诊断会检查 Python、`last30days-skill` 路径、Reddit/YouTube/GitHub DNS 与 HTTPS、`yt-dlp`、`.env` 文件和关键环境变量。它不会打印真实 key，也不会抓取研究数据。更多说明见 `docs/environment-check.md`。
+诊断会检查 Python、`last30days-skill` 路径、Reddit/YouTube/GitHub DNS 与 HTTPS、`yt-dlp`、`MODEL_PROVIDER`、`.env` 文件和关键环境变量。它不会打印真实 key，也不会抓取研究数据。更多说明见 `docs/environment-check.md`。
 
 ## Safety
 
@@ -141,6 +156,8 @@ reports/archive/                  # Archived successful live reports
 reports/trend_diff.md             # Latest archive comparison
 docs/automation-roadmap.md        # Future automation paths
 docs/troubleshooting.md           # Local live failure troubleshooting
+docs/workflow.md                  # Daily operations and agent handoff
+research/ceramic-ai-evidence.md   # Ceramic + AI primary research evidence
 .env.example                      # Future live-mode environment variables
 .gitignore                        # Ignore local secrets and temp files
 ```

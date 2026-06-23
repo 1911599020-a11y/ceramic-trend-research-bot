@@ -35,6 +35,7 @@ DEFAULT_LAST30DAYS_SCRIPT = Path(
     "skills/last30days/scripts/last30days.py"
 )
 LAST30DAYS_REPO_HINT = "/Users/zhuyixiao/Documents/GitHub/last30days-skill"
+SUPPORTED_MODEL_PROVIDERS = {"rules"}
 
 
 @dataclass(frozen=True)
@@ -83,6 +84,11 @@ def parse_args() -> argparse.Namespace:
         choices=["mock", "live"],
         default="mock",
         help="Run mode. live currently uses Reddit only.",
+    )
+    parser.add_argument(
+        "--model-provider",
+        default=os.environ.get("MODEL_PROVIDER", "rules"),
+        help="Report generation provider. V0.4.4 currently supports: rules.",
     )
     parser.add_argument(
         "--output",
@@ -140,6 +146,17 @@ def load_config(path: Path) -> dict[str, Any]:
     if isinstance(payload, list):
         return {"topics": payload}
     return payload
+
+
+def validate_model_provider(value: str) -> str:
+    provider = value.strip().lower()
+    if provider not in SUPPORTED_MODEL_PROVIDERS:
+        supported = ", ".join(sorted(SUPPORTED_MODEL_PROVIDERS))
+        raise ValueError(
+            f"MODEL_PROVIDER={value!r} 尚未实现。当前支持：{supported}。"
+            "请设置 MODEL_PROVIDER=rules。"
+        )
+    return provider
 
 
 def load_topics(path: Path) -> list[str]:
@@ -884,6 +901,7 @@ def render_report(
     prompt_template: str,
     *,
     mode: str,
+    model_provider: str,
     connectivity_note: str = "",
 ) -> str:
     topics = [run.topic for run in runs]
@@ -904,8 +922,9 @@ def render_report(
         "# 陶瓷趋势情报报告",
         "",
         f"- 生成时间：{generated_at}",
-        f"- 版本：V0.4 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
+        f"- 版本：V0.4.4 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
         f"- 数据模式：{data_mode_label(mode)}",
+        f"- 报告生成器：`{model_provider}`",
         f"- 关键词数量：{len(topics)}",
         f"- 相关性分层：高相关 {len(high_evidence)} 条，边缘相关 {len(edge_evidence)} 条，跑偏样本 {len(low_evidence)} 条",
         "",
@@ -1352,6 +1371,11 @@ def normalize_subreddit(value: str) -> str:
 
 def main() -> int:
     args = parse_args()
+    try:
+        model_provider = validate_model_provider(args.model_provider)
+    except ValueError as exc:
+        print(f"配置错误：{exc}", file=sys.stderr)
+        return 2
     topics_path = Path(args.topics).expanduser().resolve()
     output_path = Path(args.output).expanduser().resolve()
     latest_path = Path(args.latest).expanduser().resolve()
@@ -1417,6 +1441,7 @@ def main() -> int:
         runs,
         prompt_template,
         mode=args.mode,
+        model_provider=model_provider,
         connectivity_note=connectivity_note,
     )
     counts = evidence_summary(runs)
@@ -1444,6 +1469,7 @@ def main() -> int:
             )
             run_state["latest_path"] = str(latest_path)
             run_state["archive_path"] = str(archive_path)
+            run_state["model_provider"] = model_provider
             save_run_state(
                 state_path,
                 run_state,
@@ -1464,34 +1490,32 @@ def main() -> int:
                 evidence_counts=counts,
             ),
         )
-        save_run_state(
-            state_path,
-            build_run_state(
-                mode=args.mode,
-                status=status,
-                error_type=error_type,
-                output_path=output_path,
-                error_path=error_path,
-                counts=counts,
-                control=control,
-            ),
+        failed_state = build_run_state(
+            mode=args.mode,
+            status=status,
+            error_type=error_type,
+            output_path=output_path,
+            error_path=error_path,
+            counts=counts,
+            control=control,
         )
+        failed_state["model_provider"] = model_provider
+        save_run_state(state_path, failed_state)
         print(f"live 失败，已保留上一份成功报告；错误详情见 {display_path(error_path)}")
         return 0
 
     write_text_file(output_path, report_markdown)
-    save_run_state(
-        state_path,
-        build_run_state(
-            mode=args.mode,
-            status="success",
-            error_type="",
-            output_path=output_path,
-            error_path=None,
-            counts=counts,
-            control=control,
-        ),
+    mock_state = build_run_state(
+        mode=args.mode,
+        status="success",
+        error_type="",
+        output_path=output_path,
+        error_path=None,
+        counts=counts,
+        control=control,
     )
+    mock_state["model_provider"] = model_provider
+    save_run_state(state_path, mock_state)
     print(f"已更新 {display_path(output_path)}")
     return 0
 
