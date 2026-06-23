@@ -19,7 +19,17 @@ from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 LAST30DAYS_REPO = Path("/Users/zhuyixiao/Documents/GitHub/last30days-skill")
-LAST30DAYS_SCRIPT = LAST30DAYS_REPO / "skills/last30days/scripts/last30days.py"
+# Same resolution order as ceramic_report.py since V0.5.0:
+# CERAMIC_LAST30DAYS_SCRIPT > LAST30DAYS_SCRIPT (legacy) > original Mac path.
+_SCRIPT_OVERRIDE = (
+    os.environ.get("CERAMIC_LAST30DAYS_SCRIPT", "").strip()
+    or os.environ.get("LAST30DAYS_SCRIPT", "").strip()
+)
+LAST30DAYS_SCRIPT = (
+    Path(_SCRIPT_OVERRIDE)
+    if _SCRIPT_OVERRIDE
+    else LAST30DAYS_REPO / "skills/last30days/scripts/last30days.py"
+)
 DOMAINS = ["www.reddit.com", "www.youtube.com", "github.com"]
 ENV_KEYS = [
     "OPENAI_API_KEY",

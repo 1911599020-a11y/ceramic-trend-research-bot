@@ -1,0 +1,211 @@
+{
+  "_readme": [
+    "ceramic-trend-research-bot mock 样例数据（V0.5.0），由 sources/mock_source.py 读取。",
+    "形状与 last30days-skill --emit=json 的输出对齐：每个 topic 对应一个 report dict，",
+    "消费字段见 ceramic_report.py 的 score_reddit_item / collect_evidence：",
+    "title、body 或 snippet、url、container 或 subreddit、engagement.score、",
+    "engagement.num_comments、local_rank_score。",
+    "分层设计（按 config/ceramic_topics.json 的规则手工核算）：",
+    "每个 topic 1 条高相关（>= 5 分）；其中 5 个 topic 另含 1 条边缘相关（1-4 分）；",
+    "pottery 与 AI ceramic design 各含 1 条跑偏样本（cat / anime 等 exclude 词，<= 0 分）。",
+    "改动样例后请运行 python -m unittest discover tests，tests/test_sources.py 会校验分层覆盖。"
+  ],
+  "topics": {
+    "ceramic art": {
+      "items_by_source": {
+        "reddit": [
+          {
+            "title": "Finished a ceramic art sculpture with a new glaze in my studio",
+            "body": "Porcelain sculpture, layered glaze, fired in my small studio kiln.",
+            "url": "https://www.reddit.com/r/Ceramics/comments/mk0001/ceramic_art_sculpture/",
+            "container": "r/Ceramics",
+            "engagement": {"score": 412, "num_comments": 57},
+            "local_rank_score": 0.92
+          },
+          {
+            "title": "Where do you find inspiration for sculptural forms?",
+            "snippet": "Mostly painting these days but thinking about trying ceramic work sometime.",
+            "url": "https://www.reddit.com/r/ArtFundamentals/comments/mk0002/sculptural_forms/",
+            "container": "r/ArtFundamentals",
+            "engagement": {"score": 38, "num_comments": 12},
+            "local_rank_score": 0.41
+          }
+        ]
+      }
+    },
+    "pottery": {
+      "items_by_source": {
+        "reddit": [
+          {
+            "title": "My first pottery wheel throwing session results",
+            "body": "Centering the clay was hard but the wheel throwing basics are coming along.",
+            "url": "https://www.reddit.com/r/Pottery/comments/mk0003/first_wheel_throwing/",
+            "container": "r/Pottery",
+            "engagement": {"score": 286, "num_comments": 41},
+            "local_rank_score": 0.88
+          },
+          {
+            "title": "My cat sleeping in a mixing bowl",
+            "body": "No crafts here, just my cat being cute.",
+            "url": "https://www.reddit.com/r/cats/comments/mk0004/cat_in_bowl/",
+            "subreddit": "r/cats",
+            "engagement": {"score": 951, "num_comments": 103},
+            "local_rank_score": 0.35
+          }
+        ]
+      }
+    },
+    "ceramic glaze": {
+      "items_by_source": {
+        "reddit": [
+          {
+            "title": "Cone 6 glaze recipe keeps getting pinholes on stoneware",
+            "body": "My test tile looked fine but the final glaze firing shows pinholes everywhere. Recipe in comments.",
+            "url": "https://www.reddit.com/r/Pottery/comments/mk0005/cone6_pinholes/",
+            "container": "r/Pottery",
+            "engagement": {"score": 174, "num_comments": 63},
+            "local_rank_score": 0.9
+          },
+          {
+            "title": "What paint can I use to seal an unfired clay pot?",
+            "body": "It is an air dry clay pot from a craft kit. I want the acrylic paint to last.",
+            "url": "https://www.reddit.com/r/crafts/comments/mk0006/seal_clay_pot/",
+            "container": "r/crafts",
+            "engagement": {"score": 52, "num_comments": 19},
+            "local_rank_score": 0.44
+          }
+        ]
+      }
+    },
+    "AI ceramic design": {
+      "items_by_source": {
+        "reddit": [
+          {
+            "title": "Using AI to design a surface pattern for my ceramic mugs",
+            "body": "I generate the pattern with Stable Diffusion, then carve it into the clay by hand.",
+            "url": "https://www.reddit.com/r/Ceramics/comments/mk0007/ai_surface_pattern/",
+            "container": "r/Ceramics",
+            "engagement": {"score": 198, "num_comments": 74},
+            "local_rank_score": 0.86
+          },
+          {
+            "title": "This AI video of anime characters is unreal",
+            "body": "Found an ordinary AI video generator that makes anime fight scenes all day.",
+            "url": "https://www.reddit.com/r/anime/comments/mk0008/ai_anime_video/",
+            "container": "r/anime",
+            "engagement": {"score": 1420, "num_comments": 312},
+            "local_rank_score": 0.3
+          }
+        ]
+      }
+    },
+    "3D printed ceramics": {
+      "items_by_source": {
+        "reddit": [
+          {
+            "title": "Clay paste extrusion settings for my delta printer",
+            "body": "Sharing the gcode tweaks that stopped layer collapse when printing porcelain.",
+            "url": "https://www.reddit.com/r/Ceramic3DPrinting/comments/mk0009/paste_extrusion_settings/",
+            "container": "r/Ceramic3DPrinting",
+            "engagement": {"score": 89, "num_comments": 27},
+            "local_rank_score": 0.83
+          }
+        ]
+      }
+    },
+    "handmade pottery": {
+      "items_by_source": {
+        "reddit": [
+          {
+            "title": "Handmade pottery mug set I made for my sister's wedding",
+            "body": "Stoneware clay with a dipped glaze, fired to cone 6 in our shared kiln.",
+            "url": "https://www.reddit.com/r/somethingimade/comments/mk0010/wedding_mug_set/",
+            "container": "r/somethingimade",
+            "engagement": {"score": 530, "num_comments": 88},
+            "local_rank_score": 0.91
+          },
+          {
+            "title": "Looking for a handmade gift idea for my mom",
+            "snippet": "Budget is about forty dollars. She likes earthy, rustic things.",
+            "url": "https://www.reddit.com/r/GiftIdeas/comments/mk0011/handmade_gift/",
+            "subreddit": "r/GiftIdeas",
+            "engagement": {"score": 21, "num_comments": 16},
+            "local_rank_score": 0.4
+          }
+        ]
+      }
+    },
+    "ceramic business": {
+      "items_by_source": {
+        "reddit": [
+          {
+            "title": "How do you price handmade ceramic mugs on Etsy?",
+            "body": "My cost per mug is nine dollars with glaze and firing. One customer says thirty-eight is too high. Pricing advice welcome.",
+            "url": "https://www.reddit.com/r/Pottery/comments/mk0012/etsy_mug_pricing/",
+            "container": "r/Pottery",
+            "engagement": {"score": 143, "num_comments": 96},
+            "local_rank_score": 0.89
+          },
+          {
+            "title": "Starting a small handmade business from my kitchen",
+            "body": "Mostly candles and soap right now, wondering when to add new product lines.",
+            "url": "https://www.reddit.com/r/smallbusiness/comments/mk0013/kitchen_business/",
+            "container": "r/smallbusiness",
+            "engagement": {"score": 67, "num_comments": 33},
+            "local_rank_score": 0.42
+          }
+        ]
+      }
+    },
+    "pottery studio": {
+      "items_by_source": {
+        "reddit": [
+          {
+            "title": "Our community studio added a beginner wheel class",
+            "body": "Membership covers kiln firing and open studio hours, and the booking calendar fills up fast.",
+            "url": "https://www.reddit.com/r/Pottery/comments/mk0014/community_studio_class/",
+            "container": "r/Pottery",
+            "engagement": {"score": 211, "num_comments": 45},
+            "local_rank_score": 0.87
+          }
+        ]
+      }
+    },
+    "ceramic texture": {
+      "items_by_source": {
+        "reddit": [
+          {
+            "title": "Carved texture experiments on a porcelain vase",
+            "body": "Used handmade clay stamps and a sgraffito loop, then a thin celadon glaze.",
+            "url": "https://www.reddit.com/r/Ceramics/comments/mk0015/carved_texture_vase/",
+            "container": "r/Ceramics",
+            "engagement": {"score": 324, "num_comments": 39},
+            "local_rank_score": 0.85
+          }
+        ]
+      }
+    },
+    "kiln firing": {
+      "items_by_source": {
+        "reddit": [
+          {
+            "title": "Bisque firing schedule for my new electric kiln",
+            "body": "Holding at the target temperature fixed the cracking I was seeing on thick slab pieces.",
+            "url": "https://www.reddit.com/r/Pottery/comments/mk0016/bisque_schedule/",
+            "container": "r/Pottery",
+            "engagement": {"score": 167, "num_comments": 58},
+            "local_rank_score": 0.9
+          },
+          {
+            "title": "Repurposing an old kiln shelf for a pizza oven",
+            "snippet": "Found a cordierite kiln shelf at a yard sale. Is it safe for baking food?",
+            "url": "https://www.reddit.com/r/BBQ/comments/mk0017/kiln_shelf_pizza/",
+            "container": "r/BBQ",
+            "engagement": {"score": 76, "num_comments": 24},
+            "local_rank_score": 0.38
+          }
+        ]
+      }
+    }
+  }
+}

@@ -6,8 +6,15 @@ PYTHON_BIN="${CERAMIC_PYTHON:-/Users/zhuyixiao/.cache/codex-runtimes/codex-prima
 STATE_FILE="${CERAMIC_RUN_STATE_FILE:-$ROOT_DIR/local_outputs/run_state.json}"
 ERROR_FILE="${CERAMIC_LAST_ERROR_FILE:-$ROOT_DIR/local_outputs/last_error.md}"
 COOLDOWN_MINUTES="${CERAMIC_LIVE_COOLDOWN_MINUTES:-30}"
+# Optional override for the external last30days.py path (same style as
+# CERAMIC_PYTHON). When unset, ceramic_report.py falls back to
+# LAST30DAYS_SCRIPT (legacy env) and then the original Mac default path.
+LAST30DAYS_SCRIPT_PATH="${CERAMIC_LAST30DAYS_SCRIPT:-}"
 
 cd "$ROOT_DIR"
+if [[ -n "$LAST30DAYS_SCRIPT_PATH" ]]; then
+  set -- --last30days-script "$LAST30DAYS_SCRIPT_PATH" "$@"
+fi
 "$PYTHON_BIN" -B ceramic_report.py \
   --mode live \
   --output reports/report.md \
