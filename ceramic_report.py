@@ -49,11 +49,12 @@ DEFAULT_LATEST_PATH = PROJECT_ROOT / "reports" / "latest.md"
 DEFAULT_ARCHIVE_DIR = PROJECT_ROOT / "reports" / "archive"
 DEFAULT_PROMPT_PATH = PROJECT_ROOT / "prompts" / "ceramic_report_prompt.md"
 DEFAULT_RESEARCH_EVIDENCE_PATH = PROJECT_ROOT / "data" / "research_evidence.json"
+DEFAULT_DATA_SOURCE_CATALOG_PATH = PROJECT_ROOT / "config" / "data_sources.json"
 DEFAULT_STATE_FILE = PROJECT_ROOT / "local_outputs" / "run_state.json"
 DEFAULT_ERROR_FILE = PROJECT_ROOT / "local_outputs" / "last_error.md"
 SUPPORTED_MODEL_PROVIDERS = {"rules"}
 SCRAPECREATORS_ENV_KEYS = ("SCRAPECREATORS_API_KEY", "SCRAPE_CREATORS_API_KEY")
-REPORT_VERSION = "V0.5.7"
+REPORT_VERSION = "V0.6.0"
 
 
 @dataclass(frozen=True)
@@ -84,6 +85,18 @@ class ResearchEvidence:
     content_ideas: list[str]
     next_search_terms: list[str]
     limits: list[str]
+
+
+@dataclass(frozen=True)
+class DataSourceSelection:
+    requested: str
+    source_id: str
+    label: str
+    mode: str
+    status: str
+    kind: str
+    description: str
+    fallback_sources: list[str]
 
 
 @dataclass(frozen=True)
@@ -122,7 +135,20 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--model-provider",
         default=os.environ.get("MODEL_PROVIDER", "rules"),
-        help="Report generation provider. V0.5.0 currently supports: rules.",
+        help="Report generation provider. Currently supports: rules.",
+    )
+    parser.add_argument(
+        "--data-source",
+        default=os.environ.get("CERAMIC_DATA_SOURCE", "auto"),
+        help=(
+            "Data source id. Use auto, mock, or reddit_last30days today. "
+            "Future ids such as scrapecreators_reddit are reserved but not implemented."
+        ),
+    )
+    parser.add_argument(
+        "--data-source-catalog",
+        default=os.environ.get("CERAMIC_DATA_SOURCE_CATALOG") or str(DEFAULT_DATA_SOURCE_CATALOG_PATH),
+        help="Path to data source catalog JSON.",
     )
     parser.add_argument(
         "--output",
@@ -208,6 +234,105 @@ def validate_model_provider(value: str) -> str:
             "请设置 MODEL_PROVIDER=rules。"
         )
     return provider
+
+
+def load_data_source_catalog(path: Path) -> dict[str, Any]:
+    if not path.exists():
+        raise FileNotFoundError(f"Data source catalog not found: {path}")
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError(f"Data source catalog must be a JSON object: {path}")
+    if not isinstance(payload.get("sources"), list):
+        raise ValueError(f"Data source catalog must contain a sources list: {path}")
+    return payload
+
+
+def source_entries(catalog: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    entries: dict[str, dict[str, Any]] = {}
+    for raw in catalog.get("sources", []):
+        if not isinstance(raw, dict):
+            continue
+        source_id = str(raw.get("id") or "").strip().lower()
+        if source_id:
+            entries[source_id] = raw
+    return entries
+
+
+def source_env_status(entry: dict[str, Any]) -> str:
+    required = [
+        str(key).strip()
+        for key in entry.get("requires_env", [])
+        if str(key).strip()
+    ]
+    if not required:
+        return "not_required"
+    return "configured" if all(os.environ.get(key) for key in required) else "missing"
+
+
+def resolve_data_source(
+    catalog: dict[str, Any],
+    *,
+    mode: str,
+    requested: str,
+) -> DataSourceSelection:
+    requested_id = str(requested or "auto").strip().lower()
+    defaults = catalog.get("default_by_mode") or {}
+    selected_id = defaults.get(mode) if requested_id in {"", "auto"} else requested_id
+    if not selected_id:
+        raise ValueError(f"没有为 --mode {mode!r} 配置默认数据源。")
+
+    entries = source_entries(catalog)
+    entry = entries.get(str(selected_id).lower())
+    if entry is None:
+        known = ", ".join(sorted(entries)) or "none"
+        raise ValueError(f"未知数据源 `{selected_id}`。当前已知数据源：{known}。")
+
+    entry_mode = str(entry.get("mode") or "").strip().lower()
+    if entry_mode != mode:
+        raise ValueError(
+            f"数据源 `{selected_id}` 属于 `{entry_mode}` 模式，不能用于 `--mode {mode}`。"
+        )
+
+    status = str(entry.get("status") or "planned").strip().lower()
+    if status != "available":
+        env_status = source_env_status(entry)
+        required = ", ".join(entry.get("requires_env", [])) or "无"
+        raise ValueError(
+            f"数据源 `{selected_id}` 已预留但尚未实现（状态：{status}）。"
+            f"需要的环境变量：{required}；当前配置状态：{env_status}。"
+            "本版本不会调用该数据源，请先使用 `--data-source auto`、`mock` 或 `reddit_last30days`。"
+        )
+
+    return DataSourceSelection(
+        requested=requested_id or "auto",
+        source_id=str(selected_id).lower(),
+        label=str(entry.get("label") or selected_id).strip(),
+        mode=entry_mode,
+        status=status,
+        kind=str(entry.get("kind") or "").strip(),
+        description=str(entry.get("description") or "").strip(),
+        fallback_sources=[
+            str(item).strip().lower()
+            for item in entry.get("fallback_sources", [])
+            if str(item).strip()
+        ],
+    )
+
+
+def build_trend_source(selection: DataSourceSelection, script_path: Path) -> TrendSource:
+    if selection.source_id == "mock":
+        return MockSource()
+    if selection.source_id == "reddit_last30days":
+        return Last30DaysSource(script_path, mode="live")
+    raise ValueError(
+        f"数据源 `{selection.source_id}` 尚未接入 TrendSource。请切回 --data-source auto。"
+    )
+
+
+def source_report_label(selection: DataSourceSelection | None) -> str:
+    if selection is None:
+        return "未记录"
+    return f"{selection.label} (`{selection.source_id}`)"
 
 
 def load_topics(path: Path) -> list[str]:
@@ -936,6 +1061,7 @@ def render_report(
     *,
     mode: str,
     model_provider: str,
+    data_source: DataSourceSelection | None = None,
     research_evidence: list[ResearchEvidence] | None = None,
     connectivity_note: str = "",
 ) -> str:
@@ -959,12 +1085,13 @@ def render_report(
         "",
         f"- 生成时间：{generated_at}",
         f"- 版本：{REPORT_VERSION} {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
-        f"- 数据模式：{data_mode_label(mode)}",
+        f"- 数据模式：{data_mode_label(mode, data_source)}",
+        f"- 数据源：{source_report_label(data_source)}",
         f"- 报告生成器：`{model_provider}`",
         f"- 关键词数量：{len(topics)}",
         f"- 相关性分层：高相关 {len(high_evidence)} 条，边缘相关 {len(edge_evidence)} 条，跑偏样本 {len(low_evidence)} 条",
         "",
-        report_note(mode, all_evidence, connectivity_note),
+        report_note(mode, all_evidence, connectivity_note, data_source),
         "",
         "## 本轮结论摘要",
         "",
@@ -1099,7 +1226,9 @@ def render_report(
             "",
             "## 后续升级接口",
             "",
-            "- `--mode live` 当前只接入 Reddit；YouTube、Pinterest、GitHub Actions 留到后续阶段。",
+            "- `--data-source auto` 当前会把 mock 映射到 `mock`，把 live 映射到 `reddit_last30days`。",
+            "- `--mode live` 当前只接入 Reddit；ScrapeCreators、YouTube、Pinterest、GitHub Actions 留到后续阶段。",
+            "- 数据源清单见 `config/data_sources.json`；预留数据源不会在没有实现时偷偷联网。",
             "- 报告结构来自 `prompts/ceramic_report_prompt.md`，后续可替换为 LLM 中文综合。",
             "- 自动化路线见 `docs/automation-roadmap.md`。",
             "",
@@ -1153,10 +1282,14 @@ def append_research_evidence_section(
         )
 
 
-def data_mode_label(mode: str) -> str:
-    if mode == "live":
+def data_mode_label(mode: str, data_source: DataSourceSelection | None = None) -> str:
+    if data_source and data_source.source_id == "mock":
+        return "MockSource `data/mock_samples.json`"
+    if data_source and data_source.source_id == "reddit_last30days":
         return "last30days-skill `--quick --search=reddit`"
-    return "last30days-skill `--mock --quick --search=reddit,youtube`"
+    if mode == "live":
+        return "live source adapter"
+    return "mock source adapter"
 
 
 def append_evidence_table(
@@ -1226,13 +1359,25 @@ def relevance_label(level: str) -> str:
     }.get(level, level)
 
 
-def report_note(mode: str, evidence: list[Evidence], connectivity_note: str) -> str:
+def report_note(
+    mode: str,
+    evidence: list[Evidence],
+    connectivity_note: str,
+    data_source: DataSourceSelection | None = None,
+) -> str:
     if mode == "mock":
-        return "> 说明：当前报告使用 mock 数据验证流程与版式，不代表真实社媒趋势。"
+        return (
+            f"> 说明：当前报告使用 {source_report_label(data_source)} 验证流程与版式，"
+            "不代表真实社媒趋势。"
+        )
     if evidence:
-        return "> 说明：当前报告使用 Reddit live 数据。YouTube、Pinterest、GitHub 等来源尚未接入。"
+        return (
+            f"> 说明：当前报告使用 {source_report_label(data_source)}。"
+            "YouTube、Pinterest、GitHub 等来源尚未接入。"
+        )
     return (
-        "> 说明：当前 live 模式已调用 Reddit-only pipeline，但没有获得可用证据。"
+        f"> 说明：当前 live 模式已调用 {source_report_label(data_source)}，"
+        "但没有获得可用证据。这通常是数据源访问问题，不代表报告生成器坏了。"
         f"{connectivity_note or '请检查本机网络是否能访问 Reddit。'}"
     )
 
@@ -1337,6 +1482,7 @@ def build_run_state(
     error_path: Path | None,
     counts: dict[str, int],
     control: RunControl,
+    data_source: DataSourceSelection | None = None,
 ) -> dict[str, Any]:
     now = datetime.now().astimezone()
     state = {
@@ -1351,6 +1497,22 @@ def build_run_state(
         "scrapecreators_fallback": scrapecreators_status_label(),
         **counts,
     }
+    if data_source is not None:
+        state.update(
+            {
+                "data_source": data_source.source_id,
+                "data_source_requested": data_source.requested,
+                "data_source_label": data_source.label,
+                "data_source_status": data_source.status,
+                "data_source_kind": data_source.kind,
+                "fallback_sources": data_source.fallback_sources,
+                "fallback_action": (
+                    "preserved_previous_report"
+                    if mode == "live" and status != "success"
+                    else "none"
+                ),
+            }
+        )
     if error_path is not None:
         state["error_path"] = str(error_path)
     return state
@@ -1364,23 +1526,29 @@ def render_live_error_report(
     error_text: str,
     connectivity_note: str,
     evidence_counts: dict[str, int],
+    data_source: DataSourceSelection | None = None,
 ) -> str:
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
     guidance = live_error_guidance(error_type)
+    fallback_sources = data_source.fallback_sources if data_source else []
     lines = [
         "# Reddit live 运行失败记录",
         "",
         f"- 发生时间：{generated_at}",
         f"- 错误类型：{error_type or 'unknown'}",
+        f"- 本次数据源：{source_report_label(data_source)}",
+        "- 错误范围：数据源请求失败；报告生成器和历史报告保护逻辑通常没有坏",
         f"- 正式报告：{display_path(output_path)}",
         f"- 当前采取的保护动作：未覆盖 `reports/report.md`，已保留上一份成功报告",
+        "- 降级动作：没有把 mock 报告写进正式 live 报告；mock 仍可手动用于结构验证",
         f"- 本次抓到证据总数：{evidence_counts['evidence_count']}",
         f"- 本次可用证据数：{evidence_counts['usable_evidence_count']}",
         f"- ScrapeCreators 备份状态：{scrapecreators_status_label()}",
+        f"- 预留备选数据源：{', '.join(fallback_sources) if fallback_sources else '暂无'}",
         "",
         "## 说明",
         "",
-        "live 失败，未覆盖 `reports/report.md`。如果这是 Reddit 403 / 429 / DNS 问题，建议稍后再运行 live，mock 模式仍可继续用于测试报告流程。",
+        "live 失败，未覆盖 `reports/report.md`。如果这是 Reddit 403 / 429 / DNS 问题，通常先处理数据源或网络，不要急着改报告生成逻辑。mock 模式仍可继续用于测试报告流程。",
         "",
         "## 建议下一步操作",
         "",
@@ -1467,6 +1635,7 @@ def main() -> int:
         print(f"配置错误：{exc}", file=sys.stderr)
         return 2
     topics_path = Path(args.topics).expanduser().resolve()
+    data_source_catalog_path = Path(args.data_source_catalog).expanduser().resolve()
     output_path = Path(args.output).expanduser().resolve()
     latest_path = Path(args.latest).expanduser().resolve()
     archive_dir = Path(args.archive_dir).expanduser().resolve()
@@ -1482,6 +1651,16 @@ def main() -> int:
     )
 
     config = load_config(topics_path)
+    try:
+        data_source_catalog = load_data_source_catalog(data_source_catalog_path)
+        data_source = resolve_data_source(
+            data_source_catalog,
+            mode=args.mode,
+            requested=args.data_source,
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"数据源配置错误：{exc}", file=sys.stderr)
+        return 2
     topics = load_topics(topics_path)
     relevance_config = load_relevance_config(config)
     research_evidence = [] if args.no_research_evidence else load_research_evidence(research_evidence_path)
@@ -1496,18 +1675,13 @@ def main() -> int:
             return 0
 
     skip_live_retrieval = False
-    if args.mode == "live":
+    if args.mode == "live" and data_source.source_id == "reddit_last30days":
         ok, connectivity_note = check_reddit_connectivity()
         if not ok:
             print(connectivity_note, file=sys.stderr)
             skip_live_retrieval = True
 
-    # V0.5.0 data-source adapter wiring: mock reads repository-local sample
-    # data (no external skill needed); live keeps the V0.4.2 subprocess path.
-    if args.mode == "live":
-        source: TrendSource = Last30DaysSource(script_path, mode="live")
-    else:
-        source = MockSource()
+    source = build_trend_source(data_source, script_path)
 
     runs: list[TopicRun] = []
     for topic in topics:
@@ -1537,6 +1711,7 @@ def main() -> int:
         prompt_template,
         mode=args.mode,
         model_provider=model_provider,
+        data_source=data_source,
         research_evidence=research_evidence,
         connectivity_note=connectivity_note,
     )
@@ -1562,6 +1737,7 @@ def main() -> int:
                 error_path=error_path,
                 counts=counts,
                 control=control,
+                data_source=data_source,
             )
             run_state["latest_path"] = str(latest_path)
             run_state["archive_path"] = str(archive_path)
@@ -1570,6 +1746,7 @@ def main() -> int:
                 state_path,
                 run_state,
             )
+            print(f"本次数据源：{source_report_label(data_source)}")
             print(f"已更新 {display_path(output_path)}")
             print(f"已更新 {display_path(latest_path)}")
             print(f"已归档 {display_path(archive_path)}")
@@ -1584,6 +1761,7 @@ def main() -> int:
                 error_text=error_text,
                 connectivity_note=connectivity_note,
                 evidence_counts=counts,
+                data_source=data_source,
             ),
         )
         failed_state = build_run_state(
@@ -1594,9 +1772,11 @@ def main() -> int:
             error_path=error_path,
             counts=counts,
             control=control,
+            data_source=data_source,
         )
         failed_state["model_provider"] = model_provider
         save_run_state(state_path, failed_state)
+        print(f"本次数据源：{source_report_label(data_source)}")
         print(f"live 失败，已保留上一份成功报告；错误详情见 {display_path(error_path)}")
         return 0
 
@@ -1609,9 +1789,11 @@ def main() -> int:
         error_path=None,
         counts=counts,
         control=control,
+        data_source=data_source,
     )
     mock_state["model_provider"] = model_provider
     save_run_state(state_path, mock_state)
+    print(f"本次数据源：{source_report_label(data_source)}")
     print(f"已更新 {display_path(output_path)}")
     return 0
 

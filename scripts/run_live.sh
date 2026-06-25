@@ -41,6 +41,8 @@ if state.get("mode") != "live":
 status = state.get("last_status") or state.get("status")
 error_type = state.get("last_error_type") or state.get("error_type")
 scrapecreators = state.get("scrapecreators_fallback") or "missing"
+data_source = state.get("data_source") or "unknown"
+data_source_label = state.get("data_source_label") or data_source
 if status not in {"failed", "rate_limited"}:
     raise SystemExit(0)
 
@@ -54,6 +56,8 @@ messages = {
 
 print("")
 print("Live 运行提示：")
+print(f"本次数据源：{data_source_label} ({data_source})")
+print("判断：这是数据源访问失败，不是报告生成器或历史报告保护逻辑坏了。")
 message = messages.get(error_type, "live 运行失败，已保留上一份成功报告。请查看 local_outputs/last_error.md。")
 if error_type == "forbidden_403":
     if scrapecreators == "configured":

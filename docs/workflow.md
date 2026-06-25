@@ -24,6 +24,16 @@ MODEL_PROVIDER=rules
 
 `rules` 表示报告由本地规则生成，不调用外部大模型，不需要 API key。
 
+当前数据源选择：
+
+```text
+CERAMIC_DATA_SOURCE=auto
+```
+
+`auto` 表示：mock 模式使用本地样例数据 `mock`；live 模式使用当前真实源 `reddit_last30days`。
+完整数据源清单见 `config/data_sources.json`。`scrapecreators_reddit`、`youtube_future`、`pinterest_future`
+只是预留入口，本阶段不会自动调用。
+
 本地研究证据：
 
 ```text
@@ -51,6 +61,7 @@ cd /Users/zhuyixiao/Documents/GitHub/ceramic-trend-research-bot
 - Reddit DNS / HTTPS 是否可用
 - `last30days-skill` 路径是否存在
 - `MODEL_PROVIDER` 是否为 `rules`
+- `CERAMIC_DATA_SOURCE` 是否为 `auto`
 - `.env` 是否安全
 
 ### 3. 调整报告结构时跑 mock
@@ -140,6 +151,9 @@ local_outputs/run_state.json
 - `timeout`：网络或代理连接不稳定
 - `network_error`：其他网络连接问题
 
+如果 live 失败，先看 `local_outputs/last_error.md` 里的“本次数据源”。如果写的是
+`reddit_last30days`，通常先排查 Reddit / 代理 / 403 / 429，不要急着改报告生成逻辑。
+
 live 失败不会覆盖：
 
 ```text
@@ -163,11 +177,13 @@ reports/archive/
 | `local_outputs/last_error.md` | 最近一次 live 失败详情，不进入 Git |
 | `local_outputs/run_state.json` | 冷却、状态和错误类型，不进入 Git |
 | `data/research_evidence.json` | 本地研究证据，进入报告的“研究证据”模块 |
+| `config/data_sources.json` | 数据源清单，区分可用源和预留源 |
 
 ## 推荐的日常节奏
 
 - 改代码或报告格式：跑 mock
 - 网络正常且需要新数据：跑一次 live
+- live 数据源失败：看 `last_error.md`，确认是不是 `reddit_last30days` 被挡
 - live 成功积累两期以上：跑 compare
 - live 失败：先看错误，不要连续重试
 - ScrapeCreators 晚点申请：先维护 `research/ceramic-ai-evidence.md` 和稳定数据源路线

@@ -11,6 +11,14 @@ live 成功时还会更新：
 
 live 失败时不会更新 `reports/latest.md`，也不会新增 archive 报告。这是为了避免失败说明污染历史真实数据。
 
+V0.6.0 以后，错误详情里会写明“本次数据源”。当前日常默认是：
+
+- mock：`mock`
+- live：`reddit_last30days`
+
+如果 live 失败时看到 `reddit_last30days`，优先排查 Reddit、代理、403、429、DNS 或 timeout。
+这通常是数据源访问失败，不代表报告生成器坏了。完整数据源清单见 `config/data_sources.json`。
+
 ## 403 Blocked
 
 含义：

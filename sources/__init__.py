@@ -11,6 +11,10 @@ Available sources:
                       network, no external skill, works on Windows / CI.
 - Last30DaysSource    shells out to the external last30days-skill exactly the
                       way ceramic_report.py V0.4.2 did; used by --mode live.
+
+V0.6.0 selects among available and planned source ids via
+config/data_sources.json. Planned ids are documentation and CLI guardrails
+until a real TrendSource implementation exists.
 """
 
 from __future__ import annotations

@@ -4,11 +4,15 @@
 
 ## Current Status
 
-V0.5.0 是 **数据源适配层（data-source adapter）版本**：
+V0.6.0 是 **数据源选择与降级说明版本**，建立在 V0.5.0 的数据源适配层之上：
 
 - 新增 `sources/` 适配层，定义统一的 `TrendSource` 契约：`fetch(topic, *, recommended_subreddits)`，输出统一的 `last30days` 形状报告 dict
 - `mock` 模式改由 `MockSource` 读取仓库内 `data/mock_samples.json`，**零配置、零联网、零外部依赖**，在 Windows / CI 上也能稳定出报告
 - `live` 模式由 `Last30DaysSource` 承接，子进程命令构造与 V0.4.2 逐项一致，行为不变
+- 新增 `config/data_sources.json`，集中记录当前可用数据源和未来预留数据源
+- 新增 `--data-source auto`：mock 自动选择 `mock`，live 自动选择 `reddit_last30days`
+- 预留 `scrapecreators_reddit`、`youtube_future`、`pinterest_future`，但本版本不会调用未实现数据源
+- 报告、`run_state.json` 和 live 失败提示会记录本次使用的数据源
 - 打分（`score_reddit_item`）和渲染是**冻结行为**，输出与 V0.4.2 完全一致
 - 新增 `tests/` 单元测试（`unittest`），覆盖词匹配、打分契约和数据源适配层
 - 新增 `AGENTS.md` / `CLAUDE.md` 工作说明，以及 `docs/changes/` 变更记录
@@ -48,6 +52,7 @@ V0.5.0 是 **数据源适配层（data-source adapter）版本**：
 - V0.5.5 新增 ScrapeCreators readiness check：只显示 `configured` / `missing`，不打印真实 key
 - V0.5.6 新增稳定数据源路线图：ScrapeCreators 晚点再申请时，优先推进论文、GitHub、YouTube 和本地证据库路线
 - V0.5.7 新增本地研究证据入口：报告会读取 `data/research_evidence.json` 并新增“研究证据”模块
+- V0.6.0 新增数据源选择与降级说明：`auto` 默认映射当前稳定源，预留源不会偷偷联网
 - 不安装 `yt-dlp`
 - 不配置 API key
 - 不修改 `last30days-skill` 原始代码
@@ -72,7 +77,15 @@ V0.5.0 是 **数据源适配层（data-source adapter）版本**：
 MODEL_PROVIDER=rules
 ```
 
-V0.5.0 只支持 `rules`。`openai`、`anthropic`、`ollama` 等 provider 仅作为未来扩展方向，当前不会调用。
+当前只支持 `rules`。`openai`、`anthropic`、`ollama` 等 provider 仅作为未来扩展方向，当前不会调用。
+
+当前数据源选择：
+
+```text
+CERAMIC_DATA_SOURCE=auto
+```
+
+`auto` 会在 mock 模式使用 `mock`，在 live 模式使用 `reddit_last30days`。可用和预留的数据源见 `config/data_sources.json`。
 
 ## Run
 
@@ -105,8 +118,10 @@ bash scripts/compare_reports.sh
 原始 Python 命令仍然可用：
 
 ```bash
-/Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 ceramic_report.py --mode live --output reports/report.md
+/Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 ceramic_report.py --mode live --data-source auto --output reports/report.md
 ```
+
+如果手动选择尚未实现的数据源，例如 `--data-source scrapecreators_reddit`，程序会清楚提示该数据源只是预留接口，不会偷偷调用外部 API。
 
 本地研究证据默认来自：
 
@@ -204,6 +219,7 @@ bash scripts/reddit_probe_matrix.sh
 - `mock` 模式不会读取真实 API key，也不会发起真实联网搜索。
 - `mock` 模式可以覆盖 `reports/report.md`，因为它是测试流程。
 - `live` 模式当前只访问 Reddit 公共数据源；如果当前网络无法访问 Reddit，会保留上一份成功报告，并把失败原因写入 `local_outputs/last_error.md`。
+- live 失败时会标明本次数据源，方便判断是 Reddit 数据源失败、网络失败，还是报告生成逻辑问题。
 
 ## Project Structure
 
@@ -213,10 +229,12 @@ sources/__init__.py               # TrendSource 契约（数据源适配层）
 sources/mock_source.py            # MockSource：读 data/mock_samples.json，离线
 sources/last30days_source.py      # Last30DaysSource：外部 last30days-skill 子进程（live）
 config/ceramic_topics.json        # Ceramic keyword, subreddit, and relevance rules
+config/data_sources.json          # 当前可用和未来预留的数据源清单
 data/mock_samples.json            # mock 证据样例（last30days --emit=json 形状）
 data/research_evidence.json       # 本地研究证据，供报告“研究证据”模块读取
 prompts/ceramic_report_prompt.md  # Chinese report structure
 tests/                            # unittest 用例（term matching / scoring / sources）
+tests/test_data_source_selection.py # 数据源 auto 映射、预留源保护、run_state 字段
 docs/changes/                     # 变更记录（每个改动一份编号文档）
 AGENTS.md                         # 代理 / 贡献者工作说明
 CLAUDE.md                         # 指向 AGENTS.md

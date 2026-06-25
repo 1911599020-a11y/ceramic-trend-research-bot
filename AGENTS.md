@@ -11,6 +11,7 @@
 - `--mode mock`：读取仓库内 `data/mock_samples.json`，零配置、零联网，用于验证报告结构与版式。
 - `--mode live`：当前只接入 Reddit（经由外部 `last30days-skill` 子进程），并按陶瓷相关性分层。
 - 当前架构基础：**V0.5.0 — 数据源适配层（data-source adapter）**。详见 `docs/changes/0001-data-source-adapter.md`。
+  当前运行选择：**V0.6.0 — 数据源选择与降级说明**，通过 `config/data_sources.json` 和 `--data-source auto` 管理。
   最新项目决策按 `docs/changes/` 中的编号变更记录继续递增。
 
 ## 2. 架构
@@ -24,6 +25,7 @@ sources/                      # 数据源适配层（“证据从哪来”）
   last30days_source.py        # Last30DaysSource：shell out 到 last30days-skill（live）
 ceramic_report.py             # 打分 + 渲染（“如何消化证据”），CLI 入口
 config/ceramic_topics.json    # 关键词、推荐 subreddit、相关性规则（positive/exclude/topic_rules）
+config/data_sources.json      # 数据源清单：mock / reddit_last30days 可用，其他来源预留
 data/mock_samples.json        # mock 证据样例（last30days --emit=json 形状）
 prompts/ceramic_report_prompt.md  # 中文报告结构模板
 tests/                        # unittest 用例
@@ -33,6 +35,9 @@ docs/changes/                 # 变更记录（每个改动一份编号文档）
 **单一契约**：每个 source 的 `fetch()` 都返回同一种 `last30days` 形状的 dict
 （顶层 `items_by_source` → source 名 → item 列表）。打分和渲染层永远不知道证据是哪个后端产生的。
 新增数据源 = 新增一个实现 `TrendSource` 的类，不应改动打分 / 渲染逻辑。
+
+V0.6.0 以后，数据源选择先进入 `config/data_sources.json`，再接入 `TrendSource`。预留数据源
+（如 `scrapecreators_reddit`、`youtube_future`、`pinterest_future`）在实现前不能偷偷发起联网请求。
 
 ## 3. 环境与命令
 

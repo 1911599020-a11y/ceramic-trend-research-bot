@@ -1,0 +1,69 @@
+{
+  "default_by_mode": {
+    "mock": "mock",
+    "live": "reddit_last30days"
+  },
+  "sources": [
+    {
+      "id": "mock",
+      "label": "Mock local samples",
+      "mode": "mock",
+      "status": "available",
+      "kind": "local_fixture",
+      "description": "Reads repository-local data/mock_samples.json. No network, no API key, no external last30days-skill.",
+      "requires_env": [],
+      "fallback_sources": []
+    },
+    {
+      "id": "reddit_last30days",
+      "label": "Reddit via last30days-skill",
+      "mode": "live",
+      "status": "available",
+      "kind": "subprocess_public_json",
+      "description": "Uses local last30days-skill with --quick --search=reddit. This is the current real social-data source.",
+      "requires_env": [],
+      "fallback_sources": [
+        "scrapecreators_reddit",
+        "mock"
+      ]
+    },
+    {
+      "id": "scrapecreators_reddit",
+      "label": "ScrapeCreators Reddit API",
+      "mode": "live",
+      "status": "planned",
+      "kind": "api_provider",
+      "description": "Reserved API-backed Reddit source for when public Reddit JSON keeps returning 403 or 429.",
+      "requires_env": [
+        "SCRAPECREATORS_API_KEY"
+      ],
+      "fallback_sources": [
+        "mock"
+      ]
+    },
+    {
+      "id": "youtube_future",
+      "label": "YouTube transcripts",
+      "mode": "live",
+      "status": "planned",
+      "kind": "video_transcript",
+      "description": "Reserved future source. Do not install yt-dlp or enable YouTube in V0.6.0.",
+      "requires_env": [],
+      "fallback_sources": [
+        "mock"
+      ]
+    },
+    {
+      "id": "pinterest_future",
+      "label": "Pinterest visual trend source",
+      "mode": "live",
+      "status": "planned",
+      "kind": "visual_social",
+      "description": "Reserved future visual trend source. No provider is configured in V0.6.0.",
+      "requires_env": [],
+      "fallback_sources": [
+        "mock"
+      ]
+    }
+  ]
+}
