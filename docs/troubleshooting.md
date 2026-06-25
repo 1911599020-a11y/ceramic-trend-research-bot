@@ -94,6 +94,21 @@ bash scripts/check_environment.sh
 
 如果浏览器能打开 Reddit，但这里仍然 403，通常说明浏览器代理和终端代理不是同一套环境，或者 Reddit 拒绝了当前代理出口。
 
+如果 `bash scripts/check_environment.sh` 已经显示 `Reddit proxy-aware HTTP` 是 `forbidden_403`，但你想进一步判断是普通网页、global search、User-Agent 还是指定 subreddit 搜索被挡，可以运行一次：
+
+```bash
+bash scripts/reddit_probe_matrix.sh
+```
+
+这个矩阵会发起多次最小 Reddit 探测请求。它只用于排查，不保存研究数据；刚遇到 403 / 429 后不要短时间反复运行。
+
+常见矩阵结果：
+
+- 首页 PASS，但所有 `search.json` FAIL：当前网络出口可以打开 Reddit 页面，但 Reddit 拒绝公共 JSON 搜索接口。优先换代理出口或后续考虑 API/第三方数据源，不要只改报告逻辑。
+- app User-Agent FAIL，browser User-Agent PASS：可能是 User-Agent 触发限制，后续可以考虑把 live 预检与 public Reddit 路径的浏览器 UA 对齐。
+- global search FAIL，但 subreddit search PASS：后续 live 可以优先走推荐 subreddit 定向搜索，减少全站搜索依赖。
+- 全部 FAIL：先查网络、DNS、代理或 VPN。
+
 常见代理变量示例：
 
 ```bash

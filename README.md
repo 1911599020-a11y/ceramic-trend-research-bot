@@ -166,6 +166,14 @@ bash scripts/check_environment.sh
 
 如果浏览器能打开 Reddit，但 live 仍然 403，请先运行环境诊断。浏览器代理不一定会自动应用到终端命令；诊断会提示当前终端是否设置了 `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY`。
 
+如果环境诊断已经明确是 Reddit 403，但还不清楚是 User-Agent、global search 还是 subreddit search 被挡，可以运行一次请求矩阵：
+
+```bash
+bash scripts/reddit_probe_matrix.sh
+```
+
+这个命令会发起多次最小 Reddit 探测请求，只用于排查，不保存研究数据。刚遇到 403 / 429 后不要短时间反复运行。
+
 ## Safety
 
 - 不要把 `.env` 提交到 GitHub。
@@ -192,6 +200,7 @@ CLAUDE.md                         # 指向 AGENTS.md
 scripts/run_mock.sh               # Local mock runner
 scripts/run_live.sh               # Local live runner with cooldown
 scripts/check_environment.sh       # Local environment diagnostic runner
+scripts/reddit_probe_matrix.sh     # Optional Reddit 403 request-shape diagnostic
 scripts/compare_reports.py        # Compare latest two archived live reports
 scripts/compare_reports.sh        # Local compare runner
 local_outputs/last_error.md       # Ignored live failure details
