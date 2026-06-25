@@ -46,6 +46,7 @@ V0.5.0 是 **数据源适配层（data-source adapter）版本**：
 - 新增 `research/ceramic-ai-evidence.md`，收录陶瓷 AI 一手研究证据
 - V0.5.4 新增 Reddit 数据源替代路径评估，说明 public JSON、ScrapeCreators API 和其他来源的取舍
 - V0.5.5 新增 ScrapeCreators readiness check：只显示 `configured` / `missing`，不打印真实 key
+- V0.5.6 新增稳定数据源路线图：ScrapeCreators 晚点再申请时，优先推进论文、GitHub、YouTube 和本地证据库路线
 - 不安装 `yt-dlp`
 - 不配置 API key
 - 不修改 `last30days-skill` 原始代码
@@ -133,6 +134,8 @@ local_outputs/last_error.md
 
 陶瓷 AI 研究素材见 [research/ceramic-ai-evidence.md](research/ceramic-ai-evidence.md)。
 
+ScrapeCreators 晚点再申请时，稳定数据源路线见 [docs/stable-data-source-roadmap.md](docs/stable-data-source-roadmap.md)。
+
 ## Tests
 
 本仓库使用标准库 `unittest`，无需安装第三方依赖。在仓库根目录运行：
@@ -217,6 +220,7 @@ reports/trend_diff.md             # Latest archive comparison
 docs/automation-roadmap.md        # Future automation paths
 docs/troubleshooting.md           # Local live failure troubleshooting
 docs/reddit-data-source-options.md # Reddit public JSON / ScrapeCreators / other sources decision notes
+docs/stable-data-source-roadmap.md # Stable source roadmap while ScrapeCreators is deferred
 docs/workflow.md                  # Daily operations and agent handoff
 research/ceramic-ai-evidence.md   # Ceramic + AI primary research evidence
 .env.example                      # Future live-mode environment variables

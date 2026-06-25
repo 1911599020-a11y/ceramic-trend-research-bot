@@ -136,6 +136,8 @@ reports/archive/
 
 详细排障见 [troubleshooting.md](troubleshooting.md)。
 
+如果暂时不申请 ScrapeCreators key，不要把项目卡在 Reddit live 上。下一阶段路线见 [stable-data-source-roadmap.md](stable-data-source-roadmap.md)，优先维护论文、GitHub、YouTube 和本地证据库方向。
+
 ## 报告文件说明
 
 | 文件 | 用途 |
@@ -153,6 +155,7 @@ reports/archive/
 - 网络正常且需要新数据：跑一次 live
 - live 成功积累两期以上：跑 compare
 - live 失败：先看错误，不要连续重试
+- ScrapeCreators 晚点申请：先维护 `research/ceramic-ai-evidence.md` 和稳定数据源路线
 - 提交前：确认 `git status` 中没有 `.env` 或 `local_outputs/`
 
 ## 交接给新 Agent
