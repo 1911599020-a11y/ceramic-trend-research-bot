@@ -115,7 +115,7 @@ V0.5.3 的请求矩阵显示：
 
 更稳的下一步是走路线 B，但分两步做：
 
-1. V0.5.5 先做 ScrapeCreators readiness mode：只做配置检查和说明，不放真实 key，不真实抓取。
+1. V0.5.5 先做 ScrapeCreators readiness mode：只做配置检查和说明，不放真实 key，不真实抓取。当前项目已具备该检查。
 2. 你确认后，再配置 `SCRAPECREATORS_API_KEY` 并进行一次最小 Reddit live 验证。
 
 如果你暂时不想配置第三方 API，则走路线 C：先推进 GitHub / 论文 / YouTube 等来源，把 Reddit 当作“可用时加分”的数据源。
@@ -124,9 +124,9 @@ V0.5.3 的请求矩阵显示：
 
 优先建议：
 
-- V0.5.5：新增 ScrapeCreators readiness check。
-- 更新环境诊断，让它能清楚显示 `SCRAPECREATORS_API_KEY` 是 configured 还是 missing，但永远不打印真实 key。
-- 更新 live 失败提示：当 public JSON 403 且 ScrapeCreators key missing 时，提示“可考虑配置 ScrapeCreators 或暂时切到其他数据源”。
+- 运行 `bash scripts/check_environment.sh`，查看 `ScrapeCreators Reddit fallback` 是 configured 还是 missing。
+- 如果 public JSON 403 且 ScrapeCreators 仍是 missing，再决定是否配置 key，或先切到其他数据源。
+- 真正配置 key 前，继续保持 mock 和历史 live 报告保护机制。
 
 暂不建议：
 

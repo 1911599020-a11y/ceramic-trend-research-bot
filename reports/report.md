@@ -1,6 +1,6 @@
 # 陶瓷趋势情报报告
 
-- 生成时间：2026-06-23 23:16
+- 生成时间：2026-06-25 09:08
 - 版本：V0.5.0 mock 本地报告
 - 数据模式：last30days-skill `--mock --quick --search=reddit,youtube`
 - 报告生成器：`rules`

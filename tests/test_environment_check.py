@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import os
 import sys
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -117,6 +119,36 @@ class EnvironmentCheckTests(unittest.TestCase):
         self.assertIn("q=ceramic%20art", probe.full_url)
         self.assertEqual(probe.get_method(), "GET")
         self.assertEqual(probe.get_header("User-agent"), "ceramic-trend-research-bot/0.2")
+
+    def test_scrapecreators_readiness_warns_when_missing(self) -> None:
+        with mock.patch.dict(os.environ, {}, clear=True):
+            checks = env_check.check_scrapecreators_readiness()
+
+        self.assertEqual(checks[0].status, "WARN")
+        self.assertEqual(checks[0].label, "ScrapeCreators Reddit fallback")
+        self.assertIn("missing", checks[0].detail)
+
+    def test_scrapecreators_readiness_does_not_print_secret(self) -> None:
+        with mock.patch.dict(os.environ, {"SCRAPECREATORS_API_KEY": "dummy-token-for-test"}, clear=True):
+            checks = env_check.check_scrapecreators_readiness()
+
+        self.assertEqual(checks[0].status, "PASS")
+        self.assertIn("configured", checks[0].detail)
+        self.assertNotIn("dummy-token-for-test", checks[0].detail)
+
+    def test_forbidden_next_steps_mentions_missing_scrapecreators(self) -> None:
+        checks = [
+            env_check.Check("FAIL", "Reddit proxy-aware HTTP", "forbidden_403: HTTP 403 Blocked"),
+            env_check.Check("WARN", "ScrapeCreators Reddit fallback", "missing"),
+        ]
+        output = io.StringIO()
+
+        with redirect_stdout(output):
+            env_check.print_next_steps(checks)
+
+        text = output.getvalue()
+        self.assertIn("ScrapeCreators fallback is missing", text)
+        self.assertIn("SCRAPECREATORS_API_KEY", text)
 
 
 if __name__ == "__main__":

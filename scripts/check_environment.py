@@ -57,6 +57,7 @@ ENV_KEYS = [
     "FROM_BROWSER",
 ]
 SUPPORTED_MODEL_PROVIDERS = {"rules"}
+SCRAPECREATORS_ENV_KEYS = ["SCRAPECREATORS_API_KEY", "SCRAPE_CREATORS_API_KEY"]
 
 
 @dataclass
@@ -73,6 +74,7 @@ def main() -> int:
     checks.extend(check_proxy_env())
     checks.extend(check_domains())
     checks.extend(check_reddit_policy())
+    checks.extend(check_scrapecreators_readiness())
     checks.extend(check_tools())
     checks.extend(check_env_files())
     checks.extend(check_model_provider())
@@ -297,6 +299,33 @@ def check_reddit_policy() -> list[Check]:
         return [Check("FAIL", "Reddit proxy-aware HTTP", f"{error_type}: {exc}")]
 
 
+def is_scrapecreators_configured() -> bool:
+    return any(os.environ.get(key) for key in SCRAPECREATORS_ENV_KEYS)
+
+
+def check_scrapecreators_readiness() -> list[Check]:
+    """Check whether last30days can use its ScrapeCreators Reddit fallback.
+
+    This is intentionally a presence check only. It never validates the key
+    against the network and never prints the secret value.
+    """
+    if is_scrapecreators_configured():
+        return [
+            Check(
+                "PASS",
+                "ScrapeCreators Reddit fallback",
+                "configured; last30days can try the API fallback if public Reddit JSON is blocked",
+            )
+        ]
+    return [
+        Check(
+            "WARN",
+            "ScrapeCreators Reddit fallback",
+            "missing; Reddit live currently relies on public Reddit JSON only",
+        )
+    ]
+
+
 def classify_http_status(status: int) -> str:
     if status == 403:
         return "forbidden_403"
@@ -391,6 +420,10 @@ def print_next_steps(checks: list[Check]) -> None:
     warnings = {check.label: check.detail for check in checks if check.status == "WARN"}
 
     reddit_policy = failures.get("Reddit proxy-aware HTTP") or warnings.get("Reddit proxy-aware HTTP")
+    scrapecreators_ready = any(
+        check.label == "ScrapeCreators Reddit fallback" and check.status == "PASS"
+        for check in checks
+    )
     if (
         any(label.startswith("DNS www.reddit.com") or label.startswith("HTTPS www.reddit.com") for label in failures)
         and not reddit_policy
@@ -400,6 +433,10 @@ def print_next_steps(checks: list[Check]) -> None:
         if "forbidden_403" in reddit_policy:
             print("- Reddit returned 403. Usually this is proxy exit/IP/User-Agent/access-policy related, not a report-generation bug.")
             print("- Try another proxy node, verify terminal proxy variables, then wait before retrying live mode.")
+            if scrapecreators_ready:
+                print("- ScrapeCreators fallback is configured. If live still fails, check API key validity, quota, and last30days config.")
+            else:
+                print("- ScrapeCreators fallback is missing. If public Reddit JSON keeps returning 403, consider configuring `SCRAPECREATORS_API_KEY` or temporarily using another data source.")
         elif "rate_limited_429" in reddit_policy:
             print("- Reddit returned 429. Wait at least 30 minutes and avoid repeated `--force` runs.")
         elif "dns_error" in reddit_policy:
@@ -420,6 +457,8 @@ def print_next_steps(checks: list[Check]) -> None:
         print("- Restore .env.example from the repository before configuring live-mode keys.")
     if "MODEL_PROVIDER" in failures:
         print("- Set MODEL_PROVIDER=rules. Other model providers are reserved for future versions.")
+    if "ScrapeCreators Reddit fallback" in warnings and not reddit_policy:
+        print("- ScrapeCreators is optional for mock mode. It becomes useful when public Reddit JSON is blocked.")
     if not failures:
         reddit_proxy_ok = any(
             check.label == "Reddit proxy-aware HTTP" and check.status == "PASS"

@@ -45,6 +45,7 @@ V0.5.0 是 **数据源适配层（data-source adapter）版本**：
 - 新增 `MODEL_PROVIDER=rules` 预留接口；当前不调用外部大模型
 - 新增 `research/ceramic-ai-evidence.md`，收录陶瓷 AI 一手研究证据
 - V0.5.4 新增 Reddit 数据源替代路径评估，说明 public JSON、ScrapeCreators API 和其他来源的取舍
+- V0.5.5 新增 ScrapeCreators readiness check：只显示 `configured` / `missing`，不打印真实 key
 - 不安装 `yt-dlp`
 - 不配置 API key
 - 不修改 `last30days-skill` 原始代码
@@ -147,6 +148,7 @@ tests/test_term_matching.py   # 词边界 / 短语分隔符匹配
 tests/test_scoring.py         # 打分契约：exclude 扣分、required 缺失压分、level 阈值
 tests/test_sources.py         # MockSource 可被消化；Last30DaysSource 命令逐项一致（mock subprocess）
 tests/test_environment_check.py # 环境诊断的代理脱敏与错误分类
+tests/test_live_failure_guidance.py # live 失败提示与 ScrapeCreators 状态脱敏
 ```
 
 mock 报告零配置生成（不联网、不依赖外部 skill）：
@@ -163,7 +165,7 @@ python ceramic_report.py --mode mock
 bash scripts/check_environment.sh
 ```
 
-诊断脚本会自动使用项目已验证的 Python 3.12。诊断会检查 Python、`last30days-skill` 路径、终端代理环境变量、Reddit/YouTube/GitHub DNS 与 HTTPS、Reddit 代理感知 HTTP 状态、`yt-dlp`、`MODEL_PROVIDER`、`.env` 文件和关键环境变量。它不会打印真实 key，也不会保存研究数据。它会发起一次最小 Reddit 探测请求，所以刚遇到 403 / 429 后不要短时间反复运行。更多说明见 `docs/environment-check.md`。
+诊断脚本会自动使用项目已验证的 Python 3.12。诊断会检查 Python、`last30days-skill` 路径、终端代理环境变量、Reddit/YouTube/GitHub DNS 与 HTTPS、Reddit 代理感知 HTTP 状态、ScrapeCreators Reddit 备份是否 ready、`yt-dlp`、`MODEL_PROVIDER`、`.env` 文件和关键环境变量。它不会打印真实 key，也不会保存研究数据。它会发起一次最小 Reddit 探测请求，所以刚遇到 403 / 429 后不要短时间反复运行。更多说明见 `docs/environment-check.md`。
 
 如果浏览器能打开 Reddit，但 live 仍然 403，请先运行环境诊断。浏览器代理不一定会自动应用到终端命令；诊断会提示当前终端是否设置了 `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY`。
 
@@ -175,7 +177,7 @@ bash scripts/reddit_probe_matrix.sh
 
 这个命令会发起多次最小 Reddit 探测请求，只用于排查，不保存研究数据。刚遇到 403 / 429 后不要短时间反复运行。
 
-如果矩阵显示“Reddit 首页 PASS，但 `search.json` 搜索接口全部 403”，说明当前出口能打开页面但不适合走免费 Reddit JSON 搜索。后续路线评估见 [docs/reddit-data-source-options.md](docs/reddit-data-source-options.md)。
+如果矩阵显示“Reddit 首页 PASS，但 `search.json` 搜索接口全部 403”，说明当前出口能打开页面但不适合走免费 Reddit JSON 搜索。后续路线评估见 [docs/reddit-data-source-options.md](docs/reddit-data-source-options.md)。如果环境诊断里的 `ScrapeCreators Reddit fallback` 是 `missing`，当前 live 就还没有 API 备份通道。
 
 ## Safety
 

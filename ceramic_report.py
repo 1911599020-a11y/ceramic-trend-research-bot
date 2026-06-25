@@ -51,6 +51,7 @@ DEFAULT_PROMPT_PATH = PROJECT_ROOT / "prompts" / "ceramic_report_prompt.md"
 DEFAULT_STATE_FILE = PROJECT_ROOT / "local_outputs" / "run_state.json"
 DEFAULT_ERROR_FILE = PROJECT_ROOT / "local_outputs" / "last_error.md"
 SUPPORTED_MODEL_PROVIDERS = {"rules"}
+SCRAPECREATORS_ENV_KEYS = ("SCRAPECREATORS_API_KEY", "SCRAPE_CREATORS_API_KEY")
 
 
 @dataclass(frozen=True)
@@ -293,6 +294,35 @@ def classify_error(text: str) -> str:
         return "network_error"
     if text:
         return "error"
+    return ""
+
+
+def is_scrapecreators_configured() -> bool:
+    return any(os.environ.get(key) for key in SCRAPECREATORS_ENV_KEYS)
+
+
+def scrapecreators_status_label() -> str:
+    return "configured" if is_scrapecreators_configured() else "missing"
+
+
+def scrapecreators_failure_hint(error_type: str) -> str:
+    configured = is_scrapecreators_configured()
+    if error_type == "forbidden_403":
+        if configured:
+            return (
+                "已检测到 `SCRAPECREATORS_API_KEY`。如果 live 仍然失败，下一步应检查 key 是否有效、"
+                "额度是否充足，以及 last30days 是否正确读取到该配置。"
+            )
+        return (
+            "当前没有检测到 `SCRAPECREATORS_API_KEY`。如果 Reddit public JSON 持续 403，"
+            "可以考虑配置 ScrapeCreators Reddit API 作为备份路线；如果暂时不配置 key，"
+            "就先用 mock 或其他数据源继续推进。"
+        )
+    if error_type == "no_usable_reddit_evidence" and not configured:
+        return (
+            "当前没有检测到 `SCRAPECREATORS_API_KEY`。如果 public Reddit JSON 没有返回可用证据，"
+            "后续可以先做 ScrapeCreators 最小 live 验证，或把 Reddit 暂时降为可选数据源。"
+        )
     return ""
 
 
@@ -1147,10 +1177,14 @@ def live_error_guidance(error_type: str) -> str:
             "本次没有拿到可用 Reddit 证据。可以先用 mock 模式调整报告结构，再换更具体关键词重试 live。"
         ),
     }
-    return guidance.get(
+    message = guidance.get(
         error_type,
         "live 运行失败，但已保留上一份成功报告。请查看原始错误后再决定是否重试。",
     )
+    hint = scrapecreators_failure_hint(error_type)
+    if hint:
+        message = f"{message}{hint}"
+    return message
 
 
 def cooldown_until_iso(now: datetime, control: RunControl) -> str:
@@ -1179,6 +1213,7 @@ def build_run_state(
         "last_error_type": error_type,
         "output_path": str(output_path),
         "cooldown_until": cooldown_until_iso(now, control) if mode == "live" else "",
+        "scrapecreators_fallback": scrapecreators_status_label(),
         **counts,
     }
     if error_path is not None:
@@ -1206,6 +1241,7 @@ def render_live_error_report(
         f"- 当前采取的保护动作：未覆盖 `reports/report.md`，已保留上一份成功报告",
         f"- 本次抓到证据总数：{evidence_counts['evidence_count']}",
         f"- 本次可用证据数：{evidence_counts['usable_evidence_count']}",
+        f"- ScrapeCreators 备份状态：{scrapecreators_status_label()}",
         "",
         "## 说明",
         "",
@@ -1247,6 +1283,7 @@ def render_live_error_report(
             "- 如果是 `timeout`：检查代理出口稳定性，或稍后再试。",
             "- 如果是 `network_error`：先确认当前网络能打开 Reddit，再运行 `bash scripts/run_live.sh --force`。",
             "- 需要进一步定位时，运行 `bash scripts/check_environment.sh`，重点看 `terminal proxy env` 和 `Reddit proxy-aware HTTP`。",
+            "- 如果 public Reddit JSON 持续 403，并且 ScrapeCreators 备份状态是 `missing`，再决定是否配置 `SCRAPECREATORS_API_KEY`。",
         ]
     )
     return "\n".join(lines) + "\n"

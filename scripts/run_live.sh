@@ -40,6 +40,7 @@ if state.get("mode") != "live":
 
 status = state.get("last_status") or state.get("status")
 error_type = state.get("last_error_type") or state.get("error_type")
+scrapecreators = state.get("scrapecreators_fallback") or "missing"
 if status not in {"failed", "rate_limited"}:
     raise SystemExit(0)
 
@@ -53,7 +54,13 @@ messages = {
 
 print("")
 print("Live 运行提示：")
-print(messages.get(error_type, "live 运行失败，已保留上一份成功报告。请查看 local_outputs/last_error.md。"))
+message = messages.get(error_type, "live 运行失败，已保留上一份成功报告。请查看 local_outputs/last_error.md。")
+if error_type == "forbidden_403":
+    if scrapecreators == "configured":
+        message += " 当前检测到 ScrapeCreators 备份已配置；如果仍失败，请检查 key 是否有效、额度是否充足，以及 last30days 是否读到配置。"
+    else:
+        message += " 当前没有检测到 ScrapeCreators 备份；如果 public Reddit JSON 持续 403，下一步可以考虑配置 SCRAPECREATORS_API_KEY，或先切到其他更稳定数据源。"
+print(message)
 print("错误详情：local_outputs/last_error.md")
 PY
 fi
