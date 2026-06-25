@@ -98,6 +98,14 @@ It only reports whether a value exists. It does not validate the key with Scrape
 
 If `Reddit proxy-aware HTTP` is `forbidden_403` and `ScrapeCreators Reddit fallback` is `missing`, the current live run has no API backup path. The next decision is either to configure ScrapeCreators later, or temporarily use another data source.
 
+If you only want this key-readiness check without any Reddit network probe, run:
+
+```bash
+bash scripts/check_scrapecreators_ready.sh
+```
+
+That command does not call ScrapeCreators, does not validate quota, and does not print the key.
+
 ## Current Phase Guidance
 
 For the current Reddit-only live phase, the most important checks are:

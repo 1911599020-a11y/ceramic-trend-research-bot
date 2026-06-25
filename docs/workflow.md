@@ -34,6 +34,14 @@ CERAMIC_DATA_SOURCE=auto
 完整数据源清单见 `config/data_sources.json`。`scrapecreators_reddit`、`youtube_future`、`pinterest_future`
 只是预留入口，本阶段不会自动调用。
 
+ScrapeCreators 准备状态：
+
+```bash
+bash scripts/check_scrapecreators_ready.sh
+```
+
+这个命令不访问 ScrapeCreators，不验证额度，不抓取 Reddit，只检查本地是否配置了 key，并且不会打印真实 key。
+
 本地研究证据：
 
 ```text
@@ -129,6 +137,18 @@ reports/trend_diff.md
 
 如果 archive 不足两份，脚本会生成“样本不足”说明，不会崩溃。
 
+### 7. 只检查 ScrapeCreators 准备状态
+
+```bash
+bash scripts/check_scrapecreators_ready.sh
+```
+
+使用场景：
+
+- 申请 key 前：确认当前是 `missing`，不会影响 mock 和 Reddit public live。
+- 申请 key 后：确认显示 `configured`，但 V0.6.1 仍不会调用真实 API。
+- 进入下一阶段前：再决定是否做一次极小规模 key-backed live probe。
+
 ## live 失败时看哪里
 
 错误详情：
@@ -187,6 +207,7 @@ reports/archive/
 - live 成功积累两期以上：跑 compare
 - live 失败：先看错误，不要连续重试
 - ScrapeCreators 晚点申请：先维护 `research/ceramic-ai-evidence.md` 和稳定数据源路线
+- 申请 ScrapeCreators key 后：先跑 `bash scripts/check_scrapecreators_ready.sh`，不要直接改 live 抓取逻辑
 - 提交前：确认 `git status` 中没有 `.env` 或 `local_outputs/`
 
 ## 交接给新 Agent

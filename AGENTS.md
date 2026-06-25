@@ -11,7 +11,7 @@
 - `--mode mock`：读取仓库内 `data/mock_samples.json`，零配置、零联网，用于验证报告结构与版式。
 - `--mode live`：当前只接入 Reddit（经由外部 `last30days-skill` 子进程），并按陶瓷相关性分层。
 - 当前架构基础：**V0.5.0 — 数据源适配层（data-source adapter）**。详见 `docs/changes/0001-data-source-adapter.md`。
-  当前运行选择：**V0.6.0 — 数据源选择与降级说明**，通过 `config/data_sources.json` 和 `--data-source auto` 管理。
+  当前运行选择：**V0.6.1 — ScrapeCreators 最小接入准备**，通过 `config/data_sources.json` 和 `--data-source auto` 管理；ScrapeCreators 只做 readiness，不调用 API。
   最新项目决策按 `docs/changes/` 中的编号变更记录继续递增。
 
 ## 2. 架构
@@ -23,6 +23,7 @@ sources/                      # 数据源适配层（“证据从哪来”）
   __init__.py                 # TrendSource Protocol：fetch(topic, *, recommended_subreddits) -> dict
   mock_source.py              # MockSource：读 data/mock_samples.json，离线
   last30days_source.py        # Last30DaysSource：shell out 到 last30days-skill（live）
+  scrapecreators_source.py    # ScrapeCreators readiness + future source placeholder, V0.6.1 不联网
 ceramic_report.py             # 打分 + 渲染（“如何消化证据”），CLI 入口
 config/ceramic_topics.json    # 关键词、推荐 subreddit、相关性规则（positive/exclude/topic_rules）
 config/data_sources.json      # 数据源清单：mock / reddit_last30days 可用，其他来源预留
@@ -38,6 +39,8 @@ docs/changes/                 # 变更记录（每个改动一份编号文档）
 
 V0.6.0 以后，数据源选择先进入 `config/data_sources.json`，再接入 `TrendSource`。预留数据源
 （如 `scrapecreators_reddit`、`youtube_future`、`pinterest_future`）在实现前不能偷偷发起联网请求。
+V0.6.1 的 `sources/scrapecreators_source.py` 只允许做 key readiness 和未来接口占位；
+在用户明确进入 key-backed live 验证前，不能调用 ScrapeCreators API。
 
 ## 3. 环境与命令
 

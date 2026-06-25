@@ -19,6 +19,13 @@ from urllib import error, parse, request
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from sources.scrapecreators_source import (  # noqa: E402
+    check_scrapecreators_readiness as source_scrapecreators_readiness,
+)
+
 LAST30DAYS_REPO = Path("/Users/zhuyixiao/Documents/GitHub/last30days-skill")
 # Same resolution order as ceramic_report.py since V0.5.0:
 # CERAMIC_LAST30DAYS_SCRIPT > LAST30DAYS_SCRIPT (legacy) > original Mac path.
@@ -57,7 +64,6 @@ ENV_KEYS = [
     "FROM_BROWSER",
 ]
 SUPPORTED_MODEL_PROVIDERS = {"rules"}
-SCRAPECREATORS_ENV_KEYS = ["SCRAPECREATORS_API_KEY", "SCRAPE_CREATORS_API_KEY"]
 
 
 @dataclass
@@ -299,29 +305,26 @@ def check_reddit_policy() -> list[Check]:
         return [Check("FAIL", "Reddit proxy-aware HTTP", f"{error_type}: {exc}")]
 
 
-def is_scrapecreators_configured() -> bool:
-    return any(os.environ.get(key) for key in SCRAPECREATORS_ENV_KEYS)
-
-
 def check_scrapecreators_readiness() -> list[Check]:
     """Check whether last30days can use its ScrapeCreators Reddit fallback.
 
     This is intentionally a presence check only. It never validates the key
     against the network and never prints the secret value.
     """
-    if is_scrapecreators_configured():
+    readiness = source_scrapecreators_readiness()
+    if readiness.can_attempt_api:
         return [
             Check(
                 "PASS",
                 "ScrapeCreators Reddit fallback",
-                "configured; last30days can try the API fallback if public Reddit JSON is blocked",
+                "configured; key is hidden and V0.6.1 does not validate quota",
             )
         ]
     return [
         Check(
             "WARN",
             "ScrapeCreators Reddit fallback",
-            "missing; Reddit live currently relies on public Reddit JSON only",
+            readiness.detail,
         )
     ]
 

@@ -40,6 +40,10 @@ from sources.last30days_source import (  # noqa: F401  (re-exported for compatib
     run_last30days_mock,
 )
 from sources.mock_source import DEFAULT_MOCK_SAMPLES_PATH, MockSource  # noqa: F401
+from sources.scrapecreators_source import (
+    check_scrapecreators_readiness,
+    scrapecreators_status_label,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -53,8 +57,7 @@ DEFAULT_DATA_SOURCE_CATALOG_PATH = PROJECT_ROOT / "config" / "data_sources.json"
 DEFAULT_STATE_FILE = PROJECT_ROOT / "local_outputs" / "run_state.json"
 DEFAULT_ERROR_FILE = PROJECT_ROOT / "local_outputs" / "last_error.md"
 SUPPORTED_MODEL_PROVIDERS = {"rules"}
-SCRAPECREATORS_ENV_KEYS = ("SCRAPECREATORS_API_KEY", "SCRAPE_CREATORS_API_KEY")
-REPORT_VERSION = "V0.6.0"
+REPORT_VERSION = "V0.6.1"
 
 
 @dataclass(frozen=True)
@@ -493,16 +496,9 @@ def classify_error(text: str) -> str:
     return ""
 
 
-def is_scrapecreators_configured() -> bool:
-    return any(os.environ.get(key) for key in SCRAPECREATORS_ENV_KEYS)
-
-
-def scrapecreators_status_label() -> str:
-    return "configured" if is_scrapecreators_configured() else "missing"
-
-
 def scrapecreators_failure_hint(error_type: str) -> str:
-    configured = is_scrapecreators_configured()
+    readiness = check_scrapecreators_readiness()
+    configured = readiness.can_attempt_api
     if error_type == "forbidden_403":
         if configured:
             return (

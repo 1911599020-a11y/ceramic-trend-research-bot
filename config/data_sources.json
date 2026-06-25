@@ -33,10 +33,11 @@
       "mode": "live",
       "status": "planned",
       "kind": "api_provider",
-      "description": "Reserved API-backed Reddit source for when public Reddit JSON keeps returning 403 or 429.",
+      "description": "Reserved API-backed Reddit source for when public Reddit JSON keeps returning 403 or 429. V0.6.1 only checks readiness and never calls the API.",
       "requires_env": [
         "SCRAPECREATORS_API_KEY"
       ],
+      "readiness_command": "bash scripts/check_scrapecreators_ready.sh",
       "fallback_sources": [
         "mock"
       ]
@@ -47,7 +48,7 @@
       "mode": "live",
       "status": "planned",
       "kind": "video_transcript",
-      "description": "Reserved future source. Do not install yt-dlp or enable YouTube in V0.6.0.",
+      "description": "Reserved future source. Do not install yt-dlp or enable YouTube in the current phase.",
       "requires_env": [],
       "fallback_sources": [
         "mock"
@@ -59,7 +60,7 @@
       "mode": "live",
       "status": "planned",
       "kind": "visual_social",
-      "description": "Reserved future visual trend source. No provider is configured in V0.6.0.",
+      "description": "Reserved future visual trend source. No provider is configured in the current phase.",
       "requires_env": [],
       "fallback_sources": [
         "mock"
