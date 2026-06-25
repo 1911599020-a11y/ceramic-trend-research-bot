@@ -4,7 +4,7 @@
 
 ## Current Status
 
-V0.6.1 是 **ScrapeCreators 最小接入准备版本**，建立在 V0.6.0 的数据源选择层之上：
+V0.6.2 是 **真实 live 前检查清单版本**，建立在 V0.6.1 的 ScrapeCreators 安全准备层之上：
 
 - 新增 `sources/` 适配层，定义统一的 `TrendSource` 契约：`fetch(topic, *, recommended_subreddits)`，输出统一的 `last30days` 形状报告 dict
 - `mock` 模式改由 `MockSource` 读取仓库内 `data/mock_samples.json`，**零配置、零联网、零外部依赖**，在 Windows / CI 上也能稳定出报告
@@ -14,6 +14,7 @@ V0.6.1 是 **ScrapeCreators 最小接入准备版本**，建立在 V0.6.0 的数
 - 预留 `scrapecreators_reddit`、`youtube_future`、`pinterest_future`，但本版本不会调用未实现数据源
 - 报告、`run_state.json` 和 live 失败提示会记录本次使用的数据源
 - 新增 ScrapeCreators readiness 模块和脚本，只检查 key 是否存在、清单是否就绪，不验证额度、不抓取数据、不打印 key
+- 新增 `docs/live-readiness-checklist.md`，说明申请 key 前后、第一次真实 API live 前后该检查什么
 - 打分（`score_reddit_item`）和渲染是**冻结行为**，输出与 V0.4.2 完全一致
 - 新增 `tests/` 单元测试（`unittest`），覆盖词匹配、打分契约和数据源适配层
 - 新增 `AGENTS.md` / `CLAUDE.md` 工作说明，以及 `docs/changes/` 变更记录
@@ -55,6 +56,7 @@ V0.6.1 是 **ScrapeCreators 最小接入准备版本**，建立在 V0.6.0 的数
 - V0.5.7 新增本地研究证据入口：报告会读取 `data/research_evidence.json` 并新增“研究证据”模块
 - V0.6.0 新增数据源选择与降级说明：`auto` 默认映射当前稳定源，预留源不会偷偷联网
 - V0.6.1 新增 ScrapeCreators 最小接入准备：`scripts/check_scrapecreators_ready.sh` 只做本地 readiness，不调用 API
+- V0.6.2 新增真实 live 前检查清单：进入 key-backed API 测试前必须先确认不泄露 key、不烧额度、不污染报告
 - 不安装 `yt-dlp`
 - 不配置 API key
 - 不修改 `last30days-skill` 原始代码
@@ -133,6 +135,14 @@ bash scripts/check_scrapecreators_ready.sh
 
 这个命令不会访问 ScrapeCreators，也不会打印真实 key。它只告诉你本机是否已经配置了 `SCRAPECREATORS_API_KEY`，方便以后进入 key-backed 最小 live 验证。
 
+真实 API live 前检查清单：
+
+```text
+docs/live-readiness-checklist.md
+```
+
+在申请 key、配置 key 或第一次做 key-backed live probe 前，先按这份清单过一遍。
+
 本地研究证据默认来自：
 
 ```text
@@ -169,6 +179,8 @@ local_outputs/last_error.md
 更多排障说明见 [docs/troubleshooting.md](docs/troubleshooting.md)。
 
 完整日常操作与项目交接流程见 [docs/workflow.md](docs/workflow.md)。
+
+真实 live 前安全清单见 [docs/live-readiness-checklist.md](docs/live-readiness-checklist.md)。
 
 陶瓷 AI 研究素材见 [research/ceramic-ai-evidence.md](research/ceramic-ai-evidence.md)。
 
@@ -270,6 +282,7 @@ docs/troubleshooting.md           # Local live failure troubleshooting
 docs/reddit-data-source-options.md # Reddit public JSON / ScrapeCreators / other sources decision notes
 docs/stable-data-source-roadmap.md # Stable source roadmap while ScrapeCreators is deferred
 docs/workflow.md                  # Daily operations and agent handoff
+docs/live-readiness-checklist.md  # Checklist before key-backed live/API testing
 research/ceramic-ai-evidence.md   # Ceramic + AI primary research evidence
 .env.example                      # Future live-mode environment variables
 .gitignore                        # Ignore local secrets and temp files

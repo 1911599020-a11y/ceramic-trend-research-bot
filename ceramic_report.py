@@ -57,7 +57,7 @@ DEFAULT_DATA_SOURCE_CATALOG_PATH = PROJECT_ROOT / "config" / "data_sources.json"
 DEFAULT_STATE_FILE = PROJECT_ROOT / "local_outputs" / "run_state.json"
 DEFAULT_ERROR_FILE = PROJECT_ROOT / "local_outputs" / "last_error.md"
 SUPPORTED_MODEL_PROVIDERS = {"rules"}
-REPORT_VERSION = "V0.6.1"
+REPORT_VERSION = "V0.6.2"
 
 
 @dataclass(frozen=True)

@@ -1,7 +1,7 @@
 # 陶瓷趋势情报报告
 
-- 生成时间：2026-06-25 21:26
-- 版本：V0.6.1 mock 本地报告
+- 生成时间：2026-06-25 21:41
+- 版本：V0.6.2 mock 本地报告
 - 数据模式：MockSource `data/mock_samples.json`
 - 数据源：Mock local samples (`mock`)
 - 报告生成器：`rules`
