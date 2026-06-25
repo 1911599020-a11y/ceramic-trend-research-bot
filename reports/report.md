@@ -1,7 +1,7 @@
 # 陶瓷趋势情报报告
 
-- 生成时间：2026-06-25 09:08
-- 版本：V0.5.0 mock 本地报告
+- 生成时间：2026-06-25 14:23
+- 版本：V0.5.7 mock 本地报告
 - 数据模式：last30days-skill `--mock --quick --search=reddit,youtube`
 - 报告生成器：`rules`
 - 关键词数量：10
@@ -63,6 +63,15 @@
 
 - 当前为 mock 模式，本节只展示报告结构，不从模拟数据生成真实趋势判断。
 
+## 研究证据
+
+> 本节来自本地研究证据库，用于支撑长期产品方向和下一轮搜索建议；它不是本轮 Reddit 热度，也不能单独证明市场趋势。
+
+| 证据 | 关联方向 | 可用启发 | 限制 | 链接 |
+|---|---|---|---|---|
+| GlazyBench: A Benchmark for Ceramic Glaze Property Prediction and Image Generation（2026-05-07） | ceramic glaze、AI ceramic design、kiln firing | 真实釉料配方数据集；釉面属性预测；釉面图像生成 | 预印本证据，需要核实代码和完整数据下载方式；数据和代码许可证待确认 | [打开](https://arxiv.org/abs/2605.06641) |
+| ClayScape: A GenAI-Supported Workflow for Designing Chinese Style Ceramics with Clay 3D Printing（2026-04-28） | AI ceramic design、3D printed ceramics、ceramic texture | 生成式 AI 支持中式陶瓷设计；陶泥 3D 打印工作流；降低 CAD/CAM 操作门槛 | 用户评估样本较小，属于早期研究证据；系统、代码、模型和生成资产许可证待核实 | [打开](https://arxiv.org/abs/2604.25657) |
+
 ## 内容选题
 
 ### 有 Reddit 高相关证据支撑的选题
@@ -83,6 +92,10 @@
 - AI 陶瓷纹样 Prompt 生成器：长期产品方向，不是本轮数据直接证明，需等 AI ceramic design 出现真实高相关证据后优先化。
 - 釉色实验记录器：长期产品方向，不是本轮数据直接证明，可在更多 glaze / kiln 证据出现后优先化。
 - 工作室定价小工具：长期产品方向，不是本轮数据直接证明，可在更多 business / studio 证据出现后优先化。
+- 釉料实验记录器：研究证据启发，来自《GlazyBench: A Benchmark for Ceramic Glaze Property Prediction and Image Generation》，不是本轮社媒数据直接证明。
+- 釉色灵感与配方检索库：研究证据启发，来自《GlazyBench: A Benchmark for Ceramic Glaze Property Prediction and Image Generation》，不是本轮社媒数据直接证明。
+- AI 陶瓷设计可制造性检查表：研究证据启发，来自《ClayScape: A GenAI-Supported Workflow for Designing Chinese Style Ceramics with Clay 3D Printing》，不是本轮社媒数据直接证明。
+- 中式陶瓷器型和纹样参考检索器：研究证据启发，来自《ClayScape: A GenAI-Supported Workflow for Designing Chinese Style Ceramics with Clay 3D Printing》，不是本轮社媒数据直接证明。
 
 ## 下一轮搜索建议
 
@@ -98,6 +111,7 @@
 - **ceramic texture**：只有 1 条高相关证据、0 条边缘证据，建议保留原词并加入：`ceramic surface texture`、`clay texture tools`、`handbuilt texture`。
 - **kiln firing**：只有 1 条高相关证据、1 条边缘证据，建议保留原词并加入：`cone 6`、`bisque firing`、`electric kiln`。
 - **过滤规则**：本轮跑偏样本包括 My cat sleeping in a mi..., This AI video of anime...；下一轮继续把 anime、gaming、地区词和非陶瓷消费品降权。
+- **研究证据补充**：根据本地研究证据，下一轮可观察：`AI glaze prediction`、`ceramic glaze machine learning`、`glaze recipe dataset`、`ceramic material informatics`、`AI pottery workflow`、`generative ceramic design`、`ceramic prompt design`、`clay 3D printing`。这些是研究启发，不代表本轮社媒趋势。
 
 ## 高相关内容
 
@@ -222,6 +236,15 @@
 - 如果证据不足，可以写“目前更像观察信号，不足以判断为趋势”
 - 不要从 mock 数据或失败报告中生成确定趋势
 
+## 研究证据
+
+- 研究证据来自本地证据库，例如论文、数据集、系统研究或项目主页
+- 研究证据可以支撑长期产品方向、下一轮搜索建议和专业背景
+- 研究证据不等于本轮 Reddit 热度，也不能单独证明用户需求已经出现
+- 必须标明证据限制，例如预印本、样本小、许可证待核实、数据下载方式待核实
+- 如果研究证据和 Reddit 高相关证据指向同一方向，可以写成更强的观察信号
+- 如果只有研究证据、没有用户痛点证据，要写成“研究启发”或“长期方向”，不要写成已验证趋势
+
 ## 高相关内容
 
 - 来自陶瓷相关 subreddit，或标题/subreddit/正文明确包含 ceramic、pottery、glaze、kiln、clay、handmade、studio、firing 等词
@@ -256,6 +279,7 @@
 - 分成“本轮证据直接支持的小工具”和“长期产品方向”
 - 本轮证据直接支持的小工具必须来自高相关内容中的真实痛点
 - 长期产品方向可以来自陶瓷领域长期需求，但要说明不是本轮数据直接证明
+- 来自研究证据的小工具灵感必须标注“研究证据启发”，不能写成社媒已验证需求
 
 ## 下一轮搜索建议
 
@@ -270,4 +294,5 @@
 - 保留原始标题、平台、链接和互动数据
 - 保留相关性标签和简短原因
 - 不要把未经验证的社媒内容写成确定事实
+- 本地研究证据也要保留标题、链接和限制说明
 ```

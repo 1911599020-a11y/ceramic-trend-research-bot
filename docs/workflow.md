@@ -24,6 +24,14 @@ MODEL_PROVIDER=rules
 
 `rules` 表示报告由本地规则生成，不调用外部大模型，不需要 API key。
 
+本地研究证据：
+
+```text
+data/research_evidence.json
+```
+
+报告会默认读取这份文件，并生成“研究证据”模块。它用于长期产品方向和专业背景，不代表本轮 Reddit 热度。
+
 ## 日常推荐顺序
 
 ### 1. 进入项目目录
@@ -55,6 +63,12 @@ mock 会更新：
 
 ```text
 reports/report.md
+```
+
+mock 默认也会带上本地研究证据，方便检查研究证据模块。如果只想看社媒/mock 结构，可以运行：
+
+```bash
+/Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 ceramic_report.py --mode mock --no-research-evidence
 ```
 
 mock 不会更新：
@@ -148,6 +162,7 @@ reports/archive/
 | `reports/trend_diff.md` | 最近两期成功 live 报告的基础对比 |
 | `local_outputs/last_error.md` | 最近一次 live 失败详情，不进入 Git |
 | `local_outputs/run_state.json` | 冷却、状态和错误类型，不进入 Git |
+| `data/research_evidence.json` | 本地研究证据，进入报告的“研究证据”模块 |
 
 ## 推荐的日常节奏
 

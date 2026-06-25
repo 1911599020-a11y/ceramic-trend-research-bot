@@ -17,6 +17,12 @@
 2. 为报告里的“小工具灵感”和“长期产品方向”提供专业背景。
 3. 为后续 GitHub / 论文 / YouTube source adapter 提供关键词和样本。
 
+结构化报告入口：
+
+- 人读版本：`research/ceramic-ai-evidence.md`
+- 程序读取版本：`data/research_evidence.json`
+- 更新研究证据时，优先同步这两处，避免报告和说明脱节。
+
 写入报告时要区分：
 
 - **研究证据**：论文、数据集、系统研究，可以说明某个技术方向值得关注。

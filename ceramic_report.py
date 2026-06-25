@@ -48,10 +48,12 @@ DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "reports" / "report.md"
 DEFAULT_LATEST_PATH = PROJECT_ROOT / "reports" / "latest.md"
 DEFAULT_ARCHIVE_DIR = PROJECT_ROOT / "reports" / "archive"
 DEFAULT_PROMPT_PATH = PROJECT_ROOT / "prompts" / "ceramic_report_prompt.md"
+DEFAULT_RESEARCH_EVIDENCE_PATH = PROJECT_ROOT / "data" / "research_evidence.json"
 DEFAULT_STATE_FILE = PROJECT_ROOT / "local_outputs" / "run_state.json"
 DEFAULT_ERROR_FILE = PROJECT_ROOT / "local_outputs" / "last_error.md"
 SUPPORTED_MODEL_PROVIDERS = {"rules"}
 SCRAPECREATORS_ENV_KEYS = ("SCRAPECREATORS_API_KEY", "SCRAPE_CREATORS_API_KEY")
+REPORT_VERSION = "V0.5.7"
 
 
 @dataclass(frozen=True)
@@ -66,6 +68,22 @@ class Evidence:
     relevance_level: str
     relevance_score: int
     relevance_notes: str
+
+
+@dataclass(frozen=True)
+class ResearchEvidence:
+    evidence_id: str
+    title: str
+    source_type: str
+    url: str
+    date: str
+    topics: list[str]
+    summary: str
+    signals: list[str]
+    tool_ideas: list[str]
+    content_ideas: list[str]
+    next_search_terms: list[str]
+    limits: list[str]
 
 
 @dataclass(frozen=True)
@@ -125,6 +143,19 @@ def parse_args() -> argparse.Namespace:
         "--topics",
         default=str(DEFAULT_TOPICS_PATH),
         help="Path to ceramic topic config JSON.",
+    )
+    parser.add_argument(
+        "--research-evidence",
+        default=os.environ.get(
+            "CERAMIC_RESEARCH_EVIDENCE",
+            str(DEFAULT_RESEARCH_EVIDENCE_PATH),
+        ),
+        help="Path to local structured research evidence JSON.",
+    )
+    parser.add_argument(
+        "--no-research-evidence",
+        action="store_true",
+        help="Disable local research evidence in the report.",
     )
     parser.add_argument(
         "--last30days-script",
@@ -189,6 +220,46 @@ def load_topics(path: Path) -> list[str]:
     if not cleaned:
         raise ValueError(f"No topics found in {path}")
     return cleaned
+
+
+def load_research_evidence(path: Path) -> list[ResearchEvidence]:
+    if not path.exists():
+        return []
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    raw_items = payload.get("items", []) if isinstance(payload, dict) else payload
+    if not isinstance(raw_items, list):
+        raise ValueError(f"Research evidence must be a list or contain an items list: {path}")
+
+    evidence: list[ResearchEvidence] = []
+    for raw in raw_items:
+        if not isinstance(raw, dict):
+            continue
+        title = str(raw.get("title") or "").strip()
+        if not title:
+            continue
+        evidence.append(
+            ResearchEvidence(
+                evidence_id=str(raw.get("id") or title).strip(),
+                title=title,
+                source_type=str(raw.get("source_type") or "research").strip(),
+                url=str(raw.get("url") or "").strip(),
+                date=str(raw.get("date") or "").strip(),
+                topics=clean_string_list(raw.get("topics", [])),
+                summary=str(raw.get("summary") or "").strip(),
+                signals=clean_string_list(raw.get("signals", [])),
+                tool_ideas=clean_string_list(raw.get("tool_ideas", [])),
+                content_ideas=clean_string_list(raw.get("content_ideas", [])),
+                next_search_terms=clean_string_list(raw.get("next_search_terms", [])),
+                limits=clean_string_list(raw.get("limits", [])),
+            )
+        )
+    return evidence
+
+
+def clean_string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item).strip() for item in value if str(item).strip()]
 
 
 def load_relevance_config(config: dict[str, Any]) -> RelevanceConfig:
@@ -709,13 +780,19 @@ def evidence_backed_tool_ideas(high_evidence: list[Evidence], *, mode: str) -> l
     return ideas
 
 
-def long_term_tool_ideas() -> list[str]:
-    return [
+def long_term_tool_ideas(research_evidence: list[ResearchEvidence] | None = None) -> list[str]:
+    ideas = [
         "陶瓷内容选题雷达：长期产品方向，不是本轮数据直接证明，后续需要更多 Reddit/YouTube/Pinterest 证据验证。",
         "AI 陶瓷纹样 Prompt 生成器：长期产品方向，不是本轮数据直接证明，需等 AI ceramic design 出现真实高相关证据后优先化。",
         "釉色实验记录器：长期产品方向，不是本轮数据直接证明，可在更多 glaze / kiln 证据出现后优先化。",
         "工作室定价小工具：长期产品方向，不是本轮数据直接证明，可在更多 business / studio 证据出现后优先化。",
     ]
+    for item in research_evidence or []:
+        for tool in item.tool_ideas[:2]:
+            ideas.append(
+                f"{tool}：研究证据启发，来自《{item.title}》，不是本轮社媒数据直接证明。"
+            )
+    return unique_in_order(ideas)
 
 
 def next_search_suggestions(
@@ -725,6 +802,7 @@ def next_search_suggestions(
     low_evidence: list[Evidence],
     *,
     mode: str,
+    research_evidence: list[ResearchEvidence] | None = None,
 ) -> list[str]:
     high_by_topic = group_by_topic(high_evidence)
     edge_by_topic = group_by_topic(edge_evidence)
@@ -751,9 +829,22 @@ def next_search_suggestions(
         suggestions.append(
             f"**过滤规则**：本轮跑偏样本包括 {samples}；下一轮继续把 anime、gaming、地区词和非陶瓷消费品降权。"
         )
+    research_terms = research_search_terms(research_evidence or [])
+    if research_terms:
+        suggestions.append(
+            "**研究证据补充**：根据本地研究证据，下一轮可观察："
+            f"{format_code_terms(research_terms[:8])}。这些是研究启发，不代表本轮社媒趋势。"
+        )
     if not suggestions:
         suggestions.append("本轮高相关证据较稳定，下一轮可以保持关键词，同时增加 YouTube/Pinterest 后再比较跨平台一致性。")
     return suggestions
+
+
+def research_search_terms(research_evidence: list[ResearchEvidence]) -> list[str]:
+    terms: list[str] = []
+    for item in research_evidence:
+        terms.extend(item.next_search_terms)
+    return unique_in_order(terms)
 
 
 def suggested_keywords_for_topic(topic: str) -> list[str]:
@@ -845,8 +936,10 @@ def render_report(
     *,
     mode: str,
     model_provider: str,
+    research_evidence: list[ResearchEvidence] | None = None,
     connectivity_note: str = "",
 ) -> str:
+    research_evidence = research_evidence or []
     topics = [run.topic for run in runs]
     all_evidence = [item for run in runs for item in run.evidence]
     high_evidence = [item for item in all_evidence if item.relevance_level == "high"]
@@ -865,7 +958,7 @@ def render_report(
         "# 陶瓷趋势情报报告",
         "",
         f"- 生成时间：{generated_at}",
-        f"- 版本：V0.5.0 {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
+        f"- 版本：{REPORT_VERSION} {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
         f"- 数据模式：{data_mode_label(mode)}",
         f"- 报告生成器：`{model_provider}`",
         f"- 关键词数量：{len(topics)}",
@@ -935,6 +1028,8 @@ def render_report(
     for insight in trend_insights(topics, high_evidence, mode=mode):
         lines.append(f"- {insight}")
 
+    append_research_evidence_section(lines, research_evidence)
+
     lines.extend(["", "## 内容选题", ""])
     lines.append("### 有 Reddit 高相关证据支撑的选题")
     supported_ideas = supported_content_ideas(high_evidence, mode=mode)
@@ -962,7 +1057,7 @@ def render_report(
         lines.append("- 本轮暂无足够高相关证据直接支撑具体小工具需求。")
     lines.append("")
     lines.append("### 长期产品方向")
-    for idea in long_term_tool_ideas():
+    for idea in long_term_tool_ideas(research_evidence):
         lines.append(f"- {idea}")
 
     lines.extend(["", "## 下一轮搜索建议", ""])
@@ -972,6 +1067,7 @@ def render_report(
         edge_evidence,
         low_evidence,
         mode=mode,
+        research_evidence=research_evidence,
     ):
         lines.append(f"- {suggestion}")
 
@@ -1016,6 +1112,45 @@ def render_report(
         ]
     )
     return "\n".join(lines)
+
+
+def append_research_evidence_section(
+    lines: list[str],
+    research_evidence: list[ResearchEvidence],
+) -> None:
+    if not research_evidence:
+        return
+
+    lines.extend(
+        [
+            "",
+            "## 研究证据",
+            "",
+            "> 本节来自本地研究证据库，用于支撑长期产品方向和下一轮搜索建议；它不是本轮 Reddit 热度，也不能单独证明市场趋势。",
+            "",
+            "| 证据 | 关联方向 | 可用启发 | 限制 | 链接 |",
+            "|---|---|---|---|---|",
+        ]
+    )
+    for item in research_evidence:
+        link = f"[打开]({item.url})" if item.url else "n/a"
+        topics = "、".join(item.topics[:4]) or "未标注"
+        signals = "；".join(item.signals[:3]) or item.summary
+        limits = "；".join(item.limits[:2]) or "需继续核实"
+        evidence_name = f"{item.title}（{item.date or item.source_type}）"
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    escape_cell(evidence_name),
+                    escape_cell(topics),
+                    escape_cell(signals),
+                    escape_cell(limits),
+                    link,
+                ]
+            )
+            + " |"
+        )
 
 
 def data_mode_label(mode: str) -> str:
@@ -1335,6 +1470,7 @@ def main() -> int:
     output_path = Path(args.output).expanduser().resolve()
     latest_path = Path(args.latest).expanduser().resolve()
     archive_dir = Path(args.archive_dir).expanduser().resolve()
+    research_evidence_path = Path(args.research_evidence).expanduser().resolve()
     script_path = resolve_last30days_script(args.last30days_script).expanduser().resolve()
     prompt_path = DEFAULT_PROMPT_PATH
     state_path = Path(args.state_file).expanduser().resolve()
@@ -1348,6 +1484,7 @@ def main() -> int:
     config = load_config(topics_path)
     topics = load_topics(topics_path)
     relevance_config = load_relevance_config(config)
+    research_evidence = [] if args.no_research_evidence else load_research_evidence(research_evidence_path)
     prompt_template = prompt_path.read_text(encoding="utf-8")
     connectivity_note = ""
     state = load_run_state(state_path)
@@ -1400,6 +1537,7 @@ def main() -> int:
         prompt_template,
         mode=args.mode,
         model_provider=model_provider,
+        research_evidence=research_evidence,
         connectivity_note=connectivity_note,
     )
     counts = evidence_summary(runs)

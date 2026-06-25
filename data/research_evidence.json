@@ -1,0 +1,84 @@
+{
+  "items": [
+    {
+      "id": "glazybench",
+      "title": "GlazyBench: A Benchmark for Ceramic Glaze Property Prediction and Image Generation",
+      "source_type": "paper_dataset_benchmark",
+      "url": "https://arxiv.org/abs/2605.06641",
+      "date": "2026-05-07",
+      "topics": [
+        "ceramic glaze",
+        "AI ceramic design",
+        "kiln firing"
+      ],
+      "summary": "整理 23,148 个真实陶瓷釉料配方，用于釉面属性预测和釉面图像生成，是陶瓷材料与 AI 结合的高相关研究证据。",
+      "signals": [
+        "真实釉料配方数据集",
+        "釉面属性预测",
+        "釉面图像生成",
+        "传统机器学习、语言模型和多模态模型对比"
+      ],
+      "tool_ideas": [
+        "釉料实验记录器",
+        "釉色灵感与配方检索库",
+        "烧成变量和釉面结果对照表"
+      ],
+      "content_ideas": [
+        "AI 能不能帮陶艺师预测釉色结果",
+        "釉料测试片为什么值得结构化记录",
+        "从配方到表面效果的陶瓷 AI 工作流"
+      ],
+      "next_search_terms": [
+        "AI glaze prediction",
+        "ceramic glaze machine learning",
+        "glaze recipe dataset",
+        "ceramic material informatics"
+      ],
+      "limits": [
+        "预印本证据，需要核实代码和完整数据下载方式",
+        "数据和代码许可证待确认",
+        "不能直接等同于创作者市场需求"
+      ]
+    },
+    {
+      "id": "clayscape",
+      "title": "ClayScape: A GenAI-Supported Workflow for Designing Chinese Style Ceramics with Clay 3D Printing",
+      "source_type": "paper_design_system",
+      "url": "https://arxiv.org/abs/2604.25657",
+      "date": "2026-04-28",
+      "topics": [
+        "AI ceramic design",
+        "3D printed ceramics",
+        "ceramic texture"
+      ],
+      "summary": "把生成式 AI、中式陶瓷设计和陶泥 3D 打印结合起来，强调从概念生成到可制造流程的衔接。",
+      "signals": [
+        "生成式 AI 支持中式陶瓷设计",
+        "陶泥 3D 打印工作流",
+        "降低 CAD/CAM 操作门槛",
+        "4 位陶瓷创作者初步评估"
+      ],
+      "tool_ideas": [
+        "AI 陶瓷设计可制造性检查表",
+        "中式陶瓷器型和纹样参考检索器",
+        "陶泥 3D 打印参数记录器"
+      ],
+      "content_ideas": [
+        "AI 概念图到陶泥 3D 打印中间缺了哪些步骤",
+        "中式陶瓷纹样参考如何做来源标注",
+        "为什么陶瓷 AI 工具不该只停留在图片生成"
+      ],
+      "next_search_terms": [
+        "AI pottery workflow",
+        "generative ceramic design",
+        "ceramic prompt design",
+        "clay 3D printing"
+      ],
+      "limits": [
+        "用户评估样本较小，属于早期研究证据",
+        "系统、代码、模型和生成资产许可证待核实",
+        "中式纹样和文化元素使用需要明确来源与版权边界"
+      ]
+    }
+  ]
+}
