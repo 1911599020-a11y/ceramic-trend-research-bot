@@ -10,7 +10,8 @@
 
 - `--mode mock`：读取仓库内 `data/mock_samples.json`，零配置、零联网，用于验证报告结构与版式。
 - `--mode live`：当前只接入 Reddit（经由外部 `last30days-skill` 子进程），并按陶瓷相关性分层。
-- 当前版本：**V0.5.0 — 数据源适配层（data-source adapter）**。详见 `docs/changes/0001-data-source-adapter.md`。
+- 当前架构基础：**V0.5.0 — 数据源适配层（data-source adapter）**。详见 `docs/changes/0001-data-source-adapter.md`。
+  最新项目决策按 `docs/changes/` 中的编号变更记录继续递增。
 
 ## 2. 架构
 
@@ -90,13 +91,37 @@ python scripts/check_environment.py
 - `live` 失败（DNS / 403 / 429 / 网络）时不覆盖上一份成功报告，错误写入 `local_outputs/last_error.md`。
 - 不修改 `last30days-skill` 原始代码；不安装 `yt-dlp`；不配置 API key（留到后续阶段）。
 
-## 8. 提交与变更记录
+## 8. 主线结束后研究产品
+
+GlazyBench、ClayScape、AI glaze prediction、陶瓷 3D 打印等研究证据目前只作为趋势报告的补充背景，
+不改变本项目主线。当前主线仍是：社媒数据源稳定化、Reddit / YouTube / Pinterest 等来源接入、
+中文趋势报告生成、归档和自动运行。
+
+主线完成后，可以把研究证据延伸成一个单独产品方向：**陶瓷 AI 研究助手 / Ceramic AI Research Product**。
+这个延伸产品可以继续探索自动搜索论文、自动读取 PDF、自动总结、自动判断可信度、自动写入报告等能力。
+但在主线未完成前，不启动自动论文研究系统，不让论文资料库替代社媒趋势情报工具。
+
+为后续保留的接口：
+
+- 人读资料入口：`research/ceramic-ai-evidence.md`
+- 程序读取入口：`data/research_evidence.json`
+- 报告入口：`ceramic_report.py --research-evidence`
+- 关闭入口：`ceramic_report.py --no-research-evidence`
+
+研究证据进入报告时必须保持分层：
+
+- 它可以启发长期产品方向和下一轮关键词。
+- 它不能计入 Reddit / YouTube 等社媒热度。
+- 它不能单独证明市场需求已经成立。
+- 许可证、代码、数据下载方式未核实时，要明确标记为待核实。
+
+## 9. 提交与变更记录
 
 - 提交信息：`type: 简短描述`（如 `test:`、`docs:`、`refactor:`），正文用中文说明动机。
 - **不要自行 `git commit`**，除非用户明确要求。
 - 每个有结构影响的改动新增一份 `docs/changes/NNNN-标题.md`（YAML front matter + 固定章节），编号递增。
 
-## 9. 协作与交付偏好
+## 10. 协作与交付偏好
 
 - 每次完成任务后，用通俗易懂的中文告诉用户：这次做了什么、有什么用、接下来建议做什么。
 - 每次最终回复末尾放一个简短“计划进程条”，让用户能快速看懂当前项目推进到哪一步。
