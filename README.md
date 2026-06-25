@@ -44,6 +44,7 @@ V0.5.0 是 **数据源适配层（data-source adapter）版本**：
 - 新增 `docs/workflow.md`，统一说明日常 mock / live / compare 操作
 - 新增 `MODEL_PROVIDER=rules` 预留接口；当前不调用外部大模型
 - 新增 `research/ceramic-ai-evidence.md`，收录陶瓷 AI 一手研究证据
+- V0.5.4 新增 Reddit 数据源替代路径评估，说明 public JSON、ScrapeCreators API 和其他来源的取舍
 - 不安装 `yt-dlp`
 - 不配置 API key
 - 不修改 `last30days-skill` 原始代码
@@ -174,6 +175,8 @@ bash scripts/reddit_probe_matrix.sh
 
 这个命令会发起多次最小 Reddit 探测请求，只用于排查，不保存研究数据。刚遇到 403 / 429 后不要短时间反复运行。
 
+如果矩阵显示“Reddit 首页 PASS，但 `search.json` 搜索接口全部 403”，说明当前出口能打开页面但不适合走免费 Reddit JSON 搜索。后续路线评估见 [docs/reddit-data-source-options.md](docs/reddit-data-source-options.md)。
+
 ## Safety
 
 - 不要把 `.env` 提交到 GitHub。
@@ -211,6 +214,7 @@ reports/archive/                  # Archived successful live reports
 reports/trend_diff.md             # Latest archive comparison
 docs/automation-roadmap.md        # Future automation paths
 docs/troubleshooting.md           # Local live failure troubleshooting
+docs/reddit-data-source-options.md # Reddit public JSON / ScrapeCreators / other sources decision notes
 docs/workflow.md                  # Daily operations and agent handoff
 research/ceramic-ai-evidence.md   # Ceramic + AI primary research evidence
 .env.example                      # Future live-mode environment variables

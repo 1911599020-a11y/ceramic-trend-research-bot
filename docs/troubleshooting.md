@@ -109,6 +109,8 @@ bash scripts/reddit_probe_matrix.sh
 - global search FAIL，但 subreddit search PASS：后续 live 可以优先走推荐 subreddit 定向搜索，减少全站搜索依赖。
 - 全部 FAIL：先查网络、DNS、代理或 VPN。
 
+如果你看到的是“首页 PASS，但所有 `search.json` FAIL”，建议先读 [Reddit 数据源替代路径评估](reddit-data-source-options.md)。这个情况通常不是报告生成逻辑坏了，而是当前网络出口或 Reddit 访问策略不适合免费 public JSON 搜索。
+
 常见代理变量示例：
 
 ```bash
