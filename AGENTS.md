@@ -12,6 +12,7 @@
 - `--mode live`：当前只接入 Reddit（经由外部 `last30days-skill` 子进程），并按陶瓷相关性分层。
 - 当前架构基础：**V0.5.0 — 数据源适配层（data-source adapter）**。详见 `docs/changes/0001-data-source-adapter.md`。
   当前运行选择：**V0.6.2 — 真实 live 前检查清单**，通过 `docs/live-readiness-checklist.md` 约束 key-backed live 前的安全步骤；ScrapeCreators 仍只做 readiness，不调用 API。
+  下一步计划：**V0.6.3-plan — ScrapeCreators tiny live probe**，详见 `docs/plans/2026-06-25-scrapecreators-tiny-probe.md`。
   最新项目决策按 `docs/changes/` 中的编号变更记录继续递增。
 
 ## 2. 架构
@@ -42,6 +43,8 @@ V0.6.0 以后，数据源选择先进入 `config/data_sources.json`，再接入 
 V0.6.1 的 `sources/scrapecreators_source.py` 只允许做 key readiness 和未来接口占位；
 在用户明确进入 key-backed live 验证前，不能调用 ScrapeCreators API。
 进入真实 key-backed live 前，必须先阅读并遵守 `docs/live-readiness-checklist.md`。
+实现 ScrapeCreators tiny probe 前，必须先阅读 `docs/plans/2026-06-25-scrapecreators-tiny-probe.md`；
+不得猜测 API endpoint 或 response shape。
 
 ## 3. 环境与命令
 

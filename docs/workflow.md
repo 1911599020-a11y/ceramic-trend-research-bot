@@ -50,6 +50,14 @@ docs/live-readiness-checklist.md
 
 申请 key、配置 key 或第一次做 key-backed API live probe 前，必须先读这份清单。
 
+ScrapeCreators tiny probe 方案：
+
+```text
+docs/plans/2026-06-25-scrapecreators-tiny-probe.md
+```
+
+这份方案只说明未来怎么实现最小 API 探测；当前不会自动联网。
+
 本地研究证据：
 
 ```text
@@ -167,6 +175,16 @@ docs/live-readiness-checklist.md
 
 这一步不是运行命令，而是确认安全边界：key 不进 Git、不打印、不烧额度、失败不污染正式报告。
 
+### 9. 准备实现 tiny probe 前
+
+先读：
+
+```text
+docs/plans/2026-06-25-scrapecreators-tiny-probe.md
+```
+
+不要猜测 API endpoint。真正实现请求前，需要官方 ScrapeCreators 文档或用户提供的脱敏样例。
+
 ## live 失败时看哪里
 
 错误详情：
@@ -227,6 +245,7 @@ reports/archive/
 - ScrapeCreators 晚点申请：先维护 `research/ceramic-ai-evidence.md` 和稳定数据源路线
 - 申请 ScrapeCreators key 后：先跑 `bash scripts/check_scrapecreators_ready.sh`，不要直接改 live 抓取逻辑
 - 进入 key-backed live 前：先按 `docs/live-readiness-checklist.md` 逐项检查
+- 实现 tiny probe 前：先读 `docs/plans/2026-06-25-scrapecreators-tiny-probe.md`
 - 提交前：确认 `git status` / GitHub Desktop changed files 中没有 `.env` 或 `local_outputs/`
 
 ## 交接给新 Agent

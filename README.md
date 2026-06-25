@@ -57,6 +57,7 @@ V0.6.2 是 **真实 live 前检查清单版本**，建立在 V0.6.1 的 ScrapeCr
 - V0.6.0 新增数据源选择与降级说明：`auto` 默认映射当前稳定源，预留源不会偷偷联网
 - V0.6.1 新增 ScrapeCreators 最小接入准备：`scripts/check_scrapecreators_ready.sh` 只做本地 readiness，不调用 API
 - V0.6.2 新增真实 live 前检查清单：进入 key-backed API 测试前必须先确认不泄露 key、不烧额度、不污染报告
+- V0.6.3-plan 新增 ScrapeCreators tiny live probe 方案：先设计极小探测，不直接接入正式报告流
 - 不安装 `yt-dlp`
 - 不配置 API key
 - 不修改 `last30days-skill` 原始代码
@@ -142,6 +143,14 @@ docs/live-readiness-checklist.md
 ```
 
 在申请 key、配置 key 或第一次做 key-backed live probe 前，先按这份清单过一遍。
+
+ScrapeCreators tiny probe 方案：
+
+```text
+docs/plans/2026-06-25-scrapecreators-tiny-probe.md
+```
+
+这只是实现方案，不会自动联网；真正写 probe 脚本前必须确认官方 API 文档或用户提供的响应样例。
 
 本地研究证据默认来自：
 
@@ -283,6 +292,7 @@ docs/reddit-data-source-options.md # Reddit public JSON / ScrapeCreators / other
 docs/stable-data-source-roadmap.md # Stable source roadmap while ScrapeCreators is deferred
 docs/workflow.md                  # Daily operations and agent handoff
 docs/live-readiness-checklist.md  # Checklist before key-backed live/API testing
+docs/plans/2026-06-25-scrapecreators-tiny-probe.md # V0.6.3 tiny probe implementation plan
 research/ceramic-ai-evidence.md   # Ceramic + AI primary research evidence
 .env.example                      # Future live-mode environment variables
 .gitignore                        # Ignore local secrets and temp files

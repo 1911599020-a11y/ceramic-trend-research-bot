@@ -180,12 +180,15 @@ bash scripts/compare_reports.sh
 
 **V0.6.3：ScrapeCreators tiny live probe**
 
-下一阶段才考虑：
+V0.6.3 只考虑：
 
-- 新增真实 `ScrapeCreatorsSource.fetch()`。
-- 做一个单关键词、低频、可停止的 API probe。
+- 做一个独立的单关键词、低频、可停止的 API probe。
 - 明确请求上限和错误分类。
+- 输出只写入 `local_outputs/`。
 - 保持失败不覆盖成功报告。
+- 不接入正式 `TrendSource.fetch()`。
+
+真实 `ScrapeCreatorsSource.fetch()` 和 `--data-source scrapecreators_reddit` 可用化，放到 V0.6.4 以后再考虑。
 
 ## 快速判断
 
