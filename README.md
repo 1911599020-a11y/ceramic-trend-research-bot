@@ -145,6 +145,7 @@ python -m unittest discover tests
 tests/test_term_matching.py   # 词边界 / 短语分隔符匹配
 tests/test_scoring.py         # 打分契约：exclude 扣分、required 缺失压分、level 阈值
 tests/test_sources.py         # MockSource 可被消化；Last30DaysSource 命令逐项一致（mock subprocess）
+tests/test_environment_check.py # 环境诊断的代理脱敏与错误分类
 ```
 
 mock 报告零配置生成（不联网、不依赖外部 skill）：
@@ -158,10 +159,12 @@ python ceramic_report.py --mode mock
 在继续真实 Reddit / YouTube 接入前，可以先运行环境诊断：
 
 ```bash
-/Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 scripts/check_environment.py
+bash scripts/check_environment.sh
 ```
 
-诊断会检查 Python、`last30days-skill` 路径、Reddit/YouTube/GitHub DNS 与 HTTPS、`yt-dlp`、`MODEL_PROVIDER`、`.env` 文件和关键环境变量。它不会打印真实 key，也不会抓取研究数据。更多说明见 `docs/environment-check.md`。
+诊断脚本会自动使用项目已验证的 Python 3.12。诊断会检查 Python、`last30days-skill` 路径、终端代理环境变量、Reddit/YouTube/GitHub DNS 与 HTTPS、Reddit 代理感知 HTTP 状态、`yt-dlp`、`MODEL_PROVIDER`、`.env` 文件和关键环境变量。它不会打印真实 key，也不会保存研究数据。它会发起一次最小 Reddit 探测请求，所以刚遇到 403 / 429 后不要短时间反复运行。更多说明见 `docs/environment-check.md`。
+
+如果浏览器能打开 Reddit，但 live 仍然 403，请先运行环境诊断。浏览器代理不一定会自动应用到终端命令；诊断会提示当前终端是否设置了 `HTTPS_PROXY` / `HTTP_PROXY` / `ALL_PROXY`。
 
 ## Safety
 
@@ -188,6 +191,7 @@ AGENTS.md                         # 代理 / 贡献者工作说明
 CLAUDE.md                         # 指向 AGENTS.md
 scripts/run_mock.sh               # Local mock runner
 scripts/run_live.sh               # Local live runner with cooldown
+scripts/check_environment.sh       # Local environment diagnostic runner
 scripts/compare_reports.py        # Compare latest two archived live reports
 scripts/compare_reports.sh        # Local compare runner
 local_outputs/last_error.md       # Ignored live failure details

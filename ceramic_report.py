@@ -1125,6 +1125,7 @@ def live_error_guidance(error_type: str) -> str:
         "forbidden_403": (
             "Reddit 已拒绝当前请求，通常是代理出口、IP、User-Agent 或 Reddit 访问策略导致。"
             "建议换代理节点，确认终端代理生效，稍后再试。代码和报告生成逻辑通常没有坏。"
+            "可先运行 `bash scripts/check_environment.sh` 查看终端代理和 Reddit 状态。"
         ),
         "rate_limited_429": (
             "Reddit 临时限流。请至少等待 30 分钟，不要连续使用 --force。"
@@ -1132,12 +1133,15 @@ def live_error_guidance(error_type: str) -> str:
         ),
         "dns_error": (
             "当前运行环境无法解析 Reddit 域名。请检查网络、代理、DNS，或换到本地终端运行。"
+            "可先运行 `bash scripts/check_environment.sh` 对比 DNS、HTTPS 和代理状态。"
         ),
         "timeout": (
             "网络连接不稳定或代理出口被重置。建议检查代理节点或稍后再试。"
+            "可先运行 `bash scripts/check_environment.sh` 查看终端网络状态。"
         ),
         "network_error": (
             "当前网络无法稳定访问 Reddit。请检查代理、网络连通性，或稍后再试。"
+            "可先运行 `bash scripts/check_environment.sh` 查看诊断结果。"
         ),
         "no_usable_reddit_evidence": (
             "本次没有拿到可用 Reddit 证据。可以先用 mock 模式调整报告结构，再换更具体关键词重试 live。"
@@ -1242,6 +1246,7 @@ def render_live_error_report(
             "- 如果是 `dns_error`：先确认本机能解析并访问 `www.reddit.com`。",
             "- 如果是 `timeout`：检查代理出口稳定性，或稍后再试。",
             "- 如果是 `network_error`：先确认当前网络能打开 Reddit，再运行 `bash scripts/run_live.sh --force`。",
+            "- 需要进一步定位时，运行 `bash scripts/check_environment.sh`，重点看 `terminal proxy env` 和 `Reddit proxy-aware HTTP`。",
         ]
     )
     return "\n".join(lines) + "\n"

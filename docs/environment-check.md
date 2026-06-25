@@ -2,21 +2,25 @@
 
 Use this diagnostic before moving from mock reports to live sources.
 
-Run it with the known-good Python 3.12 runtime:
+Run it with the wrapper script:
 
 ```bash
-/Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 scripts/check_environment.py
+bash scripts/check_environment.sh
 ```
 
-The script is read-only. It does not install dependencies, configure API keys, or fetch research data.
+The wrapper uses the known-good Python 3.12 runtime by default. The diagnostic does not install dependencies, configure API keys, or save research data.
+
+It does make one minimal Reddit `search.json` request to check the same path used by live mode. Do not run it repeatedly in a short time window, especially after a 403 or 429.
 
 ## What It Checks
 
 - Python version is 3.12 or newer
 - `last30days-skill` exists at `/Users/zhuyixiao/Documents/GitHub/last30days-skill`
 - `last30days.py` exists inside the skill checkout
+- Terminal proxy environment variables such as `HTTPS_PROXY`, `HTTP_PROXY`, and `ALL_PROXY`
 - DNS resolution for `www.reddit.com`, `www.youtube.com`, and `github.com`
 - Minimal HTTPS connectivity to those domains
+- A proxy-aware Reddit HTTP probe that can distinguish 403, 429, DNS, timeout, and proxy errors
 - Whether `yt-dlp` is available
 - Whether `MODEL_PROVIDER` is supported
 - Whether `.env` and `.env.example` exist
@@ -40,7 +44,32 @@ The item blocks the relevant feature. Examples:
 - `last30days-skill repo` failed: clone the upstream project to the expected local path.
 - `DNS www.reddit.com` failed: Reddit live mode cannot work from this environment yet.
 - `HTTPS www.reddit.com` failed: DNS may work, but outbound HTTPS is blocked or intercepted.
+- `Reddit proxy-aware HTTP` returned `forbidden_403`: the terminal reached Reddit, but Reddit refused the request. This is usually proxy exit/IP/User-Agent/access-policy related.
+- `Reddit proxy-aware HTTP` returned `rate_limited_429`: Reddit is rate limiting the current environment; wait before retrying live mode.
 - `MODEL_PROVIDER` failed: set `MODEL_PROVIDER=rules`; other providers are reserved for future versions.
+
+If raw `DNS www.reddit.com` or `HTTPS www.reddit.com` fails but `Reddit proxy-aware HTTP` passes, the diagnostic downgrades the raw check to WARN. For Reddit live mode, the proxy-aware probe is the better signal because it follows the same terminal proxy environment that Python HTTP requests use.
+
+YouTube DNS / HTTPS failures are WARN during the current Reddit-only phase. They become blocking only when the project intentionally starts the YouTube / `yt-dlp` phase.
+
+GitHub DNS / HTTPS failures are also WARN for local Reddit live mode. They matter for pushing commits, GitHub Actions, and remote automation, but they do not block local mock or Reddit live diagnostics.
+
+## Terminal Proxy
+
+Browser access does not prove terminal access. A browser can use its own proxy settings while Python, shell scripts, and `last30days-skill` go direct.
+
+The diagnostic now checks whether these variables are configured:
+
+```text
+HTTPS_PROXY
+HTTP_PROXY
+ALL_PROXY
+NO_PROXY
+```
+
+Lowercase variants are also recognized. If proxy credentials are present, the script redacts them and only reports that a proxy is configured.
+
+If `terminal proxy env` is missing and Reddit live fails, configure the terminal proxy before retrying. If a SOCKS proxy is configured, note that Python's standard library may not support SOCKS without extra dependencies; the diagnostic will warn about that case.
 
 ## Model Provider
 
@@ -54,13 +83,14 @@ MODEL_PROVIDER=rules
 
 ## Current Phase Guidance
 
-For V0.2 Reddit live mode, the minimum required checks are:
+For the current Reddit-only live phase, the most important checks are:
 
 - Python >= 3.12: PASS
 - `last30days-skill repo`: PASS
 - `last30days.py`: PASS
 - `MODEL_PROVIDER`: PASS
-- DNS `www.reddit.com`: PASS
-- HTTPS `www.reddit.com`: PASS
+- `Reddit proxy-aware HTTP`: PASS
+
+Raw DNS / HTTPS checks for `www.reddit.com` are helpful context. If they are WARN because direct socket access differs from the terminal HTTP path, but `Reddit proxy-aware HTTP` is PASS, live may still work.
 
 YouTube checks can remain WARN until the project intentionally moves to the `yt-dlp` phase.

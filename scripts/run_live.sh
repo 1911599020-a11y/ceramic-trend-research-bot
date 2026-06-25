@@ -44,11 +44,11 @@ if status not in {"failed", "rate_limited"}:
     raise SystemExit(0)
 
 messages = {
-    "forbidden_403": "Reddit 已拒绝当前请求，通常是代理出口、IP、User-Agent 或 Reddit 访问策略导致。建议换代理节点，确认终端代理生效，稍后再试。代码和报告生成逻辑通常没有坏。",
+    "forbidden_403": "Reddit 已拒绝当前请求，通常是代理出口、IP、User-Agent 或 Reddit 访问策略导致。建议换代理节点，确认终端代理生效，稍后再试。代码和报告生成逻辑通常没有坏。可先运行 bash scripts/check_environment.sh 查看终端代理和 Reddit 状态。",
     "rate_limited_429": "Reddit 临时限流。请至少等待 30 分钟，不要连续使用 --force。可以先用 mock 模式调整报告结构。",
-    "dns_error": "当前运行环境无法解析 Reddit 域名。请检查网络、代理、DNS，或换到本地终端运行。",
-    "timeout": "网络连接不稳定或代理出口被重置。建议检查代理节点或稍后再试。",
-    "network_error": "网络连接异常。请检查代理、DNS 和终端网络环境，稍后再试。",
+    "dns_error": "当前运行环境无法解析 Reddit 域名。请检查网络、代理、DNS，或换到本地终端运行。可先运行 bash scripts/check_environment.sh 对比 DNS、HTTPS 和代理状态。",
+    "timeout": "网络连接不稳定或代理出口被重置。建议检查代理节点或稍后再试。可先运行 bash scripts/check_environment.sh 查看终端网络状态。",
+    "network_error": "网络连接异常。请检查代理、DNS 和终端网络环境，稍后再试。可先运行 bash scripts/check_environment.sh 查看诊断结果。",
 }
 
 print("")
