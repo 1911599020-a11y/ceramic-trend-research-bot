@@ -2,14 +2,18 @@ from __future__ import annotations
 
 import importlib.util
 import io
+import json
 import os
+import socket
 import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
+from urllib.error import HTTPError
 
+from ceramic_report import collect_evidence
 from sources.scrapecreators_source import (
     ScrapeCreatorsSource,
     check_scrapecreators_readiness,
@@ -54,9 +58,125 @@ class ScrapeCreatorsSourceTests(unittest.TestCase):
         self.assertEqual(scrapecreators_status_label(env), "configured")
         self.assertNotIn("legacy-secret", str(check_scrapecreators_readiness(env)))
 
-    def test_placeholder_source_does_not_fetch(self) -> None:
-        with self.assertRaisesRegex(RuntimeError, "预留接口"):
-            ScrapeCreatorsSource().fetch("ceramic glaze")
+    def test_source_missing_key_does_not_call_network(self) -> None:
+        source = ScrapeCreatorsSource(env={})
+
+        with mock.patch("sources.scrapecreators_source.request.urlopen") as urlopen:
+            with self.assertRaisesRegex(RuntimeError, "missing_key"):
+                source.fetch("ceramic glaze")
+
+        urlopen.assert_not_called()
+
+    def test_source_fetch_converts_response_to_last30days_shape(self) -> None:
+        payload = {
+            "success": True,
+            "posts": [
+                {
+                    "title": "Glaze Combo?",
+                    "subreddit": "Pottery",
+                    "url": "https://www.reddit.com/r/Pottery/comments/1/example",
+                    "score": 2544,
+                    "num_comments": 73,
+                    "created_utc": 1780793417,
+                }
+            ],
+            "after": "next-page",
+        }
+        response = io.BytesIO(json.dumps(payload).encode("utf-8"))
+        response.status = 200
+        response.headers = {}
+
+        source = ScrapeCreatorsSource(env={"SCRAPECREATORS_API_KEY": "secret-token"})
+        with mock.patch(
+            "sources.scrapecreators_source.request.urlopen",
+            return_value=response,
+        ) as urlopen:
+            report = source.fetch("ceramic glaze")
+
+        self.assertEqual(report["topic"], "ceramic glaze")
+        self.assertIn("reddit", report["items_by_source"])
+        item = report["items_by_source"]["reddit"][0]
+        self.assertEqual(item["title"], "Glaze Combo?")
+        self.assertEqual(item["container"], "Pottery")
+        self.assertEqual(item["engagement"]["score"], 2544)
+        self.assertEqual(item["engagement"]["num_comments"], 73)
+        evidence = collect_evidence("ceramic glaze", report)
+        self.assertEqual(evidence[0].subreddit, "pottery")
+        self.assertEqual(evidence[0].engagement, "2544 upvotes, 73 comments")
+        request_arg = urlopen.call_args.args[0]
+        self.assertIn("query=ceramic+glaze", request_arg.full_url)
+        self.assertNotIn("secret-token", str(report))
+
+    def test_source_reads_dotenv_without_printing_secret(self) -> None:
+        payload = {"success": True, "posts": [], "after": None}
+        response = io.BytesIO(json.dumps(payload).encode("utf-8"))
+        response.status = 200
+        response.headers = {}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dotenv_path = Path(tmp) / ".env"
+            dotenv_path.write_text(
+                "SCRAPECREATORS" + "_API_KEY=dotenv-secret\n",
+                encoding="utf-8",
+            )
+            source = ScrapeCreatorsSource(env={}, dotenv_path=dotenv_path)
+            with mock.patch(
+                "sources.scrapecreators_source.request.urlopen",
+                return_value=response,
+            ):
+                report = source.fetch("ceramic glaze")
+
+        self.assertEqual(report["items_by_source"]["reddit"], [])
+        self.assertNotIn("dotenv-secret", str(report))
+
+    def test_source_http_error_is_classified_without_secret(self) -> None:
+        cases = [
+            (401, b"bad key secret-token Authorization: Bearer abc123", "unauthorized_401"),
+            (403, b"blocked", "forbidden_403"),
+            (403, b"quota credits billing required", "quota_or_billing"),
+            (429, b"too many requests", "rate_limited_429"),
+            (402, b"quota credits billing required", "quota_or_billing"),
+        ]
+        source = ScrapeCreatorsSource(env={"SCRAPECREATORS_API_KEY": "secret-token"})
+
+        for code, body, expected in cases:
+            with self.subTest(code=code):
+                error = HTTPError(
+                    url="https://api.scrapecreators.com/v1/reddit/search",
+                    code=code,
+                    msg="error",
+                    hdrs={},
+                    fp=io.BytesIO(body),
+                )
+                with mock.patch("sources.scrapecreators_source.request.urlopen", side_effect=error):
+                    with self.assertRaisesRegex(RuntimeError, expected) as caught:
+                        source.fetch("ceramic glaze")
+
+                self.assertNotIn("secret-token", str(caught.exception))
+                self.assertNotIn("abc123", str(caught.exception))
+
+    def test_source_timeout_is_classified(self) -> None:
+        source = ScrapeCreatorsSource(env={"SCRAPECREATORS_API_KEY": "secret-token"})
+
+        with mock.patch(
+            "sources.scrapecreators_source.request.urlopen",
+            side_effect=socket.timeout("timed out"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "timeout"):
+                source.fetch("ceramic glaze")
+
+    def test_source_bad_posts_shape_is_parse_error(self) -> None:
+        response = io.BytesIO(json.dumps({"success": True, "posts": {}}).encode("utf-8"))
+        response.status = 200
+        response.headers = {}
+        source = ScrapeCreatorsSource(env={"SCRAPECREATORS_API_KEY": "secret-token"})
+
+        with mock.patch(
+            "sources.scrapecreators_source.request.urlopen",
+            return_value=response,
+        ):
+            with self.assertRaisesRegex(RuntimeError, "parse_error"):
+                source.fetch("ceramic glaze")
 
     def test_ready_script_does_not_print_secret(self) -> None:
         module = load_ready_script_module()

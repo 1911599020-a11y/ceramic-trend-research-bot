@@ -157,6 +157,24 @@ class Last30DaysCommandTests(unittest.TestCase):
             ],
         )
 
+    def test_live_subprocess_env_strips_scrapecreators_keys(self):
+        with mock.patch.dict(
+            "os.environ",
+            {
+                "SCRAPECREATORS_API_KEY": "secret-token",
+                "SCRAPE_CREATORS_API_KEY": "legacy-secret",
+            },
+            clear=True,
+        ):
+            with mock.patch("sources.last30days_source.subprocess.run") as run:
+                run.return_value = self._completed({"items_by_source": {"reddit": []}})
+                Last30DaysSource(self.script, mode="live").fetch("pottery")
+
+        env = run.call_args.kwargs["env"]
+        self.assertNotIn("SCRAPECREATORS_API_KEY", env)
+        self.assertNotIn("SCRAPE_CREATORS_API_KEY", env)
+        self.assertEqual(env["FROM_BROWSER"], "off")
+
     def test_mock_command_inserts_mock_flag_and_youtube_source(self):
         with mock.patch("sources.last30days_source.subprocess.run") as run:
             run.return_value = self._completed({"items_by_source": {"reddit": []}})

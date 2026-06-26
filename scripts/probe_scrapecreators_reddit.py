@@ -228,12 +228,12 @@ def classify_http_error(error: HTTPError, body: str) -> str:
     body_lower = body.lower()
     if error.code == 401:
         return "unauthorized_401"
-    if error.code == 403:
-        return "forbidden_403"
     if error.code == 429:
         return "rate_limited_429"
     if any(term in body_lower for term in ("quota", "billing", "credit", "payment", "insufficient")):
         return "quota_or_billing"
+    if error.code == 403:
+        return "forbidden_403"
     return "network_error"
 
 

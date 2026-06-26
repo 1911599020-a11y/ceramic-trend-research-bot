@@ -41,7 +41,9 @@ from sources.last30days_source import (  # noqa: F401  (re-exported for compatib
 )
 from sources.mock_source import DEFAULT_MOCK_SAMPLES_PATH, MockSource  # noqa: F401
 from sources.scrapecreators_source import (
+    ScrapeCreatorsSource,
     check_scrapecreators_readiness,
+    effective_env as scrapecreators_effective_env,
     scrapecreators_status_label,
 )
 
@@ -57,7 +59,7 @@ DEFAULT_DATA_SOURCE_CATALOG_PATH = PROJECT_ROOT / "config" / "data_sources.json"
 DEFAULT_STATE_FILE = PROJECT_ROOT / "local_outputs" / "run_state.json"
 DEFAULT_ERROR_FILE = PROJECT_ROOT / "local_outputs" / "last_error.md"
 SUPPORTED_MODEL_PROVIDERS = {"rules"}
-REPORT_VERSION = "V0.6.2"
+REPORT_VERSION = "V0.6.4"
 
 
 @dataclass(frozen=True)
@@ -142,10 +144,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--data-source",
-        default=os.environ.get("CERAMIC_DATA_SOURCE", "auto"),
+        default="auto",
         help=(
-            "Data source id. Use auto, mock, or reddit_last30days today. "
-            "Future ids such as scrapecreators_reddit are reserved but not implemented."
+            "Data source id. Use auto, mock, reddit_last30days, or explicit "
+            "scrapecreators_reddit. Paid API sources must be selected by CLI flag, "
+            "not by environment variable."
         ),
     )
     parser.add_argument(
@@ -327,6 +330,8 @@ def build_trend_source(selection: DataSourceSelection, script_path: Path) -> Tre
         return MockSource()
     if selection.source_id == "reddit_last30days":
         return Last30DaysSource(script_path, mode="live")
+    if selection.source_id == "scrapecreators_reddit":
+        return ScrapeCreatorsSource(dotenv_path=PROJECT_ROOT / ".env")
     raise ValueError(
         f"数据源 `{selection.source_id}` 尚未接入 TrendSource。请切回 --data-source auto。"
     )
@@ -472,6 +477,19 @@ def cooldown_message(state: dict[str, Any], control: RunControl) -> str:
 
 def classify_error(text: str) -> str:
     lowered = text.lower()
+    for explicit in [
+        "missing_key",
+        "unauthorized_401",
+        "forbidden_403",
+        "rate_limited_429",
+        "quota_or_billing",
+        "dns_error",
+        "timeout",
+        "network_error",
+        "parse_error",
+    ]:
+        if explicit in lowered:
+            return explicit
     if "429" in lowered or "too many requests" in lowered:
         return "rate_limited_429"
     if "403" in lowered or "forbidden" in lowered or "blocked" in lowered:
@@ -497,13 +515,13 @@ def classify_error(text: str) -> str:
 
 
 def scrapecreators_failure_hint(error_type: str) -> str:
-    readiness = check_scrapecreators_readiness()
+    readiness = local_scrapecreators_readiness()
     configured = readiness.can_attempt_api
     if error_type == "forbidden_403":
         if configured:
             return (
                 "已检测到 `SCRAPECREATORS_API_KEY`。如果 live 仍然失败，下一步应检查 key 是否有效、"
-                "额度是否充足，以及 last30days 是否正确读取到该配置。"
+                "额度是否充足，以及当前数据源是否正确读取到该配置。"
             )
         return (
             "当前没有检测到 `SCRAPECREATORS_API_KEY`。如果 Reddit public JSON 持续 403，"
@@ -516,6 +534,24 @@ def scrapecreators_failure_hint(error_type: str) -> str:
             "后续可以先做 ScrapeCreators 最小 live 验证，或把 Reddit 暂时降为可选数据源。"
         )
     return ""
+
+
+def local_scrapecreators_readiness():
+    return check_scrapecreators_readiness(
+        scrapecreators_effective_env(dotenv_path=PROJECT_ROOT / ".env")
+    )
+
+
+def local_scrapecreators_status_label() -> str:
+    return scrapecreators_status_label(
+        scrapecreators_effective_env(dotenv_path=PROJECT_ROOT / ".env")
+    )
+
+
+def run_state_scrapecreators_fallback(mode: str) -> str:
+    if mode == "mock":
+        return "not_checked_in_mock"
+    return local_scrapecreators_status_label()
 
 
 def apply_relevance_ranking(
@@ -1223,7 +1259,8 @@ def render_report(
             "## 后续升级接口",
             "",
             "- `--data-source auto` 当前会把 mock 映射到 `mock`，把 live 映射到 `reddit_last30days`。",
-            "- `--mode live` 当前只接入 Reddit；ScrapeCreators、YouTube、Pinterest、GitHub Actions 留到后续阶段。",
+            "- `--mode live --data-source scrapecreators_reddit` 可显式使用 ScrapeCreators Reddit API；默认 live 仍使用 `reddit_last30days`。",
+            "- YouTube、Pinterest、GitHub Actions 留到后续阶段。",
             "- 数据源清单见 `config/data_sources.json`；预留数据源不会在没有实现时偷偷联网。",
             "- 报告结构来自 `prompts/ceramic_report_prompt.md`，后续可替换为 LLM 中文综合。",
             "- 自动化路线见 `docs/automation-roadmap.md`。",
@@ -1283,6 +1320,8 @@ def data_mode_label(mode: str, data_source: DataSourceSelection | None = None) -
         return "MockSource `data/mock_samples.json`"
     if data_source and data_source.source_id == "reddit_last30days":
         return "last30days-skill `--quick --search=reddit`"
+    if data_source and data_source.source_id == "scrapecreators_reddit":
+        return "ScrapeCreators Reddit API `reddit/search`"
     if mode == "live":
         return "live source adapter"
     return "mock source adapter"
@@ -1426,7 +1465,15 @@ def live_status_and_error_type(
     return status, error_type, error_text
 
 
-def live_error_guidance(error_type: str) -> str:
+def live_error_guidance(
+    error_type: str,
+    data_source: DataSourceSelection | None = None,
+) -> str:
+    if error_type == "forbidden_403" and data_source and data_source.source_id == "scrapecreators_reddit":
+        return (
+            "ScrapeCreators 返回 403。请检查 API key 权限、账号状态、接口权限和后台额度，"
+            "不要连续重试；正式报告已保留上一份成功版本。"
+        )
     guidance = {
         "forbidden_403": (
             "Reddit 已拒绝当前请求，通常是代理出口、IP、User-Agent 或 Reddit 访问策略导致。"
@@ -1451,6 +1498,21 @@ def live_error_guidance(error_type: str) -> str:
         ),
         "no_usable_reddit_evidence": (
             "本次没有拿到可用 Reddit 证据。可以先用 mock 模式调整报告结构，再换更具体关键词重试 live。"
+        ),
+        "missing_key": (
+            "ScrapeCreators 数据源需要本地 `SCRAPECREATORS_API_KEY`。请确认 `.env` 已配置，"
+            "且不要把 key 提交到 GitHub。"
+        ),
+        "unauthorized_401": (
+            "ScrapeCreators 返回 401，通常表示 API key 无效、被撤销或认证方式不对。"
+            "请到后台确认 key 状态后再试。"
+        ),
+        "quota_or_billing": (
+            "ScrapeCreators 返回额度或账单相关错误。请检查后台 credits、套餐或付款状态，"
+            "不要连续重试。"
+        ),
+        "parse_error": (
+            "ScrapeCreators 返回格式不是预期 JSON 或 posts 结构，需要对照官方文档确认响应变化。"
         ),
     }
     message = guidance.get(
@@ -1490,7 +1552,7 @@ def build_run_state(
         "last_error_type": error_type,
         "output_path": str(output_path),
         "cooldown_until": cooldown_until_iso(now, control) if mode == "live" else "",
-        "scrapecreators_fallback": scrapecreators_status_label(),
+        "scrapecreators_fallback": run_state_scrapecreators_fallback(mode),
         **counts,
     }
     if data_source is not None:
@@ -1525,7 +1587,7 @@ def render_live_error_report(
     data_source: DataSourceSelection | None = None,
 ) -> str:
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
-    guidance = live_error_guidance(error_type)
+    guidance = live_error_guidance(error_type, data_source)
     fallback_sources = data_source.fallback_sources if data_source else []
     lines = [
         "# Reddit live 运行失败记录",
@@ -1539,7 +1601,7 @@ def render_live_error_report(
         "- 降级动作：没有把 mock 报告写进正式 live 报告；mock 仍可手动用于结构验证",
         f"- 本次抓到证据总数：{evidence_counts['evidence_count']}",
         f"- 本次可用证据数：{evidence_counts['usable_evidence_count']}",
-        f"- ScrapeCreators 备份状态：{scrapecreators_status_label()}",
+        f"- ScrapeCreators 备份状态：{local_scrapecreators_status_label()}",
         f"- 预留备选数据源：{', '.join(fallback_sources) if fallback_sources else '暂无'}",
         "",
         "## 说明",

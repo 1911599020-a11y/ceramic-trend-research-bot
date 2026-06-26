@@ -34,10 +34,62 @@ class DataSourceSelectionTests(unittest.TestCase):
         self.assertEqual(selection.source_id, "reddit_last30days")
         self.assertIn("scrapecreators_reddit", selection.fallback_sources)
 
+    def test_parse_args_does_not_allow_env_to_select_paid_source(self) -> None:
+        with mock.patch.dict("os.environ", {"CERAMIC_DATA_SOURCE": "scrapecreators_reddit"}):
+            with mock.patch("sys.argv", ["ceramic_report.py", "--mode", "live"]):
+                args = ceramic_report.parse_args()
+
+        self.assertEqual(args.data_source, "auto")
+
+    def test_scrapecreators_is_explicit_available_source_not_default(self) -> None:
+        auto_selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="live",
+            requested="auto",
+        )
+        scrape_selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="live",
+            requested="scrapecreators_reddit",
+        )
+
+        self.assertEqual(auto_selection.source_id, "reddit_last30days")
+        self.assertEqual(scrape_selection.source_id, "scrapecreators_reddit")
+        self.assertEqual(scrape_selection.status, "available")
+        self.assertEqual(scrape_selection.kind, "api_provider")
+
+    def test_scrapecreators_probe_topics_keep_relevance_rules(self) -> None:
+        path = ceramic_report.PROJECT_ROOT / "config" / "scrapecreators_probe_topics.json"
+        config = ceramic_report.load_config(path)
+        relevance = ceramic_report.load_relevance_config(config)
+
+        self.assertEqual(ceramic_report.load_topics(path), ["ceramic glaze"])
+        self.assertIn("pottery", relevance.recommended_subreddits)
+        self.assertIn("glaze", relevance.positive_terms)
+        self.assertIn("ceramic glaze", {key.lower() for key in relevance.topic_rules})
+
+    def test_run_live_script_forces_auto_data_source(self) -> None:
+        script = (ceramic_report.PROJECT_ROOT / "scripts" / "run_live.sh").read_text(encoding="utf-8")
+
+        self.assertIn("--data-source auto", script)
+
+    def test_build_trend_source_supports_scrapecreators(self) -> None:
+        selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="live",
+            requested="scrapecreators_reddit",
+        )
+
+        source = ceramic_report.build_trend_source(
+            selection,
+            ceramic_report.DEFAULT_LAST30DAYS_SCRIPT,
+        )
+
+        self.assertEqual(source.__class__.__name__, "ScrapeCreatorsSource")
+
     def test_planned_sources_are_reserved_not_silent_network(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=True):
             for source_id in [
-                "scrapecreators_reddit",
                 "youtube_future",
                 "pinterest_future",
             ]:
@@ -91,6 +143,39 @@ class DataSourceSelectionTests(unittest.TestCase):
         self.assertEqual(state["fallback_action"], "preserved_previous_report")
         self.assertIn("scrapecreators_reddit", state["fallback_sources"])
         self.assertNotIn("secret-token", str(state))
+
+    def test_mock_run_state_does_not_check_scrapecreators_env(self) -> None:
+        selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="mock",
+            requested="auto",
+        )
+        control = ceramic_report.RunControl(
+            state_file=Path("local_outputs/run_state.json"),
+            cooldown_minutes=30,
+            force=False,
+        )
+
+        with mock.patch("ceramic_report.local_scrapecreators_status_label") as status_label:
+            state = ceramic_report.build_run_state(
+                mode="mock",
+                status="success",
+                error_type="",
+                output_path=Path("reports/report.md"),
+                error_path=None,
+                counts={
+                    "evidence_count": 1,
+                    "usable_evidence_count": 1,
+                    "high_relevance_count": 1,
+                    "edge_relevance_count": 0,
+                    "low_relevance_count": 0,
+                },
+                control=control,
+                data_source=selection,
+            )
+
+        status_label.assert_not_called()
+        self.assertEqual(state["scrapecreators_fallback"], "not_checked_in_mock")
 
 
 if __name__ == "__main__":

@@ -1,10 +1,12 @@
 # Live Readiness Checklist
 
-这份清单用于进入真实 key-backed live 测试前自检，尤其是未来启用 ScrapeCreators Reddit 备份前。
+这份清单用于进入真实 key-backed live 测试前自检，尤其是显式使用 ScrapeCreators Reddit 数据源前。
 
-当前阶段：V0.6.3 已允许本地配置 ScrapeCreators key，并提供独立 tiny probe。readiness 检查不会调用 API；
-tiny probe 只有显式添加 `--confirm-live-api` 才会发起一次极小请求；正式 `ScrapeCreatorsSource.fetch()`
-仍未启用，不修改 `last30days-skill`。
+当前阶段：V0.6.4 已允许本地配置 ScrapeCreators key，并提供独立 tiny probe 与显式正式数据源。
+readiness 检查不会调用 API；tiny probe 只有显式添加 `--confirm-live-api` 才会发起一次极小请求；
+正式 `ScrapeCreatorsSource.fetch()` 只有手动选择 `--data-source scrapecreators_reddit` 时才会运行。
+默认 `auto` live 仍使用 `reddit_last30days`，不修改 `last30days-skill`。
+环境变量 `CERAMIC_DATA_SOURCE=scrapecreators_reddit` 不会打开 ScrapeCreators；必须显式传 CLI 参数。
 
 ## 什么时候使用
 
@@ -114,7 +116,7 @@ bash scripts/check_scrapecreators_ready.sh
 - `git status` / GitHub Desktop changed files 里没有 `local_outputs/`。
 - `bash scripts/run_mock.sh` 成功。
 - `bash scripts/check_scrapecreators_ready.sh` 显示 `configured`。
-- `config/data_sources.json` 里 `scrapecreators_reddit` 仍是 `planned`，除非已经进入下一阶段并明确改为可用。
+- `config/data_sources.json` 里 `scrapecreators_reddit` 是 `available`，但不是 `auto` 默认源。
 - `reports/report.md` 有上一份可读报告。
 - 知道失败会写到 `local_outputs/last_error.md`。
 - 知道不要连续使用 `--force`。
@@ -123,7 +125,7 @@ bash scripts/check_scrapecreators_ready.sh
 
 - 只跑极小样本。
 - 只验证一个很窄的 Reddit 数据路径。
-- 不跑全部关键词。
+- 不跑全部关键词；优先使用 `--topics config/scrapecreators_probe_topics.json`。这个文件只保留一个 topic，但保留完整相关性规则。
 - 不生成长期定时任务。
 - 不接 YouTube / Pinterest。
 - 不把 API 返回原文直接提交到 GitHub。
@@ -192,7 +194,16 @@ V0.6.3 已实现独立 tiny probe：
 - 不覆盖 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。
 - 不接入正式 `TrendSource.fetch()`。
 
-真实 `ScrapeCreatorsSource.fetch()` 和 `--data-source scrapecreators_reddit` 可用化，放到 V0.6.4 以后再考虑。
+**V0.6.4：ScrapeCreators 显式候选数据源**
+
+V0.6.4 已实现：
+
+- `scrapecreators_reddit` 在 `config/data_sources.json` 中是 `available`。
+- `auto` live 仍默认使用 `reddit_last30days`。
+- 只有显式运行 `--data-source scrapecreators_reddit` 才会进入 ScrapeCreators 正式报告流程。
+- 第一次正式 ScrapeCreators live 应加 `--topics config/scrapecreators_probe_topics.json`，只跑一个关键词。
+- 成功时会更新 `reports/report.md`、`reports/latest.md` 和 `reports/archive/`。
+- 失败时会保留上一份成功报告，并写入 `local_outputs/last_error.md`。
 
 ## 快速判断
 

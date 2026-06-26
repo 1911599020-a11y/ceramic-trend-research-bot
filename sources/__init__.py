@@ -11,8 +11,7 @@ Available sources:
                       network, no external skill, works on Windows / CI.
 - Last30DaysSource    shells out to the external last30days-skill exactly the
                       way ceramic_report.py V0.4.2 did; used by --mode live.
-- ScrapeCreatorsSource is a readiness-only future placeholder in V0.6.1. Its
-                      fetch() is deliberately disabled.
+- ScrapeCreatorsSource optional ScrapeCreators Reddit API adapter; opt-in only.
 
 V0.6.0 selects among available and planned source ids via
 config/data_sources.json. Planned ids are documentation and CLI guardrails
@@ -44,5 +43,6 @@ class TrendSource(Protocol):
 
 from sources.last30days_source import Last30DaysSource  # noqa: E402
 from sources.mock_source import MockSource  # noqa: E402
+from sources.scrapecreators_source import ScrapeCreatorsSource  # noqa: E402
 
-__all__ = ["TrendSource", "MockSource", "Last30DaysSource"]
+__all__ = ["TrendSource", "MockSource", "Last30DaysSource", "ScrapeCreatorsSource"]

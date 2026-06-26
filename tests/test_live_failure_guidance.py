@@ -1,23 +1,39 @@
 from __future__ import annotations
 
-import os
 import unittest
 from pathlib import Path
 from unittest import mock
 
 import ceramic_report
+from sources.scrapecreators_source import ScrapeCreatorsReadiness
 
 
 class LiveFailureGuidanceTests(unittest.TestCase):
     def test_forbidden_guidance_mentions_missing_scrapecreators_without_secret(self) -> None:
-        with mock.patch.dict(os.environ, {}, clear=True):
+        with mock.patch(
+            "ceramic_report.local_scrapecreators_readiness",
+            return_value=ScrapeCreatorsReadiness(
+                status="missing",
+                configured_env_var="",
+                detail="missing",
+                can_attempt_api=False,
+            ),
+        ):
             guidance = ceramic_report.live_error_guidance("forbidden_403")
 
         self.assertIn("没有检测到 `SCRAPECREATORS_API_KEY`", guidance)
         self.assertIn("ScrapeCreators Reddit API", guidance)
 
     def test_forbidden_guidance_mentions_configured_without_printing_secret(self) -> None:
-        with mock.patch.dict(os.environ, {"SCRAPECREATORS_API_KEY": "dummy-token-for-test"}, clear=True):
+        with mock.patch(
+            "ceramic_report.local_scrapecreators_readiness",
+            return_value=ScrapeCreatorsReadiness(
+                status="configured",
+                configured_env_var="SCRAPECREATORS_API_KEY",
+                detail="configured; hidden",
+                can_attempt_api=True,
+            ),
+        ):
             guidance = ceramic_report.live_error_guidance("forbidden_403")
 
         self.assertIn("已检测到 `SCRAPECREATORS_API_KEY`", guidance)
@@ -29,7 +45,10 @@ class LiveFailureGuidanceTests(unittest.TestCase):
             cooldown_minutes=30,
             force=False,
         )
-        with mock.patch.dict(os.environ, {"SCRAPECREATORS_API_KEY": "dummy-token-for-test"}, clear=True):
+        with mock.patch(
+            "ceramic_report.local_scrapecreators_status_label",
+            return_value="configured",
+        ):
             state = ceramic_report.build_run_state(
                 mode="live",
                 status="failed",

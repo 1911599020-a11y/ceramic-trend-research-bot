@@ -8,6 +8,10 @@
 
 **Tech Stack:** Python standard library only, existing `sources/scrapecreators_source.py` readiness helpers, local ignored outputs under `local_outputs/`, standard `unittest`.
 
+**V0.6.4 note:** This plan is the historical V0.6.3 tiny-probe plan. V0.6.4 later made
+`scrapecreators_reddit` an explicit opt-in source, while keeping `auto` live on
+`reddit_last30days`.
+
 ---
 
 ## Plain-Language Summary

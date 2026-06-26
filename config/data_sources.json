@@ -31,9 +31,9 @@
       "id": "scrapecreators_reddit",
       "label": "ScrapeCreators Reddit API",
       "mode": "live",
-      "status": "planned",
+      "status": "available",
       "kind": "api_provider",
-      "description": "Reserved API-backed Reddit source for when public Reddit JSON keeps returning 403 or 429. The formal source remains planned; V0.6.3 tiny probe is an independent script and does not update reports.",
+      "description": "Opt-in API-backed Reddit source for when public Reddit JSON keeps returning 403 or 429. It is not the default live source; select it explicitly with --data-source scrapecreators_reddit.",
       "requires_env": [
         "SCRAPECREATORS_API_KEY"
       ],

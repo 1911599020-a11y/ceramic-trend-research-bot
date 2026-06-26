@@ -21,6 +21,7 @@ DEFAULT_LAST30DAYS_SCRIPT = Path(
     "skills/last30days/scripts/last30days.py"
 )
 LAST30DAYS_REPO_HINT = "/Users/zhuyixiao/Documents/GitHub/last30days-skill"
+SCRAPECREATORS_ENV_KEYS = ("SCRAPECREATORS_API_KEY", "SCRAPE_CREATORS_API_KEY")
 
 # Resolution order for the script path when no CLI value is given. The legacy
 # LAST30DAYS_SCRIPT variable predates V0.5.0 and is kept as a fallback.
@@ -118,6 +119,11 @@ def run_last30days(
         command.extend(["--subreddits", ",".join(sorted(recommended_subreddits))])
 
     env = os.environ.copy()
+    # Public Reddit live must not accidentally hand API-provider keys to the
+    # external last30days-skill subprocess. ScrapeCreators is opt-in via its
+    # own TrendSource only.
+    for key in SCRAPECREATORS_ENV_KEYS:
+        env.pop(key, None)
     env.setdefault("FROM_BROWSER", "off")
     env.setdefault("LAST30DAYS_CONFIG_DIR", "")
 

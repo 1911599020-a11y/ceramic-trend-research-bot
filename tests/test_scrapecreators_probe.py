@@ -217,6 +217,7 @@ class ScrapeCreatorsProbeTests(unittest.TestCase):
         cases = [
             (401, b"unauthorized", "unauthorized_401"),
             (403, b"blocked", "forbidden_403"),
+            (403, b"quota credits billing required", "quota_or_billing"),
             (429, b"too many requests", "rate_limited_429"),
             (402, b"quota credits billing required", "quota_or_billing"),
         ]

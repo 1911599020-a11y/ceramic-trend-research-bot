@@ -1,7 +1,7 @@
 # 陶瓷趋势情报报告
 
-- 生成时间：2026-06-25 21:41
-- 版本：V0.6.2 mock 本地报告
+- 生成时间：2026-06-26 14:09
+- 版本：V0.6.4 mock 本地报告
 - 数据模式：MockSource `data/mock_samples.json`
 - 数据源：Mock local samples (`mock`)
 - 报告生成器：`rules`
@@ -177,7 +177,8 @@
 ## 后续升级接口
 
 - `--data-source auto` 当前会把 mock 映射到 `mock`，把 live 映射到 `reddit_last30days`。
-- `--mode live` 当前只接入 Reddit；ScrapeCreators、YouTube、Pinterest、GitHub Actions 留到后续阶段。
+- `--mode live --data-source scrapecreators_reddit` 可显式使用 ScrapeCreators Reddit API；默认 live 仍使用 `reddit_last30days`。
+- YouTube、Pinterest、GitHub Actions 留到后续阶段。
 - 数据源清单见 `config/data_sources.json`；预留数据源不会在没有实现时偷偷联网。
 - 报告结构来自 `prompts/ceramic_report_prompt.md`，后续可替换为 LLM 中文综合。
 - 自动化路线见 `docs/automation-roadmap.md`。

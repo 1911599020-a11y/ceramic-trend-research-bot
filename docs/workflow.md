@@ -27,12 +27,14 @@ MODEL_PROVIDER=rules
 当前数据源选择：
 
 ```text
-CERAMIC_DATA_SOURCE=auto
+--data-source auto
 ```
 
-`auto` 表示：mock 模式使用本地样例数据 `mock`；live 模式使用当前真实源 `reddit_last30days`。
-完整数据源清单见 `config/data_sources.json`。`scrapecreators_reddit`、`youtube_future`、`pinterest_future`
-只是预留入口，本阶段不会自动调用。
+`auto` 表示：mock 模式使用本地样例数据 `mock`；live 模式使用当前默认真实源 `reddit_last30days`。
+完整数据源清单见 `config/data_sources.json`。`scrapecreators_reddit` 是显式可选 API 数据源，
+不会被 `auto` 自动调用；`youtube_future`、`pinterest_future` 仍是预留入口。
+为避免误用付费 API，`CERAMIC_DATA_SOURCE=scrapecreators_reddit` 不会打开 ScrapeCreators；
+必须在命令里显式写 `--data-source scrapecreators_reddit`。
 
 ScrapeCreators 准备状态：
 
@@ -85,7 +87,7 @@ cd /Users/zhuyixiao/Documents/GitHub/ceramic-trend-research-bot
 - Reddit DNS / HTTPS 是否可用
 - `last30days-skill` 路径是否存在
 - `MODEL_PROVIDER` 是否为 `rules`
-- `CERAMIC_DATA_SOURCE` 是否为 `auto`
+- 数据源是否仍使用 `--data-source auto`
 - `.env` 是否安全
 
 ### 3. 调整报告结构时跑 mock
@@ -227,6 +229,33 @@ local_outputs/scrapecreators_probe_error.md
 
 如果遇到 401、403、429、quota/billing、timeout 或 network error，先看 error 文件，不要连续重复请求。
 
+### 12. 显式使用 ScrapeCreators 正式 live 数据源
+
+只有在确认愿意消耗 ScrapeCreators API 额度时才运行：
+
+```bash
+/Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 ceramic_report.py --mode live --data-source scrapecreators_reddit --topics config/scrapecreators_probe_topics.json --output reports/report.md
+```
+
+这一步不同于 tiny probe：它会进入正式报告流程。成功时会更新：
+
+```text
+reports/report.md
+reports/latest.md
+reports/archive/
+```
+
+失败时仍会保留上一份成功报告，并把错误写入：
+
+```text
+local_outputs/last_error.md
+local_outputs/run_state.json
+```
+
+不要把它当成默认日常命令；默认日常 live 仍然优先用 `bash scripts/run_live.sh`。
+第一次正式 ScrapeCreators live 先用 `config/scrapecreators_probe_topics.json` 的单关键词配置；
+确认稳定后，再考虑使用完整 `config/ceramic_topics.json`。
+
 ## live 失败时看哪里
 
 错误详情：
@@ -292,6 +321,7 @@ reports/archive/
 - 进入 key-backed live 前：先按 `docs/live-readiness-checklist.md` 逐项检查
 - tiny probe 默认保护检查：跑 `bash scripts/probe_scrapecreators_reddit.sh`
 - 真实 tiny probe：只有用户明确同意后，才跑 `bash scripts/probe_scrapecreators_reddit.sh --confirm-live-api --topic "ceramic glaze" --limit 1`
+- ScrapeCreators 正式 live：只有用户明确同意消耗 API 额度时，才手动选择 `--data-source scrapecreators_reddit`
 - 提交前：确认 `git status` / GitHub Desktop changed files 中没有 `.env` 或 `local_outputs/`
 
 ## 交接给新 Agent
