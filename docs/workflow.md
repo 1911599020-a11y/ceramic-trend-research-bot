@@ -274,6 +274,52 @@ local_outputs/run_state.json
 第一次正式 ScrapeCreators live 先用 `config/scrapecreators_probe_topics.json` 的单关键词配置；
 确认稳定后，再考虑使用完整 `config/ceramic_topics.json`。
 
+### 13. 小批量关键词质量测试
+
+V0.6.6 用于测试关键词是否值得长期追踪。默认配置见：
+
+```text
+config/scrapecreators_quality_topics.json
+```
+
+当前默认测试：
+
+```text
+kiln firing
+ceramic business
+AI ceramic design
+```
+
+先 dry-run，不联网、不消耗 API：
+
+```bash
+bash scripts/run_keyword_quality_check.sh
+```
+
+确认愿意消耗 API 额度后，才真实运行：
+
+```bash
+bash scripts/run_keyword_quality_check.sh --confirm-live-api
+```
+
+这一步输出只写入：
+
+```text
+local_outputs/keyword_quality_report.md
+local_outputs/keyword_quality_latest.md
+local_outputs/keyword_quality_summary.md
+local_outputs/keyword_quality_state.json
+local_outputs/keyword_quality_error.md
+local_outputs/keyword_quality_archive/
+```
+
+它不会更新正式的 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。
+如果只想根据已有测试报告重新生成摘要，可以运行：
+
+```bash
+python scripts/summarize_keyword_quality.py
+```
+
 ## live 失败时看哪里
 
 错误详情：
