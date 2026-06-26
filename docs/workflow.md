@@ -234,7 +234,25 @@ local_outputs/scrapecreators_probe_error.md
 只有在确认愿意消耗 ScrapeCreators API 额度时才运行：
 
 ```bash
-/Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 ceramic_report.py --mode live --data-source scrapecreators_reddit --topics config/scrapecreators_probe_topics.json --output reports/report.md
+bash scripts/run_scrapecreators_live.sh
+```
+
+默认安全模式只运行 `config/scrapecreators_probe_topics.json` 的单关键词配置。先检查命令但不联网：
+
+```bash
+bash scripts/run_scrapecreators_live.sh --dry-run
+```
+
+确认愿意消耗更多 API 额度后，才运行完整关键词：
+
+```bash
+bash scripts/run_scrapecreators_live.sh --confirm-full-api
+```
+
+需要在报告末尾附加 prompt 模板调试结构时，再加：
+
+```bash
+bash scripts/run_scrapecreators_live.sh --include-prompt-template
 ```
 
 这一步不同于 tiny probe：它会进入正式报告流程。成功时会更新：
@@ -321,7 +339,7 @@ reports/archive/
 - 进入 key-backed live 前：先按 `docs/live-readiness-checklist.md` 逐项检查
 - tiny probe 默认保护检查：跑 `bash scripts/probe_scrapecreators_reddit.sh`
 - 真实 tiny probe：只有用户明确同意后，才跑 `bash scripts/probe_scrapecreators_reddit.sh --confirm-live-api --topic "ceramic glaze" --limit 1`
-- ScrapeCreators 正式 live：只有用户明确同意消耗 API 额度时，才手动选择 `--data-source scrapecreators_reddit`
+- ScrapeCreators 正式 live：只有用户明确同意消耗 API 额度时，才运行 `bash scripts/run_scrapecreators_live.sh`；完整关键词必须加 `--confirm-full-api`
 - 提交前：确认 `git status` / GitHub Desktop changed files 中没有 `.env` 或 `local_outputs/`
 
 ## 交接给新 Agent

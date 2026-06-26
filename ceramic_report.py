@@ -59,7 +59,7 @@ DEFAULT_DATA_SOURCE_CATALOG_PATH = PROJECT_ROOT / "config" / "data_sources.json"
 DEFAULT_STATE_FILE = PROJECT_ROOT / "local_outputs" / "run_state.json"
 DEFAULT_ERROR_FILE = PROJECT_ROOT / "local_outputs" / "last_error.md"
 SUPPORTED_MODEL_PROVIDERS = {"rules"}
-REPORT_VERSION = "V0.6.4"
+REPORT_VERSION = "V0.6.5"
 
 
 @dataclass(frozen=True)
@@ -188,6 +188,16 @@ def parse_args() -> argparse.Namespace:
         "--no-research-evidence",
         action="store_true",
         help="Disable local research evidence in the report.",
+    )
+    parser.add_argument(
+        "--include-prompt-template",
+        action="store_true",
+        help="Append prompts/ceramic_report_prompt.md to the report for debugging.",
+    )
+    parser.add_argument(
+        "--confirm-full-api",
+        action="store_true",
+        help="Confirm running an API-backed source with the full default topic list.",
     )
     parser.add_argument(
         "--last30days-script",
@@ -353,6 +363,27 @@ def load_topics(path: Path) -> list[str]:
     if not cleaned:
         raise ValueError(f"No topics found in {path}")
     return cleaned
+
+
+def validate_api_topic_scope(
+    *,
+    mode: str,
+    data_source: DataSourceSelection,
+    topics_path: Path,
+    confirm_full_api: bool,
+) -> None:
+    if mode != "live" or data_source.source_id != "scrapecreators_reddit":
+        return
+    if topics_path != DEFAULT_TOPICS_PATH:
+        return
+    if confirm_full_api:
+        return
+    raise ValueError(
+        "ScrapeCreators 正式 live 默认不允许直接使用完整关键词配置，"
+        "以避免误消耗 API 额度。请优先使用 `bash scripts/run_scrapecreators_live.sh` "
+        "的单关键词安全模式；如果确认要跑完整 `config/ceramic_topics.json`，"
+        "请显式添加 `--confirm-full-api`。"
+    )
 
 
 def load_research_evidence(path: Path) -> list[ResearchEvidence]:
@@ -1096,6 +1127,7 @@ def render_report(
     data_source: DataSourceSelection | None = None,
     research_evidence: list[ResearchEvidence] | None = None,
     connectivity_note: str = "",
+    include_prompt_template: bool = False,
 ) -> str:
     research_evidence = research_evidence or []
     topics = [run.topic for run in runs]
@@ -1259,20 +1291,25 @@ def render_report(
             "## 后续升级接口",
             "",
             "- `--data-source auto` 当前会把 mock 映射到 `mock`，把 live 映射到 `reddit_last30days`。",
-            "- `--mode live --data-source scrapecreators_reddit` 可显式使用 ScrapeCreators Reddit API；默认 live 仍使用 `reddit_last30days`。",
+            "- ScrapeCreators 正式 live 优先使用 `bash scripts/run_scrapecreators_live.sh`；默认单关键词，完整关键词需 `--confirm-full-api`。",
             "- YouTube、Pinterest、GitHub Actions 留到后续阶段。",
             "- 数据源清单见 `config/data_sources.json`；预留数据源不会在没有实现时偷偷联网。",
             "- 报告结构来自 `prompts/ceramic_report_prompt.md`，后续可替换为 LLM 中文综合。",
             "- 自动化路线见 `docs/automation-roadmap.md`。",
             "",
-            "## 当前报告模板",
-            "",
-            "```markdown",
-            prompt_template.strip(),
-            "```",
-            "",
         ]
     )
+    if include_prompt_template:
+        lines.extend(
+            [
+                "## 当前报告模板",
+                "",
+                "```markdown",
+                prompt_template.strip(),
+                "```",
+                "",
+            ]
+        )
     return "\n".join(lines)
 
 
@@ -1716,6 +1753,12 @@ def main() -> int:
             mode=args.mode,
             requested=args.data_source,
         )
+        validate_api_topic_scope(
+            mode=args.mode,
+            data_source=data_source,
+            topics_path=topics_path,
+            confirm_full_api=args.confirm_full_api,
+        )
     except (FileNotFoundError, ValueError) as exc:
         print(f"数据源配置错误：{exc}", file=sys.stderr)
         return 2
@@ -1772,6 +1815,7 @@ def main() -> int:
         data_source=data_source,
         research_evidence=research_evidence,
         connectivity_note=connectivity_note,
+        include_prompt_template=args.include_prompt_template,
     )
     counts = evidence_summary(runs)
     if args.mode == "live":

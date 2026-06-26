@@ -67,6 +67,29 @@ class ResearchEvidenceTests(unittest.TestCase):
         self.assertIn("AI glaze prediction", report)
         self.assertIn("## 内容选题", report)
 
+    def test_render_report_hides_prompt_template_by_default(self) -> None:
+        report = render_report(
+            [TopicRun(topic="ceramic glaze", report={}, evidence=[])],
+            "# template",
+            mode="mock",
+            model_provider="rules",
+        )
+
+        self.assertNotIn("## 当前报告模板", report)
+        self.assertNotIn("# template", report)
+
+    def test_render_report_can_include_prompt_template_for_debugging(self) -> None:
+        report = render_report(
+            [TopicRun(topic="ceramic glaze", report={}, evidence=[])],
+            "# template",
+            mode="mock",
+            model_provider="rules",
+            include_prompt_template=True,
+        )
+
+        self.assertIn("## 当前报告模板", report)
+        self.assertIn("# template", report)
+
     def test_cli_no_research_evidence_skips_research_items(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             output = Path(tmp) / "report.md"

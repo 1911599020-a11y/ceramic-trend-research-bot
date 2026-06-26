@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import subprocess
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -72,6 +73,79 @@ class DataSourceSelectionTests(unittest.TestCase):
         script = (ceramic_report.PROJECT_ROOT / "scripts" / "run_live.sh").read_text(encoding="utf-8")
 
         self.assertIn("--data-source auto", script)
+
+    def test_scrapecreators_live_script_defaults_to_single_topic_dry_run(self) -> None:
+        result = subprocess.run(
+            ["bash", "scripts/run_scrapecreators_live.sh", "--dry-run"],
+            cwd=ceramic_report.PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        output = result.stdout
+        self.assertIn("Dry run", output)
+        self.assertIn("--data-source scrapecreators_reddit", output)
+        self.assertIn("config/scrapecreators_probe_topics.json", output)
+        self.assertNotIn("config/ceramic_topics.json", output)
+
+    def test_scrapecreators_live_script_requires_explicit_full_confirmation(self) -> None:
+        result = subprocess.run(
+            ["bash", "scripts/run_scrapecreators_live.sh", "--dry-run", "--confirm-full-api"],
+            cwd=ceramic_report.PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        output = result.stdout
+        self.assertIn("已显式确认全量关键词运行", output)
+        self.assertIn("--confirm-full-api", output)
+        self.assertIn("config/ceramic_topics.json", output)
+        self.assertNotIn("config/scrapecreators_probe_topics.json", output)
+
+    def test_scrapecreators_default_python_full_topics_requires_confirmation(self) -> None:
+        selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="live",
+            requested="scrapecreators_reddit",
+        )
+
+        with self.assertRaisesRegex(ValueError, "confirm-full-api"):
+            ceramic_report.validate_api_topic_scope(
+                mode="live",
+                data_source=selection,
+                topics_path=ceramic_report.DEFAULT_TOPICS_PATH,
+                confirm_full_api=False,
+            )
+
+    def test_scrapecreators_python_single_topic_does_not_require_full_confirmation(self) -> None:
+        selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="live",
+            requested="scrapecreators_reddit",
+        )
+
+        ceramic_report.validate_api_topic_scope(
+            mode="live",
+            data_source=selection,
+            topics_path=ceramic_report.PROJECT_ROOT / "config" / "scrapecreators_probe_topics.json",
+            confirm_full_api=False,
+        )
+
+    def test_scrapecreators_python_full_topics_allows_explicit_confirmation(self) -> None:
+        selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="live",
+            requested="scrapecreators_reddit",
+        )
+
+        ceramic_report.validate_api_topic_scope(
+            mode="live",
+            data_source=selection,
+            topics_path=ceramic_report.DEFAULT_TOPICS_PATH,
+            confirm_full_api=True,
+        )
 
     def test_build_trend_source_supports_scrapecreators(self) -> None:
         selection = ceramic_report.resolve_data_source(

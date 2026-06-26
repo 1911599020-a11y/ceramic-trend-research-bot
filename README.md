@@ -4,7 +4,7 @@
 
 ## Current Status
 
-V0.6.4 是 **ScrapeCreators 显式候选数据源版本**，建立在 V0.6.3 tiny probe 成功验证之上：
+V0.6.5 是 **ScrapeCreators live 运行体验优化版本**，建立在 V0.6.4 显式候选数据源成功验证之上：
 
 - 新增 `sources/` 适配层，定义统一的 `TrendSource` 契约：`fetch(topic, *, recommended_subreddits)`，输出统一的 `last30days` 形状报告 dict
 - `mock` 模式改由 `MockSource` 读取仓库内 `data/mock_samples.json`，**零配置、零联网、零外部依赖**，在 Windows / CI 上也能稳定出报告
@@ -61,6 +61,8 @@ V0.6.4 是 **ScrapeCreators 显式候选数据源版本**，建立在 V0.6.3 tin
 - V0.6.3-plan 新增 ScrapeCreators tiny live probe 方案：先设计极小探测，不直接接入正式报告流
 - V0.6.3 新增 ScrapeCreators tiny live probe：默认不联网，只有显式确认时才发起一次极小 Reddit API 探测；输出只写入 `local_outputs/`，不会更新正式报告
 - V0.6.4 新增显式 ScrapeCreators Reddit 数据源：`--data-source scrapecreators_reddit` 可进入正式报告流程，但 `auto` 默认仍然使用 `reddit_last30days`
+- V0.6.5 新增 ScrapeCreators 正式 live 专用脚本：默认只跑单关键词配置，`--confirm-full-api` 才跑完整关键词，`--dry-run` 可检查命令但不联网
+- V0.6.5 正式报告默认不再附加 prompt 模板；需要调试报告结构时再手动加 `--include-prompt-template`
 - 不安装 `yt-dlp`
 - 可以在本地 `.env` 配置 API key，但不要把真实 key 提交到 GitHub
 - 不修改 `last30days-skill` 原始代码
@@ -134,15 +136,27 @@ bash scripts/compare_reports.sh
 显式使用 ScrapeCreators Reddit API：
 
 ```bash
-/Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 ceramic_report.py --mode live --data-source scrapecreators_reddit --output reports/report.md
+bash scripts/run_scrapecreators_live.sh
 ```
 
-这会进入正式 live 报告流程，成功时会更新 `reports/report.md`、`reports/latest.md` 和 `reports/archive/`。它可能消耗 ScrapeCreators API 额度，因此不要连续重复运行；调整报告结构时仍先用 mock。
+这个脚本默认只运行 `config/scrapecreators_probe_topics.json` 的单关键词配置。它会进入正式 live 报告流程，成功时会更新 `reports/report.md`、`reports/latest.md` 和 `reports/archive/`。它可能消耗 ScrapeCreators API 额度，因此不要连续重复运行；调整报告结构时仍先用 mock。
 
-第一次正式 ScrapeCreators live 建议先用单关键词配置，避免一次跑完整 10 个关键词：
+先检查命令但不联网：
 
 ```bash
-/Users/zhuyixiao/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 ceramic_report.py --mode live --data-source scrapecreators_reddit --topics config/scrapecreators_probe_topics.json --output reports/report.md
+bash scripts/run_scrapecreators_live.sh --dry-run
+```
+
+明确同意消耗更多 API 额度后，才运行完整关键词：
+
+```bash
+bash scripts/run_scrapecreators_live.sh --confirm-full-api
+```
+
+如果需要在报告末尾附加 prompt 模板用于调试：
+
+```bash
+bash scripts/run_scrapecreators_live.sh --include-prompt-template
 ```
 
 ScrapeCreators readiness 检查：
@@ -175,7 +189,7 @@ local_outputs/scrapecreators_probe_state.json
 local_outputs/scrapecreators_probe_error.md
 ```
 
-它不会更新 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。正式报告若要使用 ScrapeCreators，必须显式运行 `--data-source scrapecreators_reddit`。
+它不会更新 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。正式报告若要使用 ScrapeCreators，优先运行 `bash scripts/run_scrapecreators_live.sh`；如果绕过脚本直接用 Python 跑完整 `config/ceramic_topics.json`，也必须显式加 `--confirm-full-api`。
 
 真实 API live 前检查清单：
 
@@ -296,7 +310,7 @@ bash scripts/reddit_probe_matrix.sh
 - `mock` 模式可以覆盖 `reports/report.md`，因为它是测试流程。
 - `live` 模式默认只访问 Reddit 公共数据源；如果当前网络无法访问 Reddit，会保留上一份成功报告，并把失败原因写入 `local_outputs/last_error.md`。
 - live 失败时会标明本次数据源，方便判断是 Reddit 数据源失败、网络失败，还是报告生成逻辑问题。
-- ScrapeCreators 正式数据源必须显式选择 `--data-source scrapecreators_reddit`；它不是 `auto` 默认源，可能消耗 API 额度。
+- ScrapeCreators 正式数据源优先用 `bash scripts/run_scrapecreators_live.sh`；它不是 `auto` 默认源，可能消耗 API 额度。默认只跑单关键词，完整关键词必须显式加 `--confirm-full-api`。
 - ScrapeCreators tiny probe 不是正式报告流程；它只写 `local_outputs/`，不会覆盖 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。
 - 只有带 `--confirm-live-api` 时 tiny probe 才会发起真实 API 请求；默认运行只做本地保护检查。
 
@@ -325,6 +339,7 @@ scripts/check_environment.sh       # Local environment diagnostic runner
 scripts/check_scrapecreators_ready.sh # ScrapeCreators readiness check without network/API calls
 scripts/probe_scrapecreators_reddit.py # ScrapeCreators tiny opt-in Reddit API probe
 scripts/probe_scrapecreators_reddit.sh # Local tiny probe runner
+scripts/run_scrapecreators_live.sh # ScrapeCreators formal live runner with API quota guard
 scripts/reddit_probe_matrix.sh     # Optional Reddit 403 request-shape diagnostic
 scripts/compare_reports.py        # Compare latest two archived live reports
 scripts/compare_reports.sh        # Local compare runner

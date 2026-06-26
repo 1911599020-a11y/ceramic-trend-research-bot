@@ -11,8 +11,8 @@
 - `--mode mock`：读取仓库内 `data/mock_samples.json`，零配置、零联网，用于验证报告结构与版式。
 - `--mode live`：默认接入 Reddit（经由外部 `last30days-skill` 子进程），也可显式选择 ScrapeCreators Reddit API，并按陶瓷相关性分层。
 - 当前架构基础：**V0.5.0 — 数据源适配层（data-source adapter）**。详见 `docs/changes/0001-data-source-adapter.md`。
-  当前运行选择：**V0.6.4 — ScrapeCreators 显式候选数据源**，`auto` live 仍默认 `reddit_last30days`，只有手动选择 `--data-source scrapecreators_reddit` 才会调用 ScrapeCreators。
-  下一步计划：评估是否为 public Reddit 失败场景增加人工确认的 fallback，不要自动消耗 API 额度。
+  当前运行选择：**V0.6.5 — ScrapeCreators live 运行体验优化**，`auto` live 仍默认 `reddit_last30days`；ScrapeCreators 正式 live 优先用 `scripts/run_scrapecreators_live.sh`，默认只跑单关键词，`--confirm-full-api` 才跑完整关键词。
+  下一步计划：继续评估 ScrapeCreators 多关键词质量，不要自动消耗 API 额度。
   最新项目决策按 `docs/changes/` 中的编号变更记录继续递增。
 
 ## 2. 架构
@@ -33,6 +33,7 @@ prompts/ceramic_report_prompt.md  # 中文报告结构模板
 tests/                        # unittest 用例
 docs/changes/                 # 变更记录（每个改动一份编号文档）
 scripts/probe_scrapecreators_reddit.py  # 独立 tiny probe，只写 local_outputs/
+scripts/run_scrapecreators_live.sh      # ScrapeCreators 正式 live runner，默认单关键词，带额度保护
 ```
 
 **单一契约**：每个 source 的 `fetch()` 都返回同一种 `last30days` 形状的 dict
@@ -41,9 +42,12 @@ scripts/probe_scrapecreators_reddit.py  # 独立 tiny probe，只写 local_outpu
 
 V0.6.0 以后，数据源选择先进入 `config/data_sources.json`，再接入 `TrendSource`。预留数据源
 （如 `youtube_future`、`pinterest_future`）在实现前不能偷偷发起联网请求。
-V0.6.4 的 `sources/scrapecreators_source.py` 是显式可选 source；默认 `auto` live 不会调用它。
+V0.6.4 以后，`sources/scrapecreators_source.py` 是显式可选 source；默认 `auto` live 不会调用它。
 为避免误用付费 API，`CERAMIC_DATA_SOURCE=scrapecreators_reddit` 不会改变 CLI 默认值；
 必须在命令中显式写 `--data-source scrapecreators_reddit` 才能调用 ScrapeCreators。
+正式 ScrapeCreators live 优先使用 `bash scripts/run_scrapecreators_live.sh`。该脚本默认只跑
+`config/scrapecreators_probe_topics.json`；只有显式加 `--confirm-full-api` 才跑完整
+`config/ceramic_topics.json`。
 `reddit_last30days` 子进程环境必须剥离 `SCRAPECREATORS_API_KEY` 和 `SCRAPE_CREATORS_API_KEY`。
 `scripts/probe_scrapecreators_reddit.py` 是 V0.6.3 的独立 tiny probe，只能在用户明确加
 `--confirm-live-api` 时发起一次极小 ScrapeCreators API 请求。
@@ -52,7 +56,8 @@ V0.6.4 的 `sources/scrapecreators_source.py` 是显式可选 source；默认 `a
 不得猜测 API endpoint 或 response shape。tiny probe 不得更新 `reports/report.md`、`reports/latest.md`
 或 `reports/archive/`，输出只能写入 `local_outputs/`。
 正式 ScrapeCreators live 只能在用户明确同意消耗 API 额度时运行：
-`python ceramic_report.py --mode live --data-source scrapecreators_reddit`。
+`bash scripts/run_scrapecreators_live.sh`。绕过脚本直接跑完整 `config/ceramic_topics.json`
+时，必须显式加 `--confirm-full-api`。
 
 ## 3. 环境与命令
 
@@ -79,8 +84,8 @@ bash scripts/probe_scrapecreators_reddit.sh
 # ScrapeCreators tiny probe 真实小测试（必须用户明确同意后才运行）
 bash scripts/probe_scrapecreators_reddit.sh --confirm-live-api --topic "ceramic glaze" --limit 1
 
-# ScrapeCreators 正式 live（显式选择，可能消耗 API 额度）
-python ceramic_report.py --mode live --data-source scrapecreators_reddit
+# ScrapeCreators 正式 live（默认单关键词，显式选择，可能消耗 API 额度）
+bash scripts/run_scrapecreators_live.sh
 ```
 
 `last30days-skill` 脚本路径解析顺序：`--last30days-script` 参数 > `CERAMIC_LAST30DAYS_SCRIPT`
@@ -121,7 +126,7 @@ python ceramic_report.py --mode live --data-source scrapecreators_reddit
 - `mock` 模式不读真实 key、不联网，可覆盖 `reports/report.md`。
 - `live` 失败（DNS / 403 / 429 / 网络）时不覆盖上一份成功报告，错误写入 `local_outputs/last_error.md`。
 - ScrapeCreators tiny probe 默认不联网；真实请求必须显式加 `--confirm-live-api`，输出只能写入 `local_outputs/`，不得覆盖正式报告。
-- ScrapeCreators 正式 source 不是默认源；只有显式 `--data-source scrapecreators_reddit` 才会调用，成功时会更新正式报告。
+- ScrapeCreators 正式 source 不是默认源；优先用 `bash scripts/run_scrapecreators_live.sh` 显式调用，成功时会更新正式报告。该脚本默认单关键词，`--confirm-full-api` 才跑完整关键词。
 - 不修改 `last30days-skill` 原始代码；不安装 `yt-dlp`；不要把真实 API key 写进代码、文档或提交内容。
 
 ## 8. 主线结束后研究产品
