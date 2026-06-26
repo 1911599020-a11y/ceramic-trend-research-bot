@@ -4,6 +4,7 @@ import importlib.util
 import io
 import os
 import sys
+import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -70,6 +71,24 @@ class ScrapeCreatorsSourceTests(unittest.TestCase):
         self.assertIn("key status: configured", text)
         self.assertIn("network request: not attempted", text)
         self.assertNotIn("script-secret", text)
+
+    def test_ready_script_reads_dotenv_without_printing_secret(self) -> None:
+        module = load_ready_script_module()
+        output = io.StringIO()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            dotenv_path = Path(tmp) / ".env"
+            dotenv_path.write_text(
+                "SCRAPECREATORS" + "_API_KEY=" + "dotenv-secret\n",
+                encoding="utf-8",
+            )
+            with redirect_stdout(output):
+                exit_code = module.main(env={}, dotenv_path=dotenv_path)
+
+        text = output.getvalue()
+        self.assertEqual(exit_code, 0)
+        self.assertIn("key status: configured", text)
+        self.assertNotIn("dotenv-secret", text)
 
 
 if __name__ == "__main__":

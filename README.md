@@ -4,7 +4,7 @@
 
 ## Current Status
 
-V0.6.2 是 **真实 live 前检查清单版本**，建立在 V0.6.1 的 ScrapeCreators 安全准备层之上：
+V0.6.3 是 **ScrapeCreators tiny live probe 版本**，建立在 V0.6.2 的真实 live 前检查清单之上：
 
 - 新增 `sources/` 适配层，定义统一的 `TrendSource` 契约：`fetch(topic, *, recommended_subreddits)`，输出统一的 `last30days` 形状报告 dict
 - `mock` 模式改由 `MockSource` 读取仓库内 `data/mock_samples.json`，**零配置、零联网、零外部依赖**，在 Windows / CI 上也能稳定出报告
@@ -58,8 +58,9 @@ V0.6.2 是 **真实 live 前检查清单版本**，建立在 V0.6.1 的 ScrapeCr
 - V0.6.1 新增 ScrapeCreators 最小接入准备：`scripts/check_scrapecreators_ready.sh` 只做本地 readiness，不调用 API
 - V0.6.2 新增真实 live 前检查清单：进入 key-backed API 测试前必须先确认不泄露 key、不烧额度、不污染报告
 - V0.6.3-plan 新增 ScrapeCreators tiny live probe 方案：先设计极小探测，不直接接入正式报告流
+- V0.6.3 新增 ScrapeCreators tiny live probe：默认不联网，只有显式确认时才发起一次极小 Reddit API 探测；输出只写入 `local_outputs/`，不会更新正式报告
 - 不安装 `yt-dlp`
-- 不配置 API key
+- 可以在本地 `.env` 配置 API key，但不要把真实 key 提交到 GitHub
 - 不修改 `last30days-skill` 原始代码
 - `live` 模式调用本地 `last30days-skill --quick --search=reddit`，并传入推荐 subreddit
 - 输出中文 Markdown 到 `reports/report.md`
@@ -136,6 +137,30 @@ bash scripts/check_scrapecreators_ready.sh
 
 这个命令不会访问 ScrapeCreators，也不会打印真实 key。它只告诉你本机是否已经配置了 `SCRAPECREATORS_API_KEY`，方便以后进入 key-backed 最小 live 验证。
 
+ScrapeCreators tiny probe 默认不联网：
+
+```bash
+bash scripts/probe_scrapecreators_reddit.sh
+```
+
+这个命令只写入 `local_outputs/scrapecreators_probe_state.json`，用于确认探针保护机制生效。
+
+只有在你明确同意消耗一次 ScrapeCreators 请求时，才运行：
+
+```bash
+bash scripts/probe_scrapecreators_reddit.sh --confirm-live-api --topic "ceramic glaze" --limit 1
+```
+
+tiny probe 的结果只写入：
+
+```text
+local_outputs/scrapecreators_probe.json
+local_outputs/scrapecreators_probe_state.json
+local_outputs/scrapecreators_probe_error.md
+```
+
+它不会更新 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。`scrapecreators_reddit` 仍然是预留数据源，还不是正式报告数据源。
+
 真实 API live 前检查清单：
 
 ```text
@@ -150,7 +175,7 @@ ScrapeCreators tiny probe 方案：
 docs/plans/2026-06-25-scrapecreators-tiny-probe.md
 ```
 
-这只是实现方案，不会自动联网；真正写 probe 脚本前必须确认官方 API 文档或用户提供的响应样例。
+方案已落地为 `scripts/probe_scrapecreators_reddit.sh` 和 `scripts/probe_scrapecreators_reddit.py`。默认运行不会联网；真实 probe 必须显式添加 `--confirm-live-api`。
 
 本地研究证据默认来自：
 
@@ -213,6 +238,7 @@ tests/test_environment_check.py # 环境诊断的代理脱敏与错误分类
 tests/test_live_failure_guidance.py # live 失败提示与 ScrapeCreators 状态脱敏
 tests/test_research_evidence.py # 本地研究证据加载和报告模块
 tests/test_scrapecreators_source.py # ScrapeCreators readiness 与 key 脱敏
+tests/test_scrapecreators_probe.py # tiny probe 的默认不联网、缺 key、limit 和错误分类
 ```
 
 mock 报告零配置生成（不联网、不依赖外部 skill）：
@@ -254,6 +280,8 @@ bash scripts/reddit_probe_matrix.sh
 - `mock` 模式可以覆盖 `reports/report.md`，因为它是测试流程。
 - `live` 模式当前只访问 Reddit 公共数据源；如果当前网络无法访问 Reddit，会保留上一份成功报告，并把失败原因写入 `local_outputs/last_error.md`。
 - live 失败时会标明本次数据源，方便判断是 Reddit 数据源失败、网络失败，还是报告生成逻辑问题。
+- ScrapeCreators tiny probe 不是正式报告流程；它只写 `local_outputs/`，不会覆盖 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。
+- 只有带 `--confirm-live-api` 时 tiny probe 才会发起真实 API 请求；默认运行只做本地保护检查。
 
 ## Project Structure
 
@@ -262,7 +290,7 @@ ceramic_report.py                 # 打分 + 渲染 + CLI 入口
 sources/__init__.py               # TrendSource 契约（数据源适配层）
 sources/mock_source.py            # MockSource：读 data/mock_samples.json，离线
 sources/last30days_source.py      # Last30DaysSource：外部 last30days-skill 子进程（live）
-sources/scrapecreators_source.py  # ScrapeCreators readiness 和未来 source 预留接口；V0.6.1 不联网
+sources/scrapecreators_source.py  # ScrapeCreators readiness 和未来 source 预留接口；正式 source 不联网
 config/ceramic_topics.json        # Ceramic keyword, subreddit, and relevance rules
 config/data_sources.json          # 当前可用和未来预留的数据源清单
 data/mock_samples.json            # mock 证据样例（last30days --emit=json 形状）
@@ -277,11 +305,14 @@ scripts/run_mock.sh               # Local mock runner
 scripts/run_live.sh               # Local live runner with cooldown
 scripts/check_environment.sh       # Local environment diagnostic runner
 scripts/check_scrapecreators_ready.sh # ScrapeCreators readiness check without network/API calls
+scripts/probe_scrapecreators_reddit.py # ScrapeCreators tiny opt-in Reddit API probe
+scripts/probe_scrapecreators_reddit.sh # Local tiny probe runner
 scripts/reddit_probe_matrix.sh     # Optional Reddit 403 request-shape diagnostic
 scripts/compare_reports.py        # Compare latest two archived live reports
 scripts/compare_reports.sh        # Local compare runner
 local_outputs/last_error.md       # Ignored live failure details
 local_outputs/run_state.json      # Ignored local run state
+local_outputs/scrapecreators_probe*.json/md # Ignored tiny probe state/output/error files
 reports/                          # Generated Markdown reports
 reports/latest.md                 # Latest successful live report
 reports/archive/                  # Archived successful live reports

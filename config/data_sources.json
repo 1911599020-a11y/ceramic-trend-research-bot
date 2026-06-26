@@ -33,7 +33,7 @@
       "mode": "live",
       "status": "planned",
       "kind": "api_provider",
-      "description": "Reserved API-backed Reddit source for when public Reddit JSON keeps returning 403 or 429. V0.6.1 only checks readiness and never calls the API.",
+      "description": "Reserved API-backed Reddit source for when public Reddit JSON keeps returning 403 or 429. The formal source remains planned; V0.6.3 tiny probe is an independent script and does not update reports.",
       "requires_env": [
         "SCRAPECREATORS_API_KEY"
       ],

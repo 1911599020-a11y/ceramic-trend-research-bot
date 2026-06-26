@@ -227,7 +227,7 @@ The helper should:
 
 - include the API key only in the required auth location,
 - request one topic,
-- request at most three results,
+- save at most three summarized results locally,
 - use a short timeout,
 - use a clear User-Agent if allowed.
 

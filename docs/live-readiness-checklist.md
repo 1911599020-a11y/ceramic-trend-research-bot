@@ -2,7 +2,9 @@
 
 这份清单用于进入真实 key-backed live 测试前自检，尤其是未来启用 ScrapeCreators Reddit 备份前。
 
-当前阶段：V0.6.2 只提供检查清单，不调用 ScrapeCreators API，不配置真实 key，不修改 `last30days-skill`。
+当前阶段：V0.6.3 已允许本地配置 ScrapeCreators key，并提供独立 tiny probe。readiness 检查不会调用 API；
+tiny probe 只有显式添加 `--confirm-live-api` 才会发起一次极小请求；正式 `ScrapeCreatorsSource.fetch()`
+仍未启用，不修改 `last30days-skill`。
 
 ## 什么时候使用
 
@@ -180,12 +182,14 @@ bash scripts/compare_reports.sh
 
 **V0.6.3：ScrapeCreators tiny live probe**
 
-V0.6.3 只考虑：
+V0.6.3 已实现独立 tiny probe：
 
-- 做一个独立的单关键词、低频、可停止的 API probe。
-- 明确请求上限和错误分类。
-- 输出只写入 `local_outputs/`。
-- 保持失败不覆盖成功报告。
+- `bash scripts/probe_scrapecreators_reddit.sh`：默认不联网，只写本地 state。
+- `bash scripts/probe_scrapecreators_reddit.sh --confirm-live-api --topic "ceramic glaze" --limit 1`：用户明确同意后才发起一次极小 API 请求。
+- 请求上限：本地摘要最多保存 3 条。
+- 错误分类：missing key、401、403、429、quota/billing、timeout、network、parse。
+- 输出只写入 `local_outputs/scrapecreators_probe*`。
+- 不覆盖 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。
 - 不接入正式 `TrendSource.fetch()`。
 
 真实 `ScrapeCreatorsSource.fetch()` 和 `--data-source scrapecreators_reddit` 可用化，放到 V0.6.4 以后再考虑。

@@ -56,7 +56,7 @@ ScrapeCreators tiny probe 方案：
 docs/plans/2026-06-25-scrapecreators-tiny-probe.md
 ```
 
-这份方案只说明未来怎么实现最小 API 探测；当前不会自动联网。
+这份方案已经落地为独立 tiny probe。默认运行不会联网；只有显式确认时才会发起一次极小 ScrapeCreators Reddit API 请求。
 
 本地研究证据：
 
@@ -162,8 +162,8 @@ bash scripts/check_scrapecreators_ready.sh
 使用场景：
 
 - 申请 key 前：确认当前是 `missing`，不会影响 mock 和 Reddit public live。
-- 申请 key 后：确认显示 `configured`，但 V0.6.1 仍不会调用真实 API。
-- 进入下一阶段前：再决定是否做一次极小规模 key-backed live probe。
+- 申请 key 后：确认显示 `configured`；readiness 不会调用真实 API。
+- 进入下一阶段前：再决定是否运行一次需要显式确认的 tiny probe。
 
 ### 8. 进入真实 API live 前
 
@@ -184,6 +184,48 @@ docs/plans/2026-06-25-scrapecreators-tiny-probe.md
 ```
 
 不要猜测 API endpoint。真正实现请求前，需要官方 ScrapeCreators 文档或用户提供的脱敏样例。
+
+### 10. 运行 ScrapeCreators tiny probe 保护检查
+
+默认不联网：
+
+```bash
+bash scripts/probe_scrapecreators_reddit.sh
+```
+
+输出：
+
+```text
+local_outputs/scrapecreators_probe_state.json
+```
+
+这一步只确认保护机制存在，不会消耗 ScrapeCreators credits。
+
+### 11. 运行一次真实 ScrapeCreators tiny probe
+
+只有用户明确同意消耗一次 API 请求时才运行：
+
+```bash
+bash scripts/probe_scrapecreators_reddit.sh --confirm-live-api --topic "ceramic glaze" --limit 1
+```
+
+成功或失败都不会更新：
+
+```text
+reports/report.md
+reports/latest.md
+reports/archive/
+```
+
+结果和错误只看：
+
+```text
+local_outputs/scrapecreators_probe.json
+local_outputs/scrapecreators_probe_state.json
+local_outputs/scrapecreators_probe_error.md
+```
+
+如果遇到 401、403、429、quota/billing、timeout 或 network error，先看 error 文件，不要连续重复请求。
 
 ## live 失败时看哪里
 
@@ -232,6 +274,9 @@ reports/archive/
 | `reports/trend_diff.md` | 最近两期成功 live 报告的基础对比 |
 | `local_outputs/last_error.md` | 最近一次 live 失败详情，不进入 Git |
 | `local_outputs/run_state.json` | 冷却、状态和错误类型，不进入 Git |
+| `local_outputs/scrapecreators_probe.json` | ScrapeCreators tiny probe 脱敏结果摘要，不进入 Git |
+| `local_outputs/scrapecreators_probe_state.json` | ScrapeCreators tiny probe 运行状态，不进入 Git |
+| `local_outputs/scrapecreators_probe_error.md` | ScrapeCreators tiny probe 失败说明，不进入 Git |
 | `data/research_evidence.json` | 本地研究证据，进入报告的“研究证据”模块 |
 | `config/data_sources.json` | 数据源清单，区分可用源和预留源 |
 
@@ -245,7 +290,8 @@ reports/archive/
 - ScrapeCreators 晚点申请：先维护 `research/ceramic-ai-evidence.md` 和稳定数据源路线
 - 申请 ScrapeCreators key 后：先跑 `bash scripts/check_scrapecreators_ready.sh`，不要直接改 live 抓取逻辑
 - 进入 key-backed live 前：先按 `docs/live-readiness-checklist.md` 逐项检查
-- 实现 tiny probe 前：先读 `docs/plans/2026-06-25-scrapecreators-tiny-probe.md`
+- tiny probe 默认保护检查：跑 `bash scripts/probe_scrapecreators_reddit.sh`
+- 真实 tiny probe：只有用户明确同意后，才跑 `bash scripts/probe_scrapecreators_reddit.sh --confirm-live-api --topic "ceramic glaze" --limit 1`
 - 提交前：确认 `git status` / GitHub Desktop changed files 中没有 `.env` 或 `local_outputs/`
 
 ## 交接给新 Agent
