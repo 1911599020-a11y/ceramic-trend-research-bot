@@ -22,6 +22,8 @@ class LLMScoringContractTests(unittest.TestCase):
         self.assertEqual(config.provider, "deepseek")
         self.assertEqual(config.mode, "design_only")
         self.assertEqual(config.model, "deepseek-chat")
+        self.assertEqual(config.switch_env_var, "LLM_SCORING_ENABLED")
+        self.assertIn("on", config.enabled_values)
         self.assertEqual(config.output_path, "local_outputs/llm_scoring_probe.md")
 
     def test_prompt_includes_evidence_context(self) -> None:
@@ -41,6 +43,7 @@ class LLMScoringContractTests(unittest.TestCase):
         self.assertIn("kiln firing", prompt)
         self.assertIn("Cone 6 glaze defect after firing", prompt)
         self.assertIn("只返回 JSON", prompt)
+        self.assertIn("0 到 100 的整数百分制", prompt)
 
     def test_parse_llm_score_payload_validates_schema(self) -> None:
         result = parse_llm_score_payload(

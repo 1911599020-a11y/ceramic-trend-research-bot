@@ -322,7 +322,7 @@ python scripts/summarize_keyword_quality.py
 
 ### 14. DeepSeek 智能评分 tiny probe
 
-V0.6.8 新增 DeepSeek 智能评分 tiny probe。当前配置见：
+V0.6.8.1 新增 DeepSeek 智能评分 tiny probe 开关。当前配置见：
 
 ```text
 config/llm_scoring.json
@@ -334,6 +334,7 @@ scripts/probe_llm_scoring.sh
 当前规则：
 
 - 默认 `enabled=false`
+- 默认 `LLM_SCORING_ENABLED=off`
 - 默认 `provider=deepseek`
 - 默认 `mode=design_only`
 - `bash scripts/probe_llm_scoring.sh` 默认不调用 DeepSeek API
@@ -347,11 +348,13 @@ scripts/probe_llm_scoring.sh
 bash scripts/probe_llm_scoring.sh
 ```
 
-确认愿意消耗少量 DeepSeek API 额度后，才真实运行：
+确认愿意消耗少量 DeepSeek API 额度后，必须同时打开开关并加确认参数，才真实运行：
 
 ```bash
-bash scripts/probe_llm_scoring.sh --confirm-live-api
+LLM_SCORING_ENABLED=on bash scripts/probe_llm_scoring.sh --confirm-live-api
 ```
+
+如果想让这个开关长期生效，可以在本地 `.env` 中写入 `LLM_SCORING_ENABLED=on`。未来做界面时，“启用 DeepSeek 评分”的勾选框就可以映射到这个配置。
 
 真实 tiny test 只测试 3 条内置样本，并且输出只能写入：
 

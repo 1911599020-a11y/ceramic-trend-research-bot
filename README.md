@@ -4,14 +4,14 @@
 
 ## Current Status
 
-V0.6.8 是 **DeepSeek 大模型评分 tiny probe 版本**，建立在 V0.6.7 智能评分接口设计之上：
+V0.6.8.1 是 **DeepSeek 大模型评分 tiny probe 开关版**，建立在 V0.6.7 智能评分接口设计和 V0.6.8 tiny probe 之上：
 
 - 注意：V0.6.8 是独立 tiny probe 版本，不提升正式报告生成版本；`ceramic_report.py` 的 `REPORT_VERSION` 仍保持 `V0.6.6`，因为正式报告流程没有接入 LLM scoring。
 - 新增 `sources/` 适配层，定义统一的 `TrendSource` 契约：`fetch(topic, *, recommended_subreddits)`，输出统一的 `last30days` 形状报告 dict
 - 新增 `scoring/llm_scorer.py`，为后续大模型辅助打分定义结构化输入、输出、mock scorer 和规则/LLM 合并结果
-- 新增 `config/llm_scoring.json`，默认 `enabled=false`、`provider=deepseek`、`mode=design_only`
+- 新增 `config/llm_scoring.json`，默认 `enabled=false`、`provider=deepseek`、`mode=design_only`，并用 `LLM_SCORING_ENABLED=off/on` 预留未来界面勾选开关
 - 新增 `prompts/llm_scoring_prompt.md`，要求模型只返回 JSON，不直接生成最终报告
-- 新增 `scripts/probe_llm_scoring.py` / `.sh`，默认 dry-run，不联网；真实 DeepSeek tiny test 必须显式加 `--confirm-live-api`
+- 新增 `scripts/probe_llm_scoring.py` / `.sh`，默认 dry-run，不联网；真实 DeepSeek tiny test 必须同时打开 `LLM_SCORING_ENABLED=on` 并显式加 `--confirm-live-api`
 - V0.6.8 tiny probe 只写 `local_outputs/llm_scoring_probe.md` 等本地文件，**不更新正式 reports**
 - `mock` 模式改由 `MockSource` 读取仓库内 `data/mock_samples.json`，**零配置、零联网、零外部依赖**，在 Windows / CI 上也能稳定出报告
 - `live` 模式由 `Last30DaysSource` 承接，子进程命令构造与 V0.4.2 逐项一致，行为不变
@@ -74,6 +74,7 @@ V0.6.8 是 **DeepSeek 大模型评分 tiny probe 版本**，建立在 V0.6.7 智
 - V0.6.6 新增 `scripts/summarize_keyword_quality.py`：从测试报告提取每个关键词的高相关、边缘相关、跑偏数量，并输出质量摘要到 `local_outputs/`
 - V0.6.7 新增智能评分设计层：规则评分仍是正式报告唯一来源，大模型评分先作为 V0.6.8 tiny probe 的准备接口
 - V0.6.8 新增 DeepSeek LLM scoring tiny probe：默认不联网，只有显式确认后才用 `DEEPSEEK_API_KEY` 测试 3 到 5 条样本；输出只写 `local_outputs/`
+- V0.6.8.1 新增 DeepSeek 开关配置：`LLM_SCORING_ENABLED=off/on`，未来 UI 里的“启用 DeepSeek 评分”勾选框可以直接映射到这个开关
 - 不安装 `yt-dlp`
 - 可以在本地 `.env` 配置 API key，但不要把真实 key 提交到 GitHub
 - 不修改 `last30days-skill` 原始代码
@@ -244,7 +245,7 @@ config/llm_scoring.json
 prompts/llm_scoring_prompt.md
 ```
 
-V0.6.7 只定义智能评分接口，不调用真实模型，不消耗 API，不更新正式报告。V0.6.8 如果进入大模型评分 tiny test，必须用户明确同意，并且输出只能写入 `local_outputs/llm_scoring_probe.*`。
+V0.6.7 只定义智能评分接口，不调用真实模型，不消耗 API，不更新正式报告。V0.6.8 如果进入大模型评分 tiny test，必须用户明确同意，并且输出只能写入 `local_outputs/llm_scoring_probe.*`。V0.6.8.1 增加 `LLM_SCORING_ENABLED` 开关，避免 `.env` 里有 key 时误触发真实请求。
 
 DeepSeek LLM scoring tiny probe 默认不联网：
 
@@ -252,10 +253,16 @@ DeepSeek LLM scoring tiny probe 默认不联网：
 bash scripts/probe_llm_scoring.sh
 ```
 
-只有在你明确同意消耗少量 DeepSeek API 额度，并且本地 `.env` 已配置 `DEEPSEEK_API_KEY` 后，才运行：
+只有在你明确同意消耗少量 DeepSeek API 额度、本地 `.env` 已配置 `DEEPSEEK_API_KEY`，并且已打开 `LLM_SCORING_ENABLED=on` 后，才运行：
 
 ```bash
 bash scripts/probe_llm_scoring.sh --confirm-live-api
+```
+
+如果只是本次临时打开开关，也可以在命令前临时加：
+
+```bash
+LLM_SCORING_ENABLED=on bash scripts/probe_llm_scoring.sh --confirm-live-api
 ```
 
 这一步只测试 3 条内置样本，输出只写入：

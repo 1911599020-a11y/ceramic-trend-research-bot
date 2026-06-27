@@ -184,6 +184,8 @@ def validate_deepseek_base_url(base_url: str) -> str:
     parsed = parse.urlparse(base_url)
     if parsed.scheme != "https" or parsed.netloc not in ALLOWED_DEEPSEEK_HOSTS:
         return "DeepSeek base URL 必须是 https://api.deepseek.com，避免把 API key 发到非官方域名。"
+    if parsed.path not in ("", "/") or parsed.params or parsed.query or parsed.fragment:
+        return "DeepSeek base URL 必须固定为 https://api.deepseek.com，不能包含 path、query 或 fragment。"
     return ""
 
 
@@ -229,6 +231,22 @@ def effective_env(
 
 def configured_deepseek_key(env: Mapping[str, str]) -> str:
     return env.get("DEEPSEEK_API_KEY", "")
+
+
+def switch_value_enabled(value: str, enabled_values: frozenset[str]) -> bool:
+    return value.strip().lower() in enabled_values
+
+
+def resolve_llm_scoring_switch(
+    env: Mapping[str, str],
+    *,
+    switch_env_var: str,
+    enabled_values: frozenset[str],
+) -> tuple[bool, str]:
+    raw_value = env.get(switch_env_var)
+    if raw_value is not None:
+        return switch_value_enabled(raw_value, enabled_values), "env"
+    return False, "missing"
 
 
 def redact_secret(text: str, secret: str) -> str:
@@ -283,6 +301,9 @@ def base_state(
     network_request_attempted: bool,
     requested_at: str,
     key_status: str,
+    llm_scoring_enabled: bool,
+    switch_env_var: str,
+    switch_source: str,
 ) -> dict[str, Any]:
     return {
         "source_id": SOURCE_ID,
@@ -299,6 +320,9 @@ def base_state(
             "archive": "reports/archive/",
         },
         "key_status": key_status,
+        "llm_scoring_enabled": llm_scoring_enabled,
+        "switch_env_var": switch_env_var,
+        "switch_source": switch_source,
     }
 
 
@@ -554,6 +578,11 @@ def main(
     model = resolve_model(args, values, config.model)
     base_url = resolve_base_url(args, values)
     api_key = configured_deepseek_key(values)
+    llm_switch_enabled, switch_source = resolve_llm_scoring_switch(
+        values,
+        switch_env_var=config.switch_env_var,
+        enabled_values=config.enabled_values,
+    )
     prompt_template = project_path(args.prompt).read_text(encoding="utf-8")
     base_url_error = validate_deepseek_base_url(base_url)
     if base_url_error:
@@ -565,6 +594,9 @@ def main(
             network_request_attempted=False,
             requested_at=requested_at,
             key_status="configured" if api_key else "missing",
+            llm_scoring_enabled=llm_switch_enabled,
+            switch_env_var=config.switch_env_var,
+            switch_source=switch_source,
         )
         write_json(paths.state_file, state)
         write_error_markdown(
@@ -587,11 +619,59 @@ def main(
             network_request_attempted=False,
             requested_at=requested_at,
             key_status="configured" if api_key else "missing",
+            llm_scoring_enabled=llm_switch_enabled,
+            switch_env_var=config.switch_env_var,
+            switch_source=switch_source,
         )
         write_json(paths.state_file, state)
         print("DeepSeek LLM scoring probe：未发起网络请求。")
-        print("如需真实 tiny test，请显式添加 --confirm-live-api。")
+        print(
+            "如需真实 tiny test，请同时打开 "
+            f"{config.switch_env_var}=on 并显式添加 --confirm-live-api。"
+        )
         print(f"状态已写入：{paths.state_file}")
+        return 0
+
+    if not llm_switch_enabled:
+        state = base_state(
+            status="switch_off",
+            error_type="switch_off",
+            model=model,
+            sample_count=sample_count,
+            network_request_attempted=False,
+            requested_at=requested_at,
+            key_status="configured" if api_key else "missing",
+            llm_scoring_enabled=False,
+            switch_env_var=config.switch_env_var,
+            switch_source=switch_source,
+        )
+        write_json(paths.state_file, state)
+        write_json(
+            paths.json_file,
+            failure_summary(
+                error_type="switch_off",
+                model=model,
+                sample_count=sample_count,
+                requested_at=requested_at,
+                network_request_attempted=False,
+            ),
+        )
+        write_error_markdown(
+            paths.error_file,
+            state=state,
+            message=(
+                f"{config.switch_env_var} 未开启。虽然已收到 --confirm-live-api，"
+                "但没有发起 DeepSeek 网络请求。"
+            ),
+            next_step=(
+                f"确认要消耗 DeepSeek 额度时，将 {config.switch_env_var}=on "
+                "写入 .env，或仅本次运行时临时打开该环境变量。"
+            ),
+            secret=api_key,
+        )
+        print("DeepSeek LLM scoring probe：开关未开启，未发起网络请求。")
+        print(f"请先打开 {config.switch_env_var}=on，再运行真实 tiny test。")
+        print(f"错误详情见：{paths.error_file}")
         return 0
 
     if not api_key:
@@ -603,6 +683,9 @@ def main(
             network_request_attempted=False,
             requested_at=requested_at,
             key_status="missing",
+            llm_scoring_enabled=llm_switch_enabled,
+            switch_env_var=config.switch_env_var,
+            switch_source=switch_source,
         )
         write_json(paths.state_file, state)
         write_json(
@@ -655,6 +738,9 @@ def main(
             network_request_attempted=True,
             requested_at=requested_at,
             key_status="configured",
+            llm_scoring_enabled=llm_switch_enabled,
+            switch_env_var=config.switch_env_var,
+            switch_source=switch_source,
         )
         state["result_count"] = len(rows)
         write_json(paths.json_file, summary)
@@ -709,6 +795,9 @@ def main(
         network_request_attempted=True,
         requested_at=requested_at,
         key_status="configured",
+        llm_scoring_enabled=llm_switch_enabled,
+        switch_env_var=config.switch_env_var,
+        switch_source=switch_source,
     )
     write_json(paths.state_file, state)
     write_json(

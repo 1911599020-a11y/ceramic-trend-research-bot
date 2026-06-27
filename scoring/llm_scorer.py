@@ -29,6 +29,8 @@ VALID_EVIDENCE_TYPES = {
 @dataclass(frozen=True)
 class LLMScoringConfig:
     enabled: bool
+    switch_env_var: str
+    enabled_values: frozenset[str]
     provider: str
     mode: str
     model: str
@@ -73,6 +75,13 @@ def load_llm_scoring_config(path: Path) -> LLMScoringConfig:
     payload = json.loads(path.read_text(encoding="utf-8"))
     return LLMScoringConfig(
         enabled=bool(payload.get("enabled", False)),
+        switch_env_var=str(payload.get("switch_env_var", "LLM_SCORING_ENABLED")).strip()
+        or "LLM_SCORING_ENABLED",
+        enabled_values=frozenset(
+            str(value).strip().lower()
+            for value in payload.get("enabled_values", ["on", "true", "1", "yes"])
+            if str(value).strip()
+        ),
         provider=str(payload.get("provider", "none")).strip() or "none",
         mode=str(payload.get("mode", "design_only")).strip() or "design_only",
         model=str(payload.get("model", "")).strip(),

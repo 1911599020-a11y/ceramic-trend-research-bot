@@ -147,7 +147,7 @@ class LLMScoringProbeTests(unittest.TestCase):
         with mock.patch.object(self.module.request, "urlopen") as urlopen:
             exit_code, text = self.run_main(
                 self.args("--confirm-live-api"),
-                env={},
+                env={"LLM_SCORING_ENABLED": "on"},
             )
 
         state = self.read_state()
@@ -157,6 +157,69 @@ class LLMScoringProbeTests(unittest.TestCase):
         self.assertFalse(state["network_request_attempted"])
         self.assertTrue(self.error_file.exists())
         self.assertIn("未找到 API key", text)
+        urlopen.assert_not_called()
+
+    def test_confirm_with_switch_off_does_not_call_network(self) -> None:
+        with mock.patch.object(self.module.request, "urlopen") as urlopen:
+            exit_code, text = self.run_main(
+                self.args("--confirm-live-api"),
+                env={"DEEPSEEK_API_KEY": "secret-token"},
+            )
+
+        state = self.read_state()
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(state["status"], "switch_off")
+        self.assertEqual(state["error_type"], "switch_off")
+        self.assertFalse(state["network_request_attempted"])
+        self.assertFalse(state["llm_scoring_enabled"])
+        self.assertEqual(state["switch_env_var"], "LLM_SCORING_ENABLED")
+        self.assertIn("开关未开启", text)
+        self.assertTrue(self.error_file.exists())
+        urlopen.assert_not_called()
+
+    def test_confirm_with_explicit_off_switch_does_not_call_network(self) -> None:
+        with mock.patch.object(self.module.request, "urlopen") as urlopen:
+            exit_code, _text = self.run_main(
+                self.args("--confirm-live-api"),
+                env={"DEEPSEEK_API_KEY": "secret-token", "LLM_SCORING_ENABLED": "off"},
+            )
+
+        state = self.read_state()
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(state["status"], "switch_off")
+        self.assertFalse(state["network_request_attempted"])
+        self.assertEqual(state["switch_source"], "env")
+        urlopen.assert_not_called()
+
+    def test_config_enabled_true_without_env_switch_still_does_not_call_network(self) -> None:
+        config_path = Path(self.tmpdir.name) / "llm_scoring.json"
+        config_path.write_text(
+            json.dumps(
+                {
+                    "enabled": True,
+                    "switch_env_var": "LLM_SCORING_ENABLED",
+                    "enabled_values": ["on", "true", "1", "yes"],
+                    "provider": "deepseek",
+                    "mode": "design_only",
+                    "model": "deepseek-chat",
+                    "max_items_per_run": 5,
+                    "output_path": "local_outputs/llm_scoring_probe.md",
+                    "allowed_output_root": "local_outputs",
+                }
+            ),
+            encoding="utf-8",
+        )
+        with mock.patch.object(self.module.request, "urlopen") as urlopen:
+            exit_code, _text = self.run_main(
+                self.args("--confirm-live-api", "--config", str(config_path)),
+                env={"DEEPSEEK_API_KEY": "secret-token"},
+            )
+
+        state = self.read_state()
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(state["status"], "switch_off")
+        self.assertFalse(state["llm_scoring_enabled"])
+        self.assertEqual(state["switch_source"], "missing")
         urlopen.assert_not_called()
 
     def test_sample_count_is_clamped_to_five(self) -> None:
@@ -200,7 +263,7 @@ class LLMScoringProbeTests(unittest.TestCase):
         with mock.patch.object(self.module.request, "urlopen", return_value=response) as urlopen:
             exit_code, text = self.run_main(
                 self.args("--confirm-live-api", "--sample-count", "1"),
-                env={"DEEPSEEK_API_KEY": "secret-token"},
+                env={"DEEPSEEK_API_KEY": "secret-token", "LLM_SCORING_ENABLED": "on"},
             )
 
         state = self.read_state()
@@ -245,7 +308,10 @@ class LLMScoringProbeTests(unittest.TestCase):
         response.status = 200
         response.headers = {}
         dotenv_path = Path(self.tmpdir.name) / ".env"
-        dotenv_path.write_text("DEEPSEEK" + "_API_KEY=dotenv-secret\n", encoding="utf-8")
+        dotenv_path.write_text(
+            "DEEPSEEK" + "_API_KEY=dotenv-secret\nLLM_SCORING_ENABLED=on\n",
+            encoding="utf-8",
+        )
 
         with mock.patch.object(self.module.request, "urlopen", return_value=response):
             exit_code, text = self.run_main(
@@ -288,7 +354,10 @@ class LLMScoringProbeTests(unittest.TestCase):
                         "--confirm-live-api",
                     ]
                     with mock.patch.object(self.module.request, "urlopen", side_effect=error):
-                        exit_code, _text = self.run_main(args, env={"DEEPSEEK_API_KEY": "secret-token"})
+                        exit_code, _text = self.run_main(
+                            args,
+                            env={"DEEPSEEK_API_KEY": "secret-token", "LLM_SCORING_ENABLED": "on"},
+                        )
 
                     state = json.loads((root / "state.json").read_text(encoding="utf-8"))
                     self.assertEqual(exit_code, 1)
@@ -305,7 +374,7 @@ class LLMScoringProbeTests(unittest.TestCase):
         with mock.patch.object(self.module.request, "urlopen", return_value=response):
             exit_code, _text = self.run_main(
                 self.args("--confirm-live-api", "--sample-count", "1"),
-                env={"DEEPSEEK_API_KEY": "secret-token"},
+                env={"DEEPSEEK_API_KEY": "secret-token", "LLM_SCORING_ENABLED": "on"},
             )
 
         state = self.read_state()
