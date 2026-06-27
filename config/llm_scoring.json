@@ -1,5 +1,5 @@
 {
-  "version": "V0.6.8.1",
+  "version": "V0.6.9",
   "enabled": false,
   "switch_env_var": "LLM_SCORING_ENABLED",
   "enabled_values": ["on", "true", "1", "yes"],
@@ -14,7 +14,9 @@
     "No external model API is called in V0.6.7.",
     "V0.6.8 uses DeepSeek only through an explicit opt-in tiny probe.",
     "V0.6.8.1 requires LLM_SCORING_ENABLED=on plus --confirm-live-api before any DeepSeek request.",
-    "The probe writes only to local_outputs/llm_scoring_probe.md and related local_outputs files."
+    "V0.6.9 adds a separate rule-vs-DeepSeek comparison report under local_outputs/.",
+    "The probe writes only to local_outputs/llm_scoring_probe.md and related local_outputs files.",
+    "The comparison report writes only to local_outputs/llm_scoring_comparison.md and related local_outputs files."
   ],
   "result_schema": {
     "ceramic_relevance": "high | edge | low",

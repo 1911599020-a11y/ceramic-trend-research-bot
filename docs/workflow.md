@@ -320,15 +320,16 @@ local_outputs/keyword_quality_archive/
 python scripts/summarize_keyword_quality.py
 ```
 
-### 14. DeepSeek 智能评分 tiny probe
+### 14. DeepSeek 智能评分 tiny probe / 对照报告
 
-V0.6.8.1 新增 DeepSeek 智能评分 tiny probe 开关。当前配置见：
+V0.6.9 新增 DeepSeek 智能评分 tiny probe 和规则评分对照报告。当前配置见：
 
 ```text
 config/llm_scoring.json
 prompts/llm_scoring_prompt.md
 scoring/llm_scorer.py
 scripts/probe_llm_scoring.sh
+scripts/compare_llm_scoring.sh
 ```
 
 当前规则：
@@ -338,6 +339,7 @@ scripts/probe_llm_scoring.sh
 - 默认 `provider=deepseek`
 - 默认 `mode=design_only`
 - `bash scripts/probe_llm_scoring.sh` 默认不调用 DeepSeek API
+- `bash scripts/compare_llm_scoring.sh` 默认不调用 DeepSeek API
 - 不更新 `reports/report.md`
 - 不更新 `reports/latest.md`
 - 不进入 `reports/archive/`
@@ -366,6 +368,29 @@ local_outputs/llm_scoring_probe_error.md
 ```
 
 这个智能评分层的定位是：规则评分先做便宜稳定的第一轮过滤，DeepSeek 只做第二轮语义判断，用来识别真实陶瓷信号、关键词意图匹配和跑偏噪音。当前不会进入正式报告流程。
+
+如果要看规则评分和 DeepSeek 判断是否一致，先 dry-run：
+
+```bash
+bash scripts/compare_llm_scoring.sh
+```
+
+真实对照报告必须同样打开开关并加确认参数：
+
+```bash
+LLM_SCORING_ENABLED=on bash scripts/compare_llm_scoring.sh --confirm-live-api
+```
+
+对照报告只写入：
+
+```text
+local_outputs/llm_scoring_comparison.md
+local_outputs/llm_scoring_comparison.json
+local_outputs/llm_scoring_comparison_state.json
+local_outputs/llm_scoring_comparison_error.md
+```
+
+它只用于判断 DeepSeek 是否值得进入正式流程，不会更新正式报告。
 
 ## live 失败时看哪里
 
@@ -421,6 +446,10 @@ reports/archive/
 | `local_outputs/llm_scoring_probe.json` | DeepSeek LLM scoring tiny probe 脱敏 JSON 输出，不进入 Git |
 | `local_outputs/llm_scoring_probe_state.json` | DeepSeek LLM scoring tiny probe 状态，不进入 Git |
 | `local_outputs/llm_scoring_probe_error.md` | DeepSeek LLM scoring tiny probe 失败说明，不进入 Git |
+| `local_outputs/llm_scoring_comparison.md` | DeepSeek 与规则评分对照报告 Markdown 输出，不进入 Git |
+| `local_outputs/llm_scoring_comparison.json` | DeepSeek 与规则评分对照报告 JSON 输出，不进入 Git |
+| `local_outputs/llm_scoring_comparison_state.json` | DeepSeek 与规则评分对照报告状态，不进入 Git |
+| `local_outputs/llm_scoring_comparison_error.md` | DeepSeek 与规则评分对照报告失败说明，不进入 Git |
 | `data/research_evidence.json` | 本地研究证据，进入报告的“研究证据”模块 |
 | `config/data_sources.json` | 数据源清单，区分可用源和预留源 |
 
@@ -438,6 +467,7 @@ reports/archive/
 - 真实 tiny probe：只有用户明确同意后，才跑 `bash scripts/probe_scrapecreators_reddit.sh --confirm-live-api --topic "ceramic glaze" --limit 1`
 - ScrapeCreators 正式 live：只有用户明确同意消耗 API 额度时，才运行 `bash scripts/run_scrapecreators_live.sh`；完整关键词必须加 `--confirm-full-api`
 - DeepSeek LLM scoring tiny probe：默认先跑 `bash scripts/probe_llm_scoring.sh`；真实运行必须用户明确同意后再加 `--confirm-live-api`
+- DeepSeek 与规则评分对照报告：默认先跑 `bash scripts/compare_llm_scoring.sh`；真实运行必须用户明确同意后再打开 `LLM_SCORING_ENABLED=on` 并加 `--confirm-live-api`
 - 提交前：确认 `git status` / GitHub Desktop changed files 中没有 `.env` 或 `local_outputs/`
 
 ## 交接给新 Agent

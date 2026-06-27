@@ -44,7 +44,7 @@ DEFAULT_MODEL = "deepseek-chat"
 DEFAULT_TIMEOUT_SECONDS = 30
 DEFAULT_SAMPLE_COUNT = 3
 MAX_SAMPLE_COUNT = 5
-USER_AGENT = "ceramic-trend-research-bot/0.6.8"
+USER_AGENT = "ceramic-trend-research-bot/0.6.9"
 EXPECTED_OUTPUTS = {
     "state-file": LOCAL_OUTPUTS_DIR / "llm_scoring_probe_state.json",
     "output": LOCAL_OUTPUTS_DIR / "llm_scoring_probe.md",
