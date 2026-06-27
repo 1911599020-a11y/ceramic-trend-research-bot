@@ -4,9 +4,14 @@
 
 ## Current Status
 
-V0.6.6 是 **小批量关键词质量测试工具版本**，建立在 V0.6.5 ScrapeCreators live 运行保护之上：
+V0.6.7 是 **产品可用性转向 + 智能评分接口设计版本**，建立在 V0.6.6 小批量关键词质量测试工具之上：
 
+- 注意：V0.6.7 是项目设计版本，不提升正式报告生成版本；`ceramic_report.py` 的 `REPORT_VERSION` 仍保持 `V0.6.6`，因为正式报告流程没有接入 LLM scoring。
 - 新增 `sources/` 适配层，定义统一的 `TrendSource` 契约：`fetch(topic, *, recommended_subreddits)`，输出统一的 `last30days` 形状报告 dict
+- 新增 `scoring/llm_scorer.py`，为后续大模型辅助打分定义结构化输入、输出、mock scorer 和规则/LLM 合并结果
+- 新增 `config/llm_scoring.json`，默认 `enabled=false`、`provider=none`、`mode=design_only`
+- 新增 `prompts/llm_scoring_prompt.md`，要求未来模型只返回 JSON，不直接生成最终报告
+- V0.6.7 **不调用真实大模型 API，不消耗额度，不把 LLM 评分写入正式报告**
 - `mock` 模式改由 `MockSource` 读取仓库内 `data/mock_samples.json`，**零配置、零联网、零外部依赖**，在 Windows / CI 上也能稳定出报告
 - `live` 模式由 `Last30DaysSource` 承接，子进程命令构造与 V0.4.2 逐项一致，行为不变
 - 新增 `config/data_sources.json`，集中记录当前可用数据源和未来预留数据源
@@ -66,6 +71,7 @@ V0.6.6 是 **小批量关键词质量测试工具版本**，建立在 V0.6.5 Scr
 - V0.6.6 新增小批量关键词质量测试配置：`config/scrapecreators_quality_topics.json`，默认测试 `kiln firing`、`ceramic business`、`AI ceramic design`
 - V0.6.6 新增 `scripts/run_keyword_quality_check.sh`：默认 dry-run，不联网；真实小批量 API 测试必须显式加 `--confirm-live-api`
 - V0.6.6 新增 `scripts/summarize_keyword_quality.py`：从测试报告提取每个关键词的高相关、边缘相关、跑偏数量，并输出质量摘要到 `local_outputs/`
+- V0.6.7 新增智能评分设计层：规则评分仍是正式报告唯一来源，大模型评分先作为 V0.6.8 tiny probe 的准备接口
 - 不安装 `yt-dlp`
 - 可以在本地 `.env` 配置 API key，但不要把真实 key 提交到 GitHub
 - 不修改 `last30days-skill` 原始代码
@@ -90,7 +96,7 @@ V0.6.6 是 **小批量关键词质量测试工具版本**，建立在 V0.6.5 Scr
 MODEL_PROVIDER=rules
 ```
 
-当前只支持 `rules`。`openai`、`anthropic`、`ollama` 等 provider 仅作为未来扩展方向，当前不会调用。
+当前正式报告只支持 `rules`。V0.6.7 已新增智能评分设计接口，但 `openai`、`anthropic`、`ollama` 等 provider 仍未接入正式流程，当前不会调用。
 
 当前数据源选择：
 
@@ -229,6 +235,15 @@ local_outputs/scrapecreators_probe_error.md
 docs/live-readiness-checklist.md
 ```
 
+智能评分设计配置：
+
+```text
+config/llm_scoring.json
+prompts/llm_scoring_prompt.md
+```
+
+V0.6.7 只定义智能评分接口，不调用真实模型，不消耗 API，不更新正式报告。V0.6.8 如果进入大模型评分 tiny test，必须用户明确同意，并且输出只能写入 `local_outputs/llm_scoring_probe.md`。
+
 在申请 key、配置 key 或第一次做 key-backed live probe 前，先按这份清单过一遍。
 
 ScrapeCreators tiny probe 方案：
@@ -350,6 +365,7 @@ bash scripts/reddit_probe_matrix.sh
 
 ```text
 ceramic_report.py                 # 打分 + 渲染 + CLI 入口
+scoring/llm_scorer.py             # Design-only LLM scoring contract and mock scorer
 sources/__init__.py               # TrendSource 契约（数据源适配层）
 sources/mock_source.py            # MockSource：读 data/mock_samples.json，离线
 sources/last30days_source.py      # Last30DaysSource：外部 last30days-skill 子进程（live）
@@ -357,11 +373,14 @@ sources/scrapecreators_source.py  # ScrapeCreators readiness 和显式可选 Red
 config/ceramic_topics.json        # Ceramic keyword, subreddit, and relevance rules
 config/scrapecreators_probe_topics.json # Single-topic ScrapeCreators live config with full relevance rules
 config/scrapecreators_quality_topics.json # Small-batch keyword quality test config
+config/llm_scoring.json           # LLM scoring design config, disabled by default
 config/data_sources.json          # 当前可用和未来预留的数据源清单
 data/mock_samples.json            # mock 证据样例（last30days --emit=json 形状）
 data/research_evidence.json       # 本地研究证据，供报告“研究证据”模块读取
 prompts/ceramic_report_prompt.md  # Chinese report structure
+prompts/llm_scoring_prompt.md     # Future semantic scoring JSON prompt
 tests/                            # unittest 用例（term matching / scoring / sources）
+tests/test_llm_scoring.py         # Design-only LLM scoring contract tests
 tests/test_data_source_selection.py # 数据源 auto 映射、预留源保护、run_state 字段
 docs/changes/                     # 变更记录（每个改动一份编号文档）
 AGENTS.md                         # 代理 / 贡献者工作说明

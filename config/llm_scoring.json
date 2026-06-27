@@ -1,0 +1,24 @@
+{
+  "version": "V0.6.7",
+  "enabled": false,
+  "provider": "none",
+  "mode": "design_only",
+  "model": "",
+  "max_items_per_run": 5,
+  "output_path": "local_outputs/llm_scoring_probe.md",
+  "allowed_output_root": "local_outputs",
+  "notes": [
+    "V0.6.7 only defines the scoring contract and mock scorer.",
+    "No external model API is called in this version.",
+    "V0.6.8 may add a tiny opt-in probe that writes only to local_outputs/."
+  ],
+  "result_schema": {
+    "ceramic_relevance": "high | edge | low",
+    "keyword_intent_match": "high | medium | low",
+    "evidence_type": "trend_signal | pain_point | content_idea | tool_idea | noise | background",
+    "can_support_trend": "boolean",
+    "is_noise": "boolean",
+    "confidence": "0-100 integer",
+    "reason": "short Chinese explanation"
+  }
+}

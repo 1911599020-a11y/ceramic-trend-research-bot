@@ -320,6 +320,35 @@ local_outputs/keyword_quality_archive/
 python scripts/summarize_keyword_quality.py
 ```
 
+### 14. 智能评分设计层
+
+V0.6.7 新增的是智能评分接口设计，不是真实大模型接入。当前配置见：
+
+```text
+config/llm_scoring.json
+prompts/llm_scoring_prompt.md
+scoring/llm_scorer.py
+```
+
+当前规则：
+
+- 默认 `enabled=false`
+- 默认 `provider=none`
+- 默认 `mode=design_only`
+- 不调用 OpenAI / Anthropic / Ollama 或其他模型 API
+- 不消耗 API 额度
+- 不更新 `reports/report.md`
+- 不更新 `reports/latest.md`
+- 不进入 `reports/archive/`
+
+V0.6.8 如果进入大模型评分 tiny test，只能在用户明确同意后运行，并且输出只能写入：
+
+```text
+local_outputs/llm_scoring_probe.md
+```
+
+这个智能评分层的定位是：规则评分先做便宜稳定的第一轮过滤，大模型评分以后只做第二轮语义判断，用来识别真实陶瓷信号、关键词意图匹配和跑偏噪音。
+
 ## live 失败时看哪里
 
 错误详情：
@@ -370,6 +399,7 @@ reports/archive/
 | `local_outputs/scrapecreators_probe.json` | ScrapeCreators tiny probe 脱敏结果摘要，不进入 Git |
 | `local_outputs/scrapecreators_probe_state.json` | ScrapeCreators tiny probe 运行状态，不进入 Git |
 | `local_outputs/scrapecreators_probe_error.md` | ScrapeCreators tiny probe 失败说明，不进入 Git |
+| `local_outputs/llm_scoring_probe.md` | 未来 LLM scoring tiny probe 输出，不进入 Git |
 | `data/research_evidence.json` | 本地研究证据，进入报告的“研究证据”模块 |
 | `config/data_sources.json` | 数据源清单，区分可用源和预留源 |
 
