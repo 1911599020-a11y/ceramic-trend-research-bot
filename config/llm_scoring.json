@@ -1,16 +1,17 @@
 {
   "version": "V0.6.7",
   "enabled": false,
-  "provider": "none",
+  "provider": "deepseek",
   "mode": "design_only",
-  "model": "",
+  "model": "deepseek-chat",
   "max_items_per_run": 5,
   "output_path": "local_outputs/llm_scoring_probe.md",
   "allowed_output_root": "local_outputs",
   "notes": [
     "V0.6.7 only defines the scoring contract and mock scorer.",
-    "No external model API is called in this version.",
-    "V0.6.8 may add a tiny opt-in probe that writes only to local_outputs/."
+    "No external model API is called in V0.6.7.",
+    "V0.6.8 uses DeepSeek only through an explicit opt-in tiny probe.",
+    "The probe writes only to local_outputs/llm_scoring_probe.md and related local_outputs files."
   ],
   "result_schema": {
     "ceramic_relevance": "high | edge | low",

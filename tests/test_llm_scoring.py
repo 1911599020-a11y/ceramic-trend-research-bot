@@ -19,8 +19,9 @@ class LLMScoringContractTests(unittest.TestCase):
         config = load_llm_scoring_config(Path("config/llm_scoring.json"))
 
         self.assertFalse(config.enabled)
-        self.assertEqual(config.provider, "none")
+        self.assertEqual(config.provider, "deepseek")
         self.assertEqual(config.mode, "design_only")
+        self.assertEqual(config.model, "deepseek-chat")
         self.assertEqual(config.output_path, "local_outputs/llm_scoring_probe.md")
 
     def test_prompt_includes_evidence_context(self) -> None:
