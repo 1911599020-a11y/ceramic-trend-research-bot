@@ -2,11 +2,14 @@
   "topics": [
     "kiln firing",
     "ceramic business",
-    "AI ceramic design"
+    "AI pottery workflow",
+    "generative ceramic pattern",
+    "computational ceramics",
+    "ceramic prompt design"
   ],
   "quality_convergence": {
-    "version": "V0.7.4",
-    "active_topics_note": "topics 仍是当前小批量测试入口；candidate_topics 只是下一轮人工确认用候选池，不会被默认 runner 自动使用。",
+    "version": "V0.7.5",
+    "active_topics_note": "topics 已按 V0.7.4 收敛计划更新；保留 kiln firing / ceramic business，并把宽泛 AI ceramic design 拆成更具体的 AI 陶瓷测试词。",
     "candidate_topics": {
       "kiln firing": [
         "cone 6",
@@ -68,8 +71,11 @@
       "clay 3D printer"
     ],
     "ai_ceramic_design": [
-      "AI ceramic design",
       "AI pottery design",
+      "AI pottery workflow",
+      "generative ceramic pattern",
+      "computational ceramics",
+      "ceramic prompt design",
       "AI generated ceramic pattern"
     ]
   },
@@ -130,22 +136,24 @@
         "generative",
         "computational",
         "algorithmic",
-        "digital",
-        "design",
-        "pattern",
-        "prompt"
-      ],
-      "boost_terms": [
+        "prompt",
         "midjourney",
         "stable diffusion",
         "dall-e",
-        "dalle",
+        "dalle"
+      ],
+      "boost_terms": [
+        "AI ceramic design",
+        "AI pottery design",
+        "AI generated ceramic pattern",
+        "generative ceramic pattern",
+        "computational ceramics",
+        "ceramic prompt",
         "image generation",
-        "parametric",
-        "procedural",
+        "parametric ceramic",
+        "procedural ceramic",
         "texture generation",
-        "3d model",
-        "cad"
+        "ceramic 3d model"
       ],
       "exclude_terms": [
         "ordinary ai video",
@@ -155,6 +163,149 @@
         "gaming"
       ],
       "intent_note": "需要同时具备陶瓷/设计语境和 AI、生成式、数字、算法或 prompt 相关信号。"
+    },
+    "AI pottery workflow": {
+      "required_terms": [
+        "ai",
+        "prompt",
+        "generative",
+        "midjourney",
+        "stable diffusion",
+        "dall-e",
+        "dalle"
+      ],
+      "boost_terms": [
+        "AI pottery workflow",
+        "AI ceramic workflow",
+        "AI pottery process",
+        "AI ceramic process",
+        "from prompt to clay",
+        "prompt to clay",
+        "AI prototype",
+        "AI reference image",
+        "AI glaze",
+        "AI handbuilding",
+        "AI wheel throwing"
+      ],
+      "exclude_terms": [
+        "graphic design",
+        "interior design",
+        "ux design",
+        "web design",
+        "logo design",
+        "ordinary ai video",
+        "ai video",
+        "anime",
+        "gaming"
+      ],
+      "intent_note": "需要体现 AI 如何进入陶艺、泥料、釉料、工作室制作或从 prompt 到实物的流程。"
+    },
+    "generative ceramic pattern": {
+      "required_terms": [
+        "generative",
+        "ai",
+        "prompt",
+        "midjourney",
+        "stable diffusion",
+        "dall-e",
+        "dalle",
+        "parametric",
+        "procedural"
+      ],
+      "boost_terms": [
+        "generative ceramic pattern",
+        "generative pottery pattern",
+        "AI ceramic pattern",
+        "AI pottery pattern",
+        "AI surface design",
+        "AI underglaze",
+        "parametric ceramic",
+        "procedural ceramic",
+        "midjourney ceramic",
+        "stable diffusion ceramic"
+      ],
+      "exclude_terms": [
+        "graphic design",
+        "interior design",
+        "ux design",
+        "web design",
+        "logo design",
+        "anime",
+        "gaming"
+      ],
+      "intent_note": "需要体现生成式图案与陶瓷表面、纹样、釉下彩、瓷砖或器物肌理之间的关系。"
+    },
+    "computational ceramics": {
+      "required_terms": [
+        "computational",
+        "algorithmic",
+        "parametric",
+        "digital fabrication",
+        "3d printing",
+        "robotic",
+        "simulation",
+        "gcode",
+        "slicer"
+      ],
+      "boost_terms": [
+        "computational ceramics",
+        "algorithmic ceramic",
+        "parametric ceramic",
+        "digital ceramic fabrication",
+        "ceramic 3d printing",
+        "clay 3d printing",
+        "glaze prediction",
+        "paste extrusion",
+        "robotic clay",
+        "ceramic cad"
+      ],
+      "exclude_terms": [
+        "graphic design",
+        "interior design",
+        "ux design",
+        "web design",
+        "anime",
+        "gaming"
+      ],
+      "intent_note": "需要体现计算设计、参数化、数字制造、材料预测或陶瓷 3D 打印等更技术化的陶瓷方向。"
+    },
+    "ceramic prompt design": {
+      "required_terms": [
+        "prompt",
+        "ai",
+        "midjourney",
+        "stable diffusion",
+        "dall-e",
+        "dalle",
+        "generative"
+      ],
+      "boost_terms": [
+        "ceramic prompt",
+        "pottery prompt",
+        "clay prompt",
+        "glaze prompt",
+        "pattern prompt",
+        "midjourney ceramic",
+        "stable diffusion ceramic",
+        "dall-e ceramic",
+        "dalle ceramic",
+        "AI reference image",
+        "style prompt",
+        "ceramic style prompt",
+        "pottery style prompt"
+      ],
+      "exclude_terms": [
+        "chatgpt homework",
+        "generic prompt",
+        "graphic design",
+        "interior design",
+        "ux design",
+        "web design",
+        "ordinary ai video",
+        "anime",
+        "gaming"
+      ],
+      "intent_note": "需要体现 prompt 与陶瓷器型、釉色、表面纹样或真实制作参考之间的关系。"
     },
     "ceramic business": {
       "required_terms": [

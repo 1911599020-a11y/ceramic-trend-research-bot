@@ -276,7 +276,7 @@ local_outputs/run_state.json
 
 ### 13. 小批量关键词质量测试
 
-V0.6.6 用于测试关键词是否值得长期追踪。默认配置见：
+V0.6.6 用于测试关键词是否值得长期追踪；V0.7.5 已按真实小样本收敛计划更新 active topics。默认配置见：
 
 ```text
 config/scrapecreators_quality_topics.json
@@ -287,8 +287,13 @@ config/scrapecreators_quality_topics.json
 ```text
 kiln firing
 ceramic business
-AI ceramic design
+AI pottery workflow
+generative ceramic pattern
+computational ceramics
+ceramic prompt design
 ```
+
+真实运行时，ScrapeCreators 请求数约等于关键词数，当前约 6 次。
 
 先 dry-run，不联网、不消耗 API：
 
@@ -322,7 +327,7 @@ python scripts/summarize_keyword_quality.py
 
 ### 14. DeepSeek 智能评分 tiny probe / 对照报告
 
-V0.7.4 新增 DeepSeek 智能评分 tiny probe、内置样本对照报告、真实 Reddit/ScrapeCreators 小样本的“质量雷达 / 局部质检 / 报告解析”，以及关键词收敛计划。当前配置见：
+V0.7.5 新增 DeepSeek 智能评分 tiny probe、内置样本对照报告、真实 Reddit/ScrapeCreators 小样本的“质量雷达 / 局部质检 / 报告解析”、关键词收敛计划，以及收敛后的质量测试词。当前配置见：
 
 ```text
 config/llm_scoring.json

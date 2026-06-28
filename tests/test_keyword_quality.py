@@ -37,13 +37,83 @@ class KeywordQualityTests(unittest.TestCase):
 
         self.assertEqual(
             ceramic_report.load_topics(path),
-            ["kiln firing", "ceramic business", "AI ceramic design"],
+            [
+                "kiln firing",
+                "ceramic business",
+                "AI pottery workflow",
+                "generative ceramic pattern",
+                "computational ceramics",
+                "ceramic prompt design",
+            ],
         )
         self.assertIn("pottery", relevance.recommended_subreddits)
         self.assertIn("kiln", relevance.positive_terms)
-        self.assertIn("kiln firing", {key.lower() for key in relevance.topic_rules})
-        self.assertIn("ceramic business", {key.lower() for key in relevance.topic_rules})
-        self.assertIn("ai ceramic design", {key.lower() for key in relevance.topic_rules})
+        topic_rule_names = {key.lower() for key in relevance.topic_rules}
+        self.assertIn("kiln firing", topic_rule_names)
+        self.assertIn("ceramic business", topic_rule_names)
+        self.assertIn("ai pottery workflow", topic_rule_names)
+        self.assertIn("generative ceramic pattern", topic_rule_names)
+        self.assertIn("computational ceramics", topic_rule_names)
+        self.assertIn("ceramic prompt design", topic_rule_names)
+
+    def test_converged_ai_rules_demote_generic_design_noise(self) -> None:
+        path = ceramic_report.PROJECT_ROOT / "config" / "scrapecreators_quality_topics.json"
+        config = ceramic_report.load_config(path)
+        relevance = ceramic_report.load_relevance_config(config)
+
+        score, level, notes = ceramic_report.score_reddit_item(
+            {
+                "title": "Stop using AI for your interior design",
+                "subreddit": "interiordecorating",
+            },
+            relevance,
+            topic="AI pottery workflow",
+        )
+
+        self.assertLess(score, 1)
+        self.assertEqual(level, "low")
+        self.assertIn("跑偏词", notes)
+
+    def test_converged_ai_rules_do_not_promote_non_ai_ceramic_posts(self) -> None:
+        path = ceramic_report.PROJECT_ROOT / "config" / "scrapecreators_quality_topics.json"
+        config = ceramic_report.load_config(path)
+        relevance = ceramic_report.load_relevance_config(config)
+
+        for topic in [
+            "AI pottery workflow",
+            "generative ceramic pattern",
+            "computational ceramics",
+            "ceramic prompt design",
+        ]:
+            with self.subTest(topic=topic):
+                _score, level, notes = ceramic_report.score_reddit_item(
+                    {
+                        "title": "Pottery workflow process with clay glaze test",
+                        "subreddit": "Pottery",
+                    },
+                    relevance,
+                    topic=topic,
+                )
+
+                self.assertNotEqual(level, "high")
+                self.assertIn("陶瓷相关，但未命中当前关键词意图", notes)
+
+    def test_converged_ai_rules_keep_ceramic_workflow_signal(self) -> None:
+        path = ceramic_report.PROJECT_ROOT / "config" / "scrapecreators_quality_topics.json"
+        config = ceramic_report.load_config(path)
+        relevance = ceramic_report.load_relevance_config(config)
+
+        _score, level, notes = ceramic_report.score_reddit_item(
+            {
+                "title": "AI pottery workflow from prompt to clay glaze test",
+                "subreddit": "Pottery",
+            },
+            relevance,
+            topic="AI pottery workflow",
+        )
+
+        self.assertEqual(level, "high")
+        self.assertIn("命中分类意图", notes)
 
     def test_keyword_quality_runner_defaults_to_dry_run_local_outputs(self) -> None:
         result = subprocess.run(

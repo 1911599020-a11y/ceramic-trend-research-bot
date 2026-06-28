@@ -4,9 +4,9 @@
 
 ## Current Status
 
-V0.7.4 是 **关键词质量收敛计划版本**，建立在 V0.7.3 真实 Reddit/ScrapeCreators 小样本质量优化、DeepSeek 局部质检和报告解析之上：
+V0.7.5 是 **关键词配置收敛版本**，建立在 V0.7.4 关键词质量收敛计划之上：
 
-- 注意：V0.7.4 仍是独立旁路分析版本，不提升正式报告生成版本；`ceramic_report.py` 的 `REPORT_VERSION` 仍保持 `V0.6.6`，因为正式报告流程没有接入 LLM scoring。
+- 注意：V0.7.5 仍是独立旁路分析版本，不提升正式报告生成版本；`ceramic_report.py` 的 `REPORT_VERSION` 仍保持 `V0.6.6`，因为正式报告流程没有接入 LLM scoring。
 - 新增 `sources/` 适配层，定义统一的 `TrendSource` 契约：`fetch(topic, *, recommended_subreddits)`，输出统一的 `last30days` 形状报告 dict
 - 新增 `scoring/llm_scorer.py`，为后续大模型辅助打分定义结构化输入、输出、mock scorer 和规则/LLM 合并结果
 - 新增 `config/llm_scoring.json`，默认 `enabled=false`、`provider=deepseek`、`mode=design_only`，并用 `LLM_SCORING_ENABLED=off/on` 预留未来界面勾选开关
@@ -16,6 +16,7 @@ V0.7.4 是 **关键词质量收敛计划版本**，建立在 V0.7.3 真实 Reddi
 - 新增 `scripts/compare_llm_scoring.py` / `.sh`，生成规则评分与 DeepSeek 评分的旁路对照报告，输出只写 `local_outputs/llm_scoring_comparison.*`
 - `scripts/compare_real_llm_scoring.py` / `.sh` 已升级为真实样本质量雷达 + DeepSeek 局部质检 + 报告解析，输出只写 `local_outputs/llm_scoring_real_sample_comparison.*`
 - 新增 `scripts/summarize_keyword_convergence.py` / `.sh`，读取 V0.7.3 真实小样本对照 JSON，生成下一轮关键词保留、收窄、降噪计划，输出只写 `local_outputs/keyword_convergence_plan.*`
+- V0.7.5 已将小批量 active topics 收敛为 `kiln firing`、`ceramic business` 和 4 个更具体的 AI 陶瓷词，替换宽泛的 `AI ceramic design`
 - `mock` 模式改由 `MockSource` 读取仓库内 `data/mock_samples.json`，**零配置、零联网、零外部依赖**，在 Windows / CI 上也能稳定出报告
 - `live` 模式由 `Last30DaysSource` 承接，子进程命令构造与 V0.4.2 逐项一致，行为不变
 - 新增 `config/data_sources.json`，集中记录当前可用数据源和未来预留数据源
@@ -72,7 +73,7 @@ V0.7.4 是 **关键词质量收敛计划版本**，建立在 V0.7.3 真实 Reddi
 - V0.6.4 新增显式 ScrapeCreators Reddit 数据源：`--data-source scrapecreators_reddit` 可进入正式报告流程，但 `auto` 默认仍然使用 `reddit_last30days`
 - V0.6.5 新增 ScrapeCreators 正式 live 专用脚本：默认只跑单关键词配置，`--confirm-full-api` 才跑完整关键词，`--dry-run` 可检查命令但不联网
 - V0.6.5 正式报告默认不再附加 prompt 模板；需要调试报告结构时再手动加 `--include-prompt-template`
-- V0.6.6 新增小批量关键词质量测试配置：`config/scrapecreators_quality_topics.json`，默认测试 `kiln firing`、`ceramic business`、`AI ceramic design`
+- V0.6.6 新增小批量关键词质量测试配置：`config/scrapecreators_quality_topics.json`
 - V0.6.6 新增 `scripts/run_keyword_quality_check.sh`：默认 dry-run，不联网；真实小批量 API 测试必须显式加 `--confirm-live-api`
 - V0.6.6 新增 `scripts/summarize_keyword_quality.py`：从测试报告提取每个关键词的高相关、边缘相关、跑偏数量，并输出质量摘要到 `local_outputs/`
 - V0.6.7 新增智能评分设计层：规则评分仍是正式报告唯一来源，大模型评分先作为 V0.6.8 tiny probe 的准备接口
@@ -84,6 +85,7 @@ V0.7.4 是 **关键词质量收敛计划版本**，建立在 V0.7.3 真实 Reddi
 - V0.7.2 新增 DeepSeek 局部质检动作：进入趋势候选、降级为噪音/低相关、人工复核、保留为背景
 - V0.7.3 新增报告 + 解析结构：旁路报告会解释哪些关键词可保留、哪些要收窄、哪些只是噪音复盘
 - V0.7.4 新增关键词收敛计划：把 V0.7.3 的真实小样本 JSON 转成下一轮建议测试关键词，但不自动改正式配置
+- V0.7.5 应用关键词收敛计划：保留 `kiln firing` / `ceramic business`，把宽泛 `AI ceramic design` 拆成 `AI pottery workflow`、`generative ceramic pattern`、`computational ceramics`、`ceramic prompt design`
 - 不安装 `yt-dlp`
 - 可以在本地 `.env` 配置 API key，但不要把真实 key 提交到 GitHub
 - 不修改 `last30days-skill` 原始代码
@@ -108,7 +110,7 @@ V0.7.4 是 **关键词质量收敛计划版本**，建立在 V0.7.3 真实 Reddi
 MODEL_PROVIDER=rules
 ```
 
-当前正式报告只支持 `rules`。V0.7.4 已新增 DeepSeek tiny probe、内置样本评分对照报告、真实 Reddit/ScrapeCreators 小样本对照报告、局部质检、报告解析和关键词收敛计划，但它们都是独立诊断脚本，不接入正式报告流程；日常报告当前不会调用 DeepSeek。
+当前正式报告只支持 `rules`。V0.7.5 已新增 DeepSeek tiny probe、内置样本评分对照报告、真实 Reddit/ScrapeCreators 小样本对照报告、局部质检、报告解析、关键词收敛计划和收敛后的质量测试词，但它们都是独立诊断脚本，不接入正式报告流程；日常报告当前不会调用 DeepSeek。
 
 当前数据源选择：
 
@@ -186,11 +188,16 @@ bash scripts/run_scrapecreators_live.sh --include-prompt-template
 bash scripts/run_keyword_quality_check.sh
 ```
 
-这一步只打印将要执行的 ScrapeCreators 小批量命令，不消耗 API。默认测试：
+这一步只打印将要执行的 ScrapeCreators 小批量命令，不消耗 API。V0.7.5 默认测试 6 个词：
 
 - `kiln firing`
 - `ceramic business`
-- `AI ceramic design`
+- `AI pottery workflow`
+- `generative ceramic pattern`
+- `computational ceramics`
+- `ceramic prompt design`
+
+真实运行时，ScrapeCreators 请求数约等于关键词数，也就是当前约 6 次。
 
 确认愿意消耗 API 额度后，才运行真实小批量测试：
 

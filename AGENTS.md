@@ -11,8 +11,8 @@
 - `--mode mock`：读取仓库内 `data/mock_samples.json`，零配置、零联网，用于验证报告结构与版式。
 - `--mode live`：默认接入 Reddit（经由外部 `last30days-skill` 子进程），也可显式选择 ScrapeCreators Reddit API，并按陶瓷相关性分层。
 - 当前架构基础：**V0.5.0 — 数据源适配层（data-source adapter）**。详见 `docs/changes/0001-data-source-adapter.md`。
-  当前运行选择：**V0.7.4 — 关键词质量收敛计划**，`auto` live 仍默认 `reddit_last30days`；正式报告仍只使用规则评分。
-  注意：V0.7.4 是独立旁路分析版本，不提升 `ceramic_report.py` 的 `REPORT_VERSION`；正式报告生成版本仍保持 V0.6.6。
+  当前运行选择：**V0.7.5 — 关键词配置收敛**，`auto` live 仍默认 `reddit_last30days`；正式报告仍只使用规则评分。
+  注意：V0.7.5 是独立旁路分析版本，不提升 `ceramic_report.py` 的 `REPORT_VERSION`；正式报告生成版本仍保持 V0.6.6。
   当前 LLM 状态：`scoring/llm_scorer.py`、`config/llm_scoring.json`、`prompts/llm_scoring_prompt.md` 定义评分契约；`scripts/probe_llm_scoring.sh` 默认 dry-run，不联网。
   DeepSeek tiny probe、评分对照报告和真实小样本对照报告真实运行必须用户明确同意、打开 `LLM_SCORING_ENABLED=on` 并加 `--confirm-live-api`，输出只写入 `local_outputs/llm_scoring_probe.*`、`local_outputs/llm_scoring_comparison.*` 或 `local_outputs/llm_scoring_real_sample_comparison.*`，不写正式 reports。
   真实小样本对照采用风险优先抽样，用于质检，不代表关键词整体分布；`--sample-count` 控制 DeepSeek 分析样本数，ScrapeCreators 请求数约等于本轮关键词数量。
@@ -32,7 +32,7 @@ scoring/
   llm_scorer.py               # V0.6.7 design-only LLM scoring contract + mock scorer
 ceramic_report.py             # 打分 + 渲染（“如何消化证据”），CLI 入口
 config/ceramic_topics.json    # 关键词、推荐 subreddit、相关性规则（positive/exclude/topic_rules）
-config/scrapecreators_quality_topics.json # 小批量关键词质量测试配置
+config/scrapecreators_quality_topics.json # 小批量关键词质量测试配置；V0.7.5 active topics 已用更具体 AI 陶瓷词替换宽泛 AI ceramic design
 config/llm_scoring.json       # 智能评分设计配置，默认 disabled/design_only
 config/data_sources.json      # 数据源清单：mock / reddit_last30days / scrapecreators_reddit 可用，其他来源预留
 data/mock_samples.json        # mock 证据样例（last30days --emit=json 形状）
