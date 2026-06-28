@@ -1,14 +1,16 @@
 #!/usr/bin/env python3
-"""Compare rule scoring with a tiny opt-in DeepSeek scoring run.
+"""Compare rule scoring with DeepSeek on real small-sample Reddit evidence.
 
-This stays outside the formal report pipeline. It writes only to local_outputs/
-so DeepSeek can be evaluated before any production report integration.
+V0.7.0 keeps this as an opt-in side experiment. It can fetch a small
+ScrapeCreators Reddit sample, score the same evidence with rules and DeepSeek,
+and write only to local_outputs/.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import socket
 import sys
 from dataclasses import dataclass
@@ -24,24 +26,28 @@ if str(PROJECT_ROOT) not in sys.path:
 if str(SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(SCRIPT_DIR))
 
-from scoring.llm_scorer import (  # noqa: E402
-    LLMScoringResult,
-    build_llm_scoring_prompt,
-    combine_rule_and_llm,
-    load_llm_scoring_config,
+from ceramic_report import (  # noqa: E402
+    Evidence,
+    apply_relevance_ranking,
+    collect_evidence,
+    load_config,
+    load_relevance_config,
+    load_topics,
+)
+from compare_llm_scoring import (  # noqa: E402
+    aggregate_counts,
+    build_row,
+    render_comparison_markdown,
 )
 from probe_llm_scoring import (  # noqa: E402
     DEFAULT_BASE_URL,
     DEFAULT_MODEL,
     DEFAULT_TIMEOUT_SECONDS,
     LOCAL_OUTPUTS_DIR,
-    MAX_SAMPLE_COUNT,
-    SAMPLE_ITEMS,
     classify_http_error,
     classify_url_error,
     configured_deepseek_key,
     effective_env,
-    escape_cell,
     project_path,
     parse_deepseek_score_response,
     redact_secret,
@@ -49,26 +55,36 @@ from probe_llm_scoring import (  # noqa: E402
     resolve_base_url,
     resolve_llm_scoring_switch,
     resolve_model,
-    result_to_dict,
-    sample_to_dict,
     utc_now_iso,
     validate_deepseek_base_url,
     write_json,
 )
+from scoring.llm_scorer import (  # noqa: E402
+    LLMScoringInput,
+    build_llm_scoring_prompt,
+    load_llm_scoring_config,
+)
+from sources.scrapecreators_source import (  # noqa: E402
+    ScrapeCreatorsSource,
+    configured_scrapecreators_env_var,
+)
 
 
-SOURCE_ID = "deepseek_llm_scoring_comparison"
-DEFAULT_SAMPLE_COUNT = 5
+SOURCE_ID = "deepseek_real_sample_scoring_comparison"
+DEFAULT_TOPICS_PATH = PROJECT_ROOT / "config" / "scrapecreators_quality_topics.json"
+DEFAULT_SAMPLE_COUNT = 8
+MAX_SAMPLE_COUNT = 12
+DEFAULT_PER_TOPIC_LIMIT = 4
 EXPECTED_OUTPUTS = {
-    "state-file": LOCAL_OUTPUTS_DIR / "llm_scoring_comparison_state.json",
-    "output": LOCAL_OUTPUTS_DIR / "llm_scoring_comparison.md",
-    "json-output": LOCAL_OUTPUTS_DIR / "llm_scoring_comparison.json",
-    "error-file": LOCAL_OUTPUTS_DIR / "llm_scoring_comparison_error.md",
+    "state-file": LOCAL_OUTPUTS_DIR / "llm_scoring_real_sample_comparison_state.json",
+    "output": LOCAL_OUTPUTS_DIR / "llm_scoring_real_sample_comparison.md",
+    "json-output": LOCAL_OUTPUTS_DIR / "llm_scoring_real_sample_comparison.json",
+    "error-file": LOCAL_OUTPUTS_DIR / "llm_scoring_real_sample_comparison_error.md",
 }
 
 
 @dataclass(frozen=True)
-class ComparisonPaths:
+class RealComparisonPaths:
     state_file: Path
     output_file: Path
     json_file: Path
@@ -81,21 +97,24 @@ class ComparisonPaths:
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Generate a tiny opt-in rule-vs-DeepSeek scoring comparison. "
-            "Without --confirm-live-api this command does not call the network."
+            "Generate an opt-in real Reddit/ScrapeCreators rule-vs-DeepSeek "
+            "small-sample comparison. Without --confirm-live-api this command "
+            "does not call the network."
         )
     )
     parser.add_argument("--confirm-live-api", action="store_true")
+    parser.add_argument("--topics", default=str(DEFAULT_TOPICS_PATH))
     parser.add_argument("--sample-count", type=int, default=DEFAULT_SAMPLE_COUNT)
+    parser.add_argument("--per-topic-limit", type=int, default=DEFAULT_PER_TOPIC_LIMIT)
     parser.add_argument("--model", default=None)
     parser.add_argument("--base-url", default=None)
     parser.add_argument("--timeout", type=float, default=DEFAULT_TIMEOUT_SECONDS)
     parser.add_argument("--config", default="config/llm_scoring.json")
     parser.add_argument("--prompt", default="prompts/llm_scoring_prompt.md")
-    parser.add_argument("--state-file", default="local_outputs/llm_scoring_comparison_state.json")
-    parser.add_argument("--output", default="local_outputs/llm_scoring_comparison.md")
-    parser.add_argument("--json-output", default="local_outputs/llm_scoring_comparison.json")
-    parser.add_argument("--error-file", default="local_outputs/llm_scoring_comparison_error.md")
+    parser.add_argument("--state-file", default="local_outputs/llm_scoring_real_sample_comparison_state.json")
+    parser.add_argument("--output", default="local_outputs/llm_scoring_real_sample_comparison.md")
+    parser.add_argument("--json-output", default="local_outputs/llm_scoring_real_sample_comparison.json")
+    parser.add_argument("--error-file", default="local_outputs/llm_scoring_real_sample_comparison_error.md")
     parser.add_argument("--dotenv-file", default=None)
 
     # Test-only guard paths. The comparison never writes these files.
@@ -105,10 +124,10 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def clamp_sample_count(value: int) -> int:
+def clamp_count(value: int, *, maximum: int) -> int:
     if value < 1:
         return 1
-    return min(value, MAX_SAMPLE_COUNT)
+    return min(value, maximum)
 
 
 def is_within_directory(path: Path, directory: Path) -> bool:
@@ -119,7 +138,7 @@ def is_within_directory(path: Path, directory: Path) -> bool:
         return False
 
 
-def validate_local_output_paths(paths: ComparisonPaths) -> str:
+def validate_local_output_paths(paths: RealComparisonPaths) -> str:
     for label, path in (
         ("state-file", paths.state_file),
         ("output", paths.output_file),
@@ -134,6 +153,67 @@ def validate_local_output_paths(paths: ComparisonPaths) -> str:
     return ""
 
 
+def evidence_to_llm_input(evidence: Evidence) -> LLMScoringInput:
+    return LLMScoringInput(
+        topic=evidence.topic,
+        title=evidence.title,
+        subreddit=f"r/{evidence.subreddit}" if evidence.subreddit else "",
+        body=evidence.snippet,
+        url=evidence.url,
+        source=evidence.source,
+        rule_level=evidence.relevance_level,
+        rule_score=evidence.relevance_score,
+        rule_notes=evidence.relevance_notes,
+    )
+
+
+def normalized_title_key(title: str) -> str:
+    text = title.strip().lower()
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    return " ".join(text.split())
+
+
+def select_evidence_samples(
+    runs: list[tuple[str, list[Evidence]]],
+    *,
+    sample_count: int,
+    per_topic_limit: int,
+) -> list[LLMScoringInput]:
+    buckets: list[list[Evidence]] = []
+    seen_keys: set[tuple[str, str]] = set()
+    for _topic, evidence_items in runs:
+        topic_items = sorted(
+            evidence_items,
+            key=lambda item: (
+                {"high": 3, "edge": 2, "low": 1}.get(item.relevance_level, 0),
+                item.relevance_score,
+            ),
+            reverse=True,
+        )
+        unique_topic_items: list[Evidence] = []
+        for evidence in topic_items:
+            key = (evidence.topic.strip().lower(), normalized_title_key(evidence.title))
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            unique_topic_items.append(evidence)
+            if len(unique_topic_items) >= per_topic_limit:
+                break
+        if unique_topic_items:
+            buckets.append(unique_topic_items)
+
+    selected: list[LLMScoringInput] = []
+    max_bucket_size = max((len(bucket) for bucket in buckets), default=0)
+    for index in range(max_bucket_size):
+        for bucket in buckets:
+            if index >= len(bucket):
+                continue
+            selected.append(evidence_to_llm_input(bucket[index]))
+            if len(selected) >= sample_count:
+                return selected
+    return selected
+
+
 def base_state(
     *,
     status: str,
@@ -143,6 +223,7 @@ def base_state(
     requested_at: str,
     network_request_attempted: bool,
     key_status: str,
+    scrapecreators_key_status: str,
     llm_scoring_enabled: bool,
     switch_env_var: str,
     switch_source: str,
@@ -161,7 +242,9 @@ def base_state(
             "latest": "reports/latest.md",
             "archive": "reports/archive/",
         },
+        "data_source": "scrapecreators_reddit",
         "key_status": key_status,
+        "scrapecreators_key_status": scrapecreators_key_status,
         "llm_scoring_enabled": llm_scoring_enabled,
         "switch_env_var": switch_env_var,
         "switch_source": switch_source,
@@ -179,7 +262,7 @@ def write_error_markdown(
     path.parent.mkdir(parents=True, exist_ok=True)
     text = "\n".join(
         [
-            "# DeepSeek 评分对照报告错误",
+            "# DeepSeek 真实小样本对照错误",
             "",
             f"- 错误类型：{state.get('error_type', 'unknown_error')}",
             f"- 发生时间：{state.get('requested_at', '')}",
@@ -215,63 +298,13 @@ def failure_summary(
     }
 
 
-def alignment_label(rule_level: str, result: LLMScoringResult) -> str:
-    if result.is_noise or result.ceramic_relevance == "low":
-        if rule_level == "high":
-            return "DeepSeek 降级：规则疑似误判"
-        return "一致低相关或噪音"
-    if (
-        rule_level == "high"
-        and result.ceramic_relevance == "high"
-        and result.can_support_trend
-        and result.keyword_intent_match in {"high", "medium"}
-    ):
-        return "一致高相关"
-    if rule_level != "high" and result.can_support_trend:
-        return "DeepSeek 提醒：可能漏判"
-    if result.ceramic_relevance == "high":
-        return "陶瓷相关但不宜入趋势"
-    if result.ceramic_relevance == "edge":
-        return "边缘相关，建议人工复核"
-    return "需要人工复核"
-
-
-def aggregate_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
-    counts = {
-        "total": len(rows),
-        "agree_high": 0,
-        "llm_demoted": 0,
-        "llm_promoted": 0,
-        "agree_low_or_noise": 0,
-        "edge_review": 0,
-        "ceramic_but_not_trend": 0,
-        "review": 0,
-    }
-    for row in rows:
-        alignment = str(row["alignment"])
-        if alignment == "一致高相关":
-            counts["agree_high"] += 1
-        elif alignment.startswith("DeepSeek 降级"):
-            counts["llm_demoted"] += 1
-        elif alignment.startswith("DeepSeek 提醒"):
-            counts["llm_promoted"] += 1
-        elif alignment == "一致低相关或噪音":
-            counts["agree_low_or_noise"] += 1
-        elif alignment == "边缘相关，建议人工复核":
-            counts["edge_review"] += 1
-        elif alignment == "陶瓷相关但不宜入趋势":
-            counts["ceramic_but_not_trend"] += 1
-        elif alignment == "需要人工复核":
-            counts["review"] += 1
-    return counts
-
-
-def comparison_success_summary(
+def success_summary(
     *,
     model: str,
     base_url: str,
     sample_count: int,
     requested_at: str,
+    topics: list[str],
     rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
     return {
@@ -281,119 +314,56 @@ def comparison_success_summary(
         "base_url": base_url,
         "sample_count": sample_count,
         "requested_at": requested_at,
+        "data_source": "scrapecreators_reddit",
+        "topics": topics,
         "counts": aggregate_counts(rows),
         "results": rows,
         "report_files_updated": False,
     }
 
 
-def render_comparison_markdown(
-    *,
-    requested_at: str,
-    model: str,
-    base_url: str,
-    rows: list[dict[str, Any]],
-    title: str = "DeepSeek 与规则评分对照报告",
-    description: str = "这是 V0.6.9 旁路对照报告，不是正式趋势报告。",
-) -> str:
-    counts = aggregate_counts(rows)
-    lines = [
-        f"# {title}",
-        "",
-        f"- 生成时间：{requested_at}",
-        f"- 模型：{model}",
-        f"- Base URL：{base_url}",
-        f"- 说明：{description}",
-        "- 保护动作：未覆盖 reports/report.md、reports/latest.md 或 reports/archive/。",
-        "",
-        "## 对照结论摘要",
-        "",
-        f"- 本轮对照样本：{counts['total']} 条。",
-        f"- 规则与 DeepSeek 一致认为高相关：{counts['agree_high']} 条。",
-        f"- DeepSeek 将规则高分样本降级为噪音或低相关：{counts['llm_demoted']} 条。",
-        f"- DeepSeek 提醒规则可能漏判：{counts['llm_promoted']} 条。",
-        f"- 一致认为低相关或噪音：{counts['agree_low_or_noise']} 条。",
-        f"- 陶瓷相关但不宜进入趋势：{counts['ceramic_but_not_trend']} 条。",
-        f"- 边缘相关，建议人工复核：{counts['edge_review']} 条。",
-        f"- 仍建议人工复核：{counts['review']} 条。",
-        "- 这份报告只用于判断 DeepSeek 是否值得接入正式流程，不代表正式趋势结论。",
-        "",
-        "## 对照明细",
-        "",
-        "| 关键词 | 标题 | 规则判断 | DeepSeek 判断 | 对照结果 | 合并建议 | DeepSeek 理由 |",
-        "|---|---|---|---|---|---|---|",
-    ]
-    for row in rows:
-        sample = row["sample"]
-        result = row["llm_result"]
-        combined = row["combined"]
-        lines.append(
-            "| {topic} | {title} | {rule} | {llm} | {alignment} | {combined} | {reason} |".format(
-                topic=escape_cell(sample["topic"]),
-                title=escape_cell(sample["title"]),
-                rule=escape_cell(
-                    f"{sample['rule_level']} / {sample['rule_score']}；{sample['rule_notes']}"
-                ),
-                llm=escape_cell(
-                    "{relevance}/{intent}；{etype}；趋势={trend}；噪音={noise}；置信度={confidence}".format(
-                        relevance=result["ceramic_relevance"],
-                        intent=result["keyword_intent_match"],
-                        etype=result["evidence_type"],
-                        trend="是" if result["can_support_trend"] else "否",
-                        noise="是" if result["is_noise"] else "否",
-                        confidence=result["confidence"],
-                    )
-                ),
-                alignment=escape_cell(row["alignment"]),
-                combined=escape_cell(f"{combined['level']} / {combined['confidence']}；{combined['reason']}"),
-                reason=escape_cell(result["reason"]),
-            )
-        )
-    lines.extend(
-        [
-            "",
-            "## 怎么使用这份对照",
-            "",
-            "- 如果 DeepSeek 经常把规则高分样本降级，说明关键词规则容易被表面词误导。",
-            "- 如果 DeepSeek 和规则稳定一致，可以考虑下一步只把它用于低置信度样本复核。",
-            "- 如果 DeepSeek 判断不稳定或成本不划算，就继续保持规则评分为主。",
-            "- 当前阶段不要把这份对照直接写入正式报告。",
-        ]
-    )
-    return "\n".join(lines) + "\n"
-
-
-def combined_to_dict(level: str, confidence: int, reason: str) -> dict[str, Any]:
-    return {"level": level, "confidence": confidence, "reason": reason}
-
-
-def build_row(item: Any, result: LLMScoringResult) -> dict[str, Any]:
-    combined = combine_rule_and_llm(
-        rule_level=item.rule_level,
-        rule_score=item.rule_score,
-        llm_result=result,
-    )
-    return {
-        "sample": sample_to_dict(item),
-        "llm_result": result_to_dict(result),
-        "alignment": alignment_label(item.rule_level, result),
-        "combined": combined_to_dict(combined.level, combined.confidence, combined.reason),
-    }
-
-
 def next_step_for(error_type: str) -> str:
     return {
-        "unauthorized_401": "检查 DEEPSEEK_API_KEY 是否有效，或是否需要重新生成 key。",
-        "forbidden_403": "检查 DeepSeek 账号权限、模型权限或 API 访问策略。",
-        "rate_limited_429": "已被限流，请等待后再试，不要连续重复请求。",
-        "quota_or_billing": "检查 DeepSeek 后台余额、额度或账单状态。",
-        "timeout": "检查网络或代理状态，稍后再试。",
-        "network_error": "检查网络、DNS、代理或 DeepSeek API 服务状态。",
-        "parse_error": "模型返回不是预期 JSON，需要检查 prompt 或 JSON Output 支持情况。",
+        "missing_key": "确认 .env 中已配置 DEEPSEEK_API_KEY，再运行真实小样本对照。",
+        "missing_scrapecreators_key": "确认 .env 中已配置 SCRAPECREATORS_API_KEY，再运行真实小样本对照。",
         "switch_off": "确认要消耗 DeepSeek 额度时，将 LLM_SCORING_ENABLED=on 写入 .env，或仅本次临时打开。",
-        "missing_key": "确认 .env 或系统环境变量里已配置 DEEPSEEK_API_KEY，然后再运行对照报告。",
+        "no_evidence": "真实数据源没有返回可对照证据；可稍后重试或调整关键词配置。",
+        "unauthorized_401": "检查 API key 是否有效，或是否需要重新生成 key。",
+        "forbidden_403": "检查账号权限、模型权限、ScrapeCreators 权限或 API 访问策略。",
+        "rate_limited_429": "已被限流，请等待后再试，不要连续重复请求。",
+        "quota_or_billing": "检查 DeepSeek 或 ScrapeCreators 后台余额、额度或账单状态。",
+        "timeout": "检查网络或代理状态，稍后再试。",
+        "network_error": "检查网络、DNS、代理或 API 服务状态。",
+        "parse_error": "模型返回不是预期 JSON，需要检查 prompt 或 JSON Output 支持情况。",
         "unknown_error": "保留错误文件后再排查，不要重复发起请求。",
     }.get(error_type, "保留错误文件后再排查，不要重复发起请求。")
+
+
+def fetch_real_samples(
+    *,
+    topics_path: Path,
+    env: Mapping[str, str],
+    sample_count: int,
+    per_topic_limit: int,
+    timeout: float,
+) -> tuple[list[str], list[LLMScoringInput]]:
+    config = load_config(topics_path)
+    topics = load_topics(topics_path)
+    relevance_config = load_relevance_config(config)
+    source = ScrapeCreatorsSource(env=env, timeout=timeout)
+    runs: list[tuple[str, list[Evidence]]] = []
+    for topic in topics:
+        report = source.fetch(
+            topic,
+            recommended_subreddits=relevance_config.recommended_subreddits,
+        )
+        report = apply_relevance_ranking(report, relevance_config, topic)
+        runs.append((topic, collect_evidence(topic, report)))
+    return topics, select_evidence_samples(
+        runs,
+        sample_count=sample_count,
+        per_topic_limit=per_topic_limit,
+    )
 
 
 def main(
@@ -404,8 +374,9 @@ def main(
 ) -> int:
     args = parse_args(argv)
     requested_at = utc_now_iso()
-    sample_count = clamp_sample_count(args.sample_count)
-    paths = ComparisonPaths(
+    sample_count = clamp_count(args.sample_count, maximum=MAX_SAMPLE_COUNT)
+    per_topic_limit = clamp_count(args.per_topic_limit, maximum=MAX_SAMPLE_COUNT)
+    paths = RealComparisonPaths(
         state_file=project_path(args.state_file),
         output_file=project_path(args.output),
         json_file=project_path(args.json_output),
@@ -417,7 +388,7 @@ def main(
     if not allow_outside_local_outputs:
         path_error = validate_local_output_paths(paths)
         if path_error:
-            print("DeepSeek 评分对照：输出路径不安全，未发起网络请求。")
+            print("DeepSeek 真实小样本对照：输出路径不安全，未发起网络请求。")
             print(path_error)
             print("请使用默认 local_outputs/ 路径，避免误写正式报告或其他文件。")
             return 2
@@ -427,11 +398,14 @@ def main(
     model = resolve_model(args, values, config.model or DEFAULT_MODEL)
     base_url = resolve_base_url(args, values) or DEFAULT_BASE_URL
     api_key = configured_deepseek_key(values)
+    scrapecreators_env_var = configured_scrapecreators_env_var(values)
+    scrapecreators_key = values.get(scrapecreators_env_var, "") if scrapecreators_env_var else ""
     llm_switch_enabled, switch_source = resolve_llm_scoring_switch(
         values,
         switch_env_var=config.switch_env_var,
         enabled_values=config.enabled_values,
     )
+    topics_path = project_path(args.topics)
     prompt_template = project_path(args.prompt).read_text(encoding="utf-8")
     base_url_error = validate_deepseek_base_url(base_url)
     common_state = {
@@ -439,6 +413,7 @@ def main(
         "sample_count": sample_count,
         "requested_at": requested_at,
         "key_status": "configured" if api_key else "missing",
+        "scrapecreators_key_status": "configured" if scrapecreators_key else "missing",
         "llm_scoring_enabled": llm_switch_enabled,
         "switch_env_var": config.switch_env_var,
         "switch_source": switch_source,
@@ -458,7 +433,7 @@ def main(
             next_step="删除 DEEPSEEK_BASE_URL 或使用默认官方 API 地址后再试。",
             secret=api_key,
         )
-        print("DeepSeek 评分对照：base URL 不安全，未发起网络请求。")
+        print("DeepSeek 真实小样本对照：base URL 不安全，未发起网络请求。")
         print(base_url_error)
         return 2
 
@@ -470,78 +445,96 @@ def main(
             **common_state,
         )
         write_json(paths.state_file, state)
-        print("DeepSeek 评分对照：未发起网络请求。")
+        print("DeepSeek 真实小样本对照：未发起网络请求。")
         print(
-            "如需真实对照报告，请同时打开 "
+            "如需真实对照，请同时打开 "
             f"{config.switch_env_var}=on 并显式添加 --confirm-live-api。"
         )
         print(f"状态已写入：{paths.state_file}")
         return 0
 
     if not llm_switch_enabled:
-        state = base_state(
-            status="switch_off",
-            error_type="switch_off",
-            network_request_attempted=False,
-            **common_state,
-        )
-        write_json(paths.state_file, state)
-        write_json(
-            paths.json_file,
-            failure_summary(
+        return write_guard_failure(
+            paths,
+            state=base_state(
+                status="switch_off",
                 error_type="switch_off",
-                model=model,
-                sample_count=sample_count,
-                requested_at=requested_at,
                 network_request_attempted=False,
+                **common_state,
             ),
-        )
-        write_error_markdown(
-            paths.error_file,
-            state=state,
+            error_type="switch_off",
+            model=model,
+            sample_count=sample_count,
+            requested_at=requested_at,
+            api_key=api_key,
             message=(
                 f"{config.switch_env_var} 未开启。虽然已收到 --confirm-live-api，"
-                "但没有发起 DeepSeek 网络请求。"
+                "但没有发起 ScrapeCreators 或 DeepSeek 网络请求。"
             ),
-            next_step=next_step_for("switch_off"),
-            secret=api_key,
         )
-        print("DeepSeek 评分对照：开关未开启，未发起网络请求。")
-        print(f"请先打开 {config.switch_env_var}=on，再运行真实对照。")
-        print(f"错误详情见：{paths.error_file}")
-        return 0
 
     if not api_key:
-        state = base_state(
-            status="missing_key",
-            error_type="missing_key",
-            network_request_attempted=False,
-            **common_state,
-        )
-        write_json(paths.state_file, state)
-        write_json(
-            paths.json_file,
-            failure_summary(
+        return write_guard_failure(
+            paths,
+            state=base_state(
+                status="missing_key",
                 error_type="missing_key",
+                network_request_attempted=False,
+                **common_state,
+            ),
+            error_type="missing_key",
+            model=model,
+            sample_count=sample_count,
+            requested_at=requested_at,
+            api_key="",
+            message="未找到 DEEPSEEK_API_KEY。没有发起网络请求。",
+        )
+
+    if not scrapecreators_key:
+        return write_guard_failure(
+            paths,
+            state=base_state(
+                status="missing_scrapecreators_key",
+                error_type="missing_scrapecreators_key",
+                network_request_attempted=False,
+                **common_state,
+            ),
+            error_type="missing_scrapecreators_key",
+            model=model,
+            sample_count=sample_count,
+            requested_at=requested_at,
+            api_key=api_key,
+            message="未找到 SCRAPECREATORS_API_KEY。没有发起网络请求。",
+        )
+
+    try:
+        topics, samples = fetch_real_samples(
+            topics_path=topics_path,
+            env=values,
+            sample_count=sample_count,
+            per_topic_limit=per_topic_limit,
+            timeout=args.timeout,
+        )
+        if not samples:
+            return write_guard_failure(
+                paths,
+                state=base_state(
+                    status="no_evidence",
+                    error_type="no_evidence",
+                    network_request_attempted=True,
+                    **common_state,
+                ),
+                error_type="no_evidence",
                 model=model,
                 sample_count=sample_count,
                 requested_at=requested_at,
-                network_request_attempted=False,
-            ),
-        )
-        write_error_markdown(
-            paths.error_file,
-            state=state,
-            message="未找到 DEEPSEEK_API_KEY。没有发起网络请求。",
-            next_step=next_step_for("missing_key"),
-        )
-        print("DeepSeek 评分对照：未找到 API key，未发起网络请求。")
-        print(f"错误详情见：{paths.error_file}")
-        return 0
+                api_key=api_key,
+                message="ScrapeCreators 返回后没有可用于对照的 Reddit 证据。",
+                exit_code=1,
+            )
 
-    try:
         rows: list[dict[str, Any]] = []
-        for item in SAMPLE_ITEMS[:sample_count]:
+        for item in samples:
             prompt = build_llm_scoring_prompt(prompt_template, item)
             payload, _status_code = request_deepseek_score(
                 api_key=api_key,
@@ -560,11 +553,13 @@ def main(
             **common_state,
         )
         state["result_count"] = len(rows)
-        summary = comparison_success_summary(
+        state["topics"] = topics
+        summary = success_summary(
             model=model,
             base_url=base_url,
-            sample_count=sample_count,
+            sample_count=len(rows),
             requested_at=requested_at,
+            topics=topics,
             rows=rows,
         )
         write_json(paths.json_file, summary)
@@ -575,11 +570,13 @@ def main(
                 model=model,
                 base_url=base_url,
                 rows=rows,
+                title="DeepSeek 与真实 Reddit 小样本规则评分对照报告",
+                description="这是 V0.7.0 真实小样本旁路对照报告，不是正式趋势报告。",
             ),
             encoding="utf-8",
         )
         write_json(paths.state_file, state)
-        print("DeepSeek 评分对照报告生成成功。")
+        print("DeepSeek 真实小样本对照报告生成成功。")
         print(f"对照报告已写入：{paths.output_file}")
         print("正式报告未更新。")
         return 0
@@ -624,11 +621,47 @@ def main(
         next_step=next_step_for(error_type),
         secret=api_key,
     )
-    print("DeepSeek 评分对照报告生成失败。")
+    print("DeepSeek 真实小样本对照报告生成失败。")
     print("正式报告未更新。")
     print(f"错误类型：{error_type}")
     print(f"错误详情见：{paths.error_file}")
     return 1
+
+
+def write_guard_failure(
+    paths: RealComparisonPaths,
+    *,
+    state: Mapping[str, Any],
+    error_type: str,
+    model: str,
+    sample_count: int,
+    requested_at: str,
+    api_key: str,
+    message: str,
+    exit_code: int = 0,
+) -> int:
+    write_json(paths.state_file, state)
+    write_json(
+        paths.json_file,
+        failure_summary(
+            error_type=error_type,
+            model=model,
+            sample_count=sample_count,
+            requested_at=requested_at,
+            network_request_attempted=bool(state.get("network_request_attempted", False)),
+        ),
+    )
+    write_error_markdown(
+        paths.error_file,
+        state=state,
+        message=message,
+        next_step=next_step_for(error_type),
+        secret=api_key,
+    )
+    print("DeepSeek 真实小样本对照：保护机制已拦截，未更新正式报告。")
+    print(f"错误类型：{error_type}")
+    print(f"错误详情见：{paths.error_file}")
+    return exit_code
 
 
 if __name__ == "__main__":

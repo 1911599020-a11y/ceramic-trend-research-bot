@@ -4,9 +4,9 @@
 
 ## Current Status
 
-V0.6.9 是 **规则评分 + DeepSeek 评分对照报告版本**，建立在 V0.6.7 智能评分接口设计、V0.6.8 tiny probe 和 V0.6.8.1 开关保护之上：
+V0.7.0 是 **真实 Reddit/ScrapeCreators 小样本 + DeepSeek 对照报告版本**，建立在 V0.6.7 智能评分接口设计、V0.6.8 tiny probe、V0.6.8.1 开关保护和 V0.6.9 规则对照报告之上：
 
-- 注意：V0.6.9 是独立旁路对照版本，不提升正式报告生成版本；`ceramic_report.py` 的 `REPORT_VERSION` 仍保持 `V0.6.6`，因为正式报告流程没有接入 LLM scoring。
+- 注意：V0.7.0 是独立旁路对照版本，不提升正式报告生成版本；`ceramic_report.py` 的 `REPORT_VERSION` 仍保持 `V0.6.6`，因为正式报告流程没有接入 LLM scoring。
 - 新增 `sources/` 适配层，定义统一的 `TrendSource` 契约：`fetch(topic, *, recommended_subreddits)`，输出统一的 `last30days` 形状报告 dict
 - 新增 `scoring/llm_scorer.py`，为后续大模型辅助打分定义结构化输入、输出、mock scorer 和规则/LLM 合并结果
 - 新增 `config/llm_scoring.json`，默认 `enabled=false`、`provider=deepseek`、`mode=design_only`，并用 `LLM_SCORING_ENABLED=off/on` 预留未来界面勾选开关
@@ -14,6 +14,7 @@ V0.6.9 是 **规则评分 + DeepSeek 评分对照报告版本**，建立在 V0.6
 - 新增 `scripts/probe_llm_scoring.py` / `.sh`，默认 dry-run，不联网；真实 DeepSeek tiny test 必须同时打开 `LLM_SCORING_ENABLED=on` 并显式加 `--confirm-live-api`
 - V0.6.8 tiny probe 只写 `local_outputs/llm_scoring_probe.md` 等本地文件，**不更新正式 reports**
 - 新增 `scripts/compare_llm_scoring.py` / `.sh`，生成规则评分与 DeepSeek 评分的旁路对照报告，输出只写 `local_outputs/llm_scoring_comparison.*`
+- 新增 `scripts/compare_real_llm_scoring.py` / `.sh`，用 ScrapeCreators Reddit 真实小样本生成规则评分与 DeepSeek 评分对照，输出只写 `local_outputs/llm_scoring_real_sample_comparison.*`
 - `mock` 模式改由 `MockSource` 读取仓库内 `data/mock_samples.json`，**零配置、零联网、零外部依赖**，在 Windows / CI 上也能稳定出报告
 - `live` 模式由 `Last30DaysSource` 承接，子进程命令构造与 V0.4.2 逐项一致，行为不变
 - 新增 `config/data_sources.json`，集中记录当前可用数据源和未来预留数据源
@@ -77,6 +78,7 @@ V0.6.9 是 **规则评分 + DeepSeek 评分对照报告版本**，建立在 V0.6
 - V0.6.8 新增 DeepSeek LLM scoring tiny probe：默认不联网，只有显式确认后才用 `DEEPSEEK_API_KEY` 测试 3 到 5 条样本；输出只写 `local_outputs/`
 - V0.6.8.1 新增 DeepSeek 开关配置：`LLM_SCORING_ENABLED=off/on`，未来 UI 里的“启用 DeepSeek 评分”勾选框可以直接映射到这个开关
 - V0.6.9 新增规则评分 + DeepSeek 评分对照报告：用于判断大模型是否能识别规则误判、跑偏样本和关键词意图不匹配；仍不更新正式 reports
+- V0.7.0 新增真实 Reddit/ScrapeCreators 小样本对照报告：默认最多 8 条，真实运行必须同时有 DeepSeek key、ScrapeCreators key、`LLM_SCORING_ENABLED=on` 和 `--confirm-live-api`
 - 不安装 `yt-dlp`
 - 可以在本地 `.env` 配置 API key，但不要把真实 key 提交到 GitHub
 - 不修改 `last30days-skill` 原始代码
@@ -101,7 +103,7 @@ V0.6.9 是 **规则评分 + DeepSeek 评分对照报告版本**，建立在 V0.6
 MODEL_PROVIDER=rules
 ```
 
-当前正式报告只支持 `rules`。V0.6.9 已新增 DeepSeek tiny probe 和评分对照报告，但它们都是独立诊断脚本，不接入正式报告流程；日常报告当前不会调用 DeepSeek。
+当前正式报告只支持 `rules`。V0.7.0 已新增 DeepSeek tiny probe、内置样本评分对照报告和真实 Reddit/ScrapeCreators 小样本对照报告，但它们都是独立诊断脚本，不接入正式报告流程；日常报告当前不会调用 DeepSeek。
 
 当前数据源选择：
 
@@ -301,6 +303,29 @@ local_outputs/llm_scoring_comparison_error.md
 
 它用于观察“规则评分”和“DeepSeek 语义判断”是否一致，不会更新正式报告。
 
+真实 Reddit/ScrapeCreators 小样本对照默认不联网：
+
+```bash
+bash scripts/compare_real_llm_scoring.sh
+```
+
+真实运行会同时消耗 ScrapeCreators 和 DeepSeek 的少量额度，必须明确打开开关并确认：
+
+```bash
+LLM_SCORING_ENABLED=on bash scripts/compare_real_llm_scoring.sh --confirm-live-api --sample-count 8
+```
+
+输出只写入：
+
+```text
+local_outputs/llm_scoring_real_sample_comparison.md
+local_outputs/llm_scoring_real_sample_comparison.json
+local_outputs/llm_scoring_real_sample_comparison_state.json
+local_outputs/llm_scoring_real_sample_comparison_error.md
+```
+
+这一步用于观察 DeepSeek 在真实 Reddit 小样本里是否仍能补规则评分短板，不会更新正式报告。
+
 在申请 key、配置 key 或第一次做 key-backed live probe 前，先按这份清单过一遍。
 
 ScrapeCreators tiny probe 方案：
@@ -376,6 +401,7 @@ tests/test_scrapecreators_probe.py # tiny probe 的默认不联网、缺 key、l
 tests/test_llm_scoring.py # LLM scoring 契约、mock scorer 和规则/LLM 合并
 tests/test_llm_scoring_probe.py # DeepSeek tiny probe 默认不联网、缺 key、输出保护和错误分类
 tests/test_llm_scoring_comparison.py # DeepSeek 与规则评分对照报告保护和统计
+tests/test_llm_scoring_real_sample_comparison.py # 真实小样本 DeepSeek 对照报告保护和统计
 ```
 
 mock 报告零配置生成（不联网、不依赖外部 skill）：
@@ -458,6 +484,8 @@ scripts/probe_llm_scoring.py    # DeepSeek LLM scoring tiny probe, opt-in only
 scripts/probe_llm_scoring.sh    # Local DeepSeek tiny probe runner
 scripts/compare_llm_scoring.py  # Rule-vs-DeepSeek scoring comparison, opt-in only
 scripts/compare_llm_scoring.sh  # Local DeepSeek comparison runner
+scripts/compare_real_llm_scoring.py # Real ScrapeCreators Reddit sample vs DeepSeek comparison
+scripts/compare_real_llm_scoring.sh # Local real-sample DeepSeek comparison runner
 scripts/reddit_probe_matrix.sh     # Optional Reddit 403 request-shape diagnostic
 scripts/compare_reports.py        # Compare latest two archived live reports
 scripts/compare_reports.sh        # Local compare runner
@@ -466,6 +494,7 @@ local_outputs/run_state.json      # Ignored local run state
 local_outputs/scrapecreators_probe*.json/md # Ignored tiny probe state/output/error files
 local_outputs/llm_scoring_probe*.json/md # Ignored DeepSeek tiny probe files
 local_outputs/llm_scoring_comparison*.json/md # Ignored DeepSeek comparison files
+local_outputs/llm_scoring_real_sample_comparison*.json/md # Ignored real-sample DeepSeek comparison files
 reports/                          # Generated Markdown reports
 reports/latest.md                 # Latest successful live report
 reports/archive/                  # Archived successful live reports
