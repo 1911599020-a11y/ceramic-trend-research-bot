@@ -532,7 +532,7 @@ def topic_quality_label(
 ) -> str:
     if sample_count == 0:
         return "未采样"
-    if agree_high >= 2 and demoted == 0 and noise == 0:
+    if agree_high >= 2 and bad_sample_count == 0:
         return "可保留"
     if bad_sample_count >= max(1, sample_count // 2):
         return "降噪优先"
