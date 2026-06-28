@@ -1,5 +1,5 @@
 {
-  "version": "V0.7.3",
+  "version": "V0.7.4",
   "enabled": false,
   "switch_env_var": "LLM_SCORING_ENABLED",
   "enabled_values": ["on", "true", "1", "yes"],
@@ -19,6 +19,7 @@
     "V0.7.1 improves real sample quality selection and topic quality summaries.",
     "V0.7.2 adds DeepSeek partial quality-gate labels for suspicious or edge samples.",
     "V0.7.3 adds report-plus-analysis sections to the side comparison report.",
+    "V0.7.4 adds a local keyword convergence plan from the real-sample comparison JSON.",
     "The probe writes only to local_outputs/llm_scoring_probe.md and related local_outputs files.",
     "The comparison report writes only to local_outputs/llm_scoring_comparison.md and related local_outputs files.",
     "The real sample comparison writes only to local_outputs/llm_scoring_real_sample_comparison.md and related local_outputs files."

@@ -322,7 +322,7 @@ python scripts/summarize_keyword_quality.py
 
 ### 14. DeepSeek 智能评分 tiny probe / 对照报告
 
-V0.7.3 新增 DeepSeek 智能评分 tiny probe、内置样本对照报告，以及真实 Reddit/ScrapeCreators 小样本的“质量雷达 / 局部质检 / 报告解析”。当前配置见：
+V0.7.4 新增 DeepSeek 智能评分 tiny probe、内置样本对照报告、真实 Reddit/ScrapeCreators 小样本的“质量雷达 / 局部质检 / 报告解析”，以及关键词收敛计划。当前配置见：
 
 ```text
 config/llm_scoring.json
@@ -331,6 +331,7 @@ scoring/llm_scorer.py
 scripts/probe_llm_scoring.sh
 scripts/compare_llm_scoring.sh
 scripts/compare_real_llm_scoring.sh
+scripts/summarize_keyword_convergence.sh
 ```
 
 当前规则：
@@ -342,6 +343,7 @@ scripts/compare_real_llm_scoring.sh
 - `bash scripts/probe_llm_scoring.sh` 默认不调用 DeepSeek API
 - `bash scripts/compare_llm_scoring.sh` 默认不调用 DeepSeek API
 - `bash scripts/compare_real_llm_scoring.sh` 默认不调用 ScrapeCreators 或 DeepSeek API
+- `bash scripts/summarize_keyword_convergence.sh` 默认不联网，只读取本地 V0.7.3 JSON
 - 不更新 `reports/report.md`
 - 不更新 `reports/latest.md`
 - 不进入 `reports/archive/`
@@ -417,6 +419,21 @@ local_outputs/llm_scoring_real_sample_comparison_error.md
 
 这一步只用于观察 DeepSeek 在真实 Reddit 数据里是否能补规则评分短板，并输出关键词质量判断、质检动作和报告解析。它采用风险优先抽样，会优先检查可疑和边缘样本，因此不代表关键词整体分布，也不会更新正式报告。
 
+如果要把 V0.7.3 结果整理成下一轮关键词计划：
+
+```bash
+bash scripts/summarize_keyword_convergence.sh
+```
+
+输出只写入：
+
+```text
+local_outputs/keyword_convergence_plan.md
+local_outputs/keyword_convergence_plan.json
+```
+
+这一步不会联网，不消耗 API，不自动修改 `config/scrapecreators_quality_topics.json`。它只把上一轮真实小样本质检结果整理成“保留 / 收窄 / 降噪 / 继续观察”的人工确认计划。
+
 ## live 失败时看哪里
 
 错误详情：
@@ -479,6 +496,8 @@ reports/archive/
 | `local_outputs/llm_scoring_real_sample_comparison.json` | DeepSeek 与真实 Reddit 小样本对照 JSON 输出，不进入 Git |
 | `local_outputs/llm_scoring_real_sample_comparison_state.json` | DeepSeek 与真实 Reddit 小样本对照状态，不进入 Git |
 | `local_outputs/llm_scoring_real_sample_comparison_error.md` | DeepSeek 与真实 Reddit 小样本对照失败说明，不进入 Git |
+| `local_outputs/keyword_convergence_plan.md` | V0.7.4 关键词收敛计划，不进入 Git |
+| `local_outputs/keyword_convergence_plan.json` | V0.7.4 关键词收敛计划结构化输出，不进入 Git |
 | `data/research_evidence.json` | 本地研究证据，进入报告的“研究证据”模块 |
 | `config/data_sources.json` | 数据源清单，区分可用源和预留源 |
 
@@ -498,6 +517,7 @@ reports/archive/
 - DeepSeek LLM scoring tiny probe：默认先跑 `bash scripts/probe_llm_scoring.sh`；真实运行必须用户明确同意后再加 `--confirm-live-api`
 - DeepSeek 与规则评分对照报告：默认先跑 `bash scripts/compare_llm_scoring.sh`；真实运行必须用户明确同意后再打开 `LLM_SCORING_ENABLED=on` 并加 `--confirm-live-api`
 - DeepSeek 与真实 Reddit 小样本对照报告：默认先跑 `bash scripts/compare_real_llm_scoring.sh`；真实运行会同时消耗 ScrapeCreators 和 DeepSeek 少量额度
+- 关键词收敛计划：默认跑 `bash scripts/summarize_keyword_convergence.sh`；它只读本地 JSON，不联网、不改配置
 - 提交前：确认 `git status` / GitHub Desktop changed files 中没有 `.env` 或 `local_outputs/`
 
 ## 交接给新 Agent

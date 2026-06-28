@@ -4,6 +4,33 @@
     "ceramic business",
     "AI ceramic design"
   ],
+  "quality_convergence": {
+    "version": "V0.7.4",
+    "active_topics_note": "topics 仍是当前小批量测试入口；candidate_topics 只是下一轮人工确认用候选池，不会被默认 runner 自动使用。",
+    "candidate_topics": {
+      "kiln firing": [
+        "cone 6",
+        "bisque firing",
+        "electric kiln",
+        "glaze defects",
+        "kiln schedule"
+      ],
+      "ceramic business": [
+        "Etsy pottery pricing",
+        "pottery commission",
+        "ceramic studio marketing",
+        "handmade ceramics pricing",
+        "pottery customer communication"
+      ],
+      "AI ceramic design": [
+        "AI pottery workflow",
+        "generative ceramic pattern",
+        "ceramic glaze prediction",
+        "AI glaze recipe",
+        "computational ceramics"
+      ]
+    }
+  },
   "categories": {
     "pottery_process": [
       "pottery wheel throwing",
