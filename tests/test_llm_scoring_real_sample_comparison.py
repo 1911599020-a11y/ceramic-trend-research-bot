@@ -197,13 +197,58 @@ class LLMScoringRealSampleComparisonTests(unittest.TestCase):
         self.assertEqual(summary["source_id"], "deepseek_real_sample_scoring_comparison")
         self.assertEqual(summary["counts"]["agree_high"], 1)
         self.assertEqual(summary["counts"]["llm_demoted"], 1)
+        self.assertEqual(summary["quality_gate_counts"]["进入趋势候选"], 1)
+        self.assertEqual(summary["quality_gate_counts"]["降级为噪音/低相关"], 1)
+        self.assertIn("topic_quality", summary)
+        self.assertIn("next_keyword_actions", summary)
         self.assertIn("真实 Reddit 小样本", markdown)
+        self.assertIn("## V0.7.1 质检样本质量雷达", markdown)
+        self.assertIn("sampling_strategy", summary)
+        self.assertIn("## V0.7.2 DeepSeek 局部质检", markdown)
+        self.assertIn("## V0.7.3 报告 + 解析", markdown)
         self.assertIn("正式报告未更新", text)
         self.assertFalse(self.report_file.exists())
         self.assertFalse(self.latest_file.exists())
         self.assertFalse(self.archive_dir.exists())
         fetch_real.assert_called_once()
         self.assertEqual(request_score.call_count, 2)
+
+    def test_selection_prioritizes_quality_gate_candidates(self) -> None:
+        evidence = self.module.Evidence
+        runs = [
+            (
+                "AI ceramic design",
+                [
+                    evidence("AI ceramic design", "reddit", "Generic AI ceramic render", "https://example.com/a", "", "", "aiArt", "high", 9, ""),
+                    evidence("AI ceramic design", "reddit", "AI anime video with ceramic texture", "https://example.com/b", "", "", "gaming", "high", 5, "命中跑偏词 anime"),
+                    evidence("AI ceramic design", "reddit", "Cone 6 firing help", "https://example.com/c", "", "", "Pottery", "high", 9, ""),
+                ],
+            ),
+            (
+                "kiln firing",
+                [
+                    evidence("kiln firing", "reddit", "Cone 6 firing help", "https://example.com/c", "", "", "Pottery", "high", 9, ""),
+                    evidence("kiln firing", "reddit", "Possible glaze defect", "https://example.com/d", "", "", "Pottery", "edge", 4, "未命中当前关键词意图"),
+                ],
+            ),
+        ]
+
+        selected = self.module.select_evidence_samples(runs, sample_count=4, per_topic_limit=4)
+
+        self.assertEqual(selected[0].title, "AI anime video with ceramic texture")
+        self.assertEqual(selected[1].title, "Possible glaze defect")
+        self.assertEqual(selected[2].title, "Generic AI ceramic render")
+        self.assertEqual(selected[3].title, "Cone 6 firing help")
+
+    def test_topic_quality_label_is_conservative_when_noise_is_high(self) -> None:
+        label = self.module.topic_quality_label(
+            sample_count=2,
+            agree_high=1,
+            bad_sample_count=1,
+            review=1,
+        )
+
+        self.assertEqual(label, "降噪优先")
 
     def test_sample_selection_round_robins_topics_and_deduplicates(self) -> None:
         evidence = self.module.Evidence

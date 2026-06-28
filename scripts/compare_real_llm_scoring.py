@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """Compare rule scoring with DeepSeek on real small-sample Reddit evidence.
 
-V0.7.0 keeps this as an opt-in side experiment. It can fetch a small
+V0.7.3 keeps this as an opt-in side experiment. It can fetch a small
 ScrapeCreators Reddit sample, score the same evidence with rules and DeepSeek,
-and write only to local_outputs/.
+then write a sample quality radar, partial quality gate, and analysis report
+only to local_outputs/.
 """
 
 from __future__ import annotations
@@ -33,10 +34,12 @@ from ceramic_report import (  # noqa: E402
     load_config,
     load_relevance_config,
     load_topics,
+    suggested_keywords_for_topic,
 )
 from compare_llm_scoring import (  # noqa: E402
     aggregate_counts,
     build_row,
+    escape_cell,
     render_comparison_markdown,
 )
 from probe_llm_scoring import (  # noqa: E402
@@ -72,7 +75,7 @@ from sources.scrapecreators_source import (  # noqa: E402
 
 SOURCE_ID = "deepseek_real_sample_scoring_comparison"
 DEFAULT_TOPICS_PATH = PROJECT_ROOT / "config" / "scrapecreators_quality_topics.json"
-DEFAULT_SAMPLE_COUNT = 8
+DEFAULT_SAMPLE_COUNT = 10
 MAX_SAMPLE_COUNT = 12
 DEFAULT_PER_TOPIC_LIMIT = 4
 EXPECTED_OUTPUTS = {
@@ -81,6 +84,11 @@ EXPECTED_OUTPUTS = {
     "json-output": LOCAL_OUTPUTS_DIR / "llm_scoring_real_sample_comparison.json",
     "error-file": LOCAL_OUTPUTS_DIR / "llm_scoring_real_sample_comparison_error.md",
 }
+SAMPLING_STRATEGY = "risk_prioritized_quality_check"
+SAMPLING_STRATEGY_NOTE = (
+    "本报告优先抽查 AI 意图风险、边缘相关、低把握高分和跑偏信号样本；"
+    "它用于质检，不代表关键词整体分布。"
+)
 
 
 @dataclass(frozen=True)
@@ -167,6 +175,51 @@ def evidence_to_llm_input(evidence: Evidence) -> LLMScoringInput:
     )
 
 
+def evidence_risk_flags(evidence: Evidence) -> list[str]:
+    text = " ".join(
+        [
+            evidence.topic,
+            evidence.title,
+            evidence.snippet,
+            evidence.subreddit,
+            evidence.relevance_notes,
+        ]
+    ).lower()
+    flags: list[str] = []
+    if evidence.relevance_level == "edge":
+        flags.append("edge_relevance")
+    if evidence.relevance_level == "low":
+        flags.append("low_relevance")
+    if "ai" in evidence.topic.lower():
+        flags.append("ai_intent_risk")
+    if evidence.relevance_level == "high" and evidence.relevance_score <= 6:
+        flags.append("rule_high_low_margin")
+    if "未命中当前关键词意图" in evidence.relevance_notes or "required" in text:
+        flags.append("intent_mismatch")
+    if "跑偏词" in evidence.relevance_notes or any(
+        term in text for term in ("anime", "gaming", "cosplay", "fnaf", "naruto", "ordinary ai video")
+    ):
+        flags.append("noise_signal")
+    return flags
+
+
+def quality_gate_priority(evidence: Evidence) -> tuple[int, int]:
+    flags = evidence_risk_flags(evidence)
+    if evidence.relevance_level == "high" and "noise_signal" in flags:
+        priority = 120
+    elif evidence.relevance_level == "high" and flags:
+        priority = 110
+    elif evidence.relevance_level == "edge":
+        priority = 100
+    elif evidence.relevance_level == "low" and flags:
+        priority = 85
+    elif evidence.relevance_level == "high":
+        priority = 70
+    else:
+        priority = 45
+    return priority, evidence.relevance_score
+
+
 def normalized_title_key(title: str) -> str:
     text = title.strip().lower()
     text = re.sub(r"[^a-z0-9]+", " ", text)
@@ -180,22 +233,24 @@ def select_evidence_samples(
     per_topic_limit: int,
 ) -> list[LLMScoringInput]:
     buckets: list[list[Evidence]] = []
-    seen_keys: set[tuple[str, str]] = set()
+    seen_urls: set[str] = set()
+    seen_titles: set[str] = set()
     for _topic, evidence_items in runs:
         topic_items = sorted(
             evidence_items,
-            key=lambda item: (
-                {"high": 3, "edge": 2, "low": 1}.get(item.relevance_level, 0),
-                item.relevance_score,
-            ),
+            key=quality_gate_priority,
             reverse=True,
         )
         unique_topic_items: list[Evidence] = []
         for evidence in topic_items:
-            key = (evidence.topic.strip().lower(), normalized_title_key(evidence.title))
-            if key in seen_keys:
+            url_key = evidence.url.strip().lower()
+            title_key = normalized_title_key(evidence.title)
+            if (url_key and url_key in seen_urls) or (title_key and title_key in seen_titles):
                 continue
-            seen_keys.add(key)
+            if url_key:
+                seen_urls.add(url_key)
+            if title_key:
+                seen_titles.add(title_key)
             unique_topic_items.append(evidence)
             if len(unique_topic_items) >= per_topic_limit:
                 break
@@ -307,6 +362,7 @@ def success_summary(
     topics: list[str],
     rows: list[dict[str, Any]],
 ) -> dict[str, Any]:
+    quality_profiles = topic_quality_profiles(rows, topics)
     return {
         "source_id": SOURCE_ID,
         "status": "success",
@@ -316,7 +372,12 @@ def success_summary(
         "requested_at": requested_at,
         "data_source": "scrapecreators_reddit",
         "topics": topics,
+        "sampling_strategy": SAMPLING_STRATEGY,
+        "sampling_strategy_note": SAMPLING_STRATEGY_NOTE,
         "counts": aggregate_counts(rows),
+        "quality_gate_counts": quality_gate_counts(rows),
+        "topic_quality": quality_profiles,
+        "next_keyword_actions": next_keyword_actions(quality_profiles),
         "results": rows,
         "report_files_updated": False,
     }
@@ -363,6 +424,303 @@ def fetch_real_samples(
         runs,
         sample_count=sample_count,
         per_topic_limit=per_topic_limit,
+    )
+
+
+def quality_gate_action(row: Mapping[str, Any]) -> str:
+    alignment = str(row.get("alignment", ""))
+    sample = row.get("sample") or {}
+    result = row.get("llm_result") or {}
+    combined = row.get("combined") or {}
+    if alignment.startswith("DeepSeek 降级") or result.get("is_noise") or result.get("ceramic_relevance") == "low":
+        return "降级为噪音/低相关"
+    if alignment == "一致高相关" and combined.get("level") == "high":
+        return "进入趋势候选"
+    if alignment.startswith("DeepSeek 提醒"):
+        return "人工复核：可能漏判"
+    if alignment == "陶瓷相关但不宜入趋势":
+        return "保留为背景，不进入趋势"
+    if result.get("ceramic_relevance") == "edge" or alignment in {"边缘相关，建议人工复核", "需要人工复核"}:
+        return "人工复核：边缘证据"
+    if "ai" in str(sample.get("topic", "")).lower() and result.get("keyword_intent_match") != "high":
+        return "人工复核：AI 意图不清"
+    return "观察"
+
+
+def add_quality_gate_fields(row: dict[str, Any]) -> dict[str, Any]:
+    quality_gate = quality_gate_action(row)
+    review_required = quality_gate.startswith("人工复核") or quality_gate.startswith("降级")
+    row["quality_gate"] = {
+        "action": quality_gate,
+        "review_required": review_required,
+        "formal_report_policy": formal_report_policy_for_action(quality_gate),
+    }
+    return row
+
+
+def formal_report_policy_for_action(action: str) -> str:
+    if action == "进入趋势候选":
+        return "可进入正式报告趋势候选，但仍需满足高相关证据数量门槛。"
+    if action.startswith("降级"):
+        return "不进入趋势判断，只用于过滤规则复盘。"
+    if action.startswith("人工复核"):
+        return "暂不自动进入趋势判断，建议人工确认后再使用。"
+    if action.startswith("保留为背景"):
+        return "可作为背景观察，不作为趋势结论。"
+    return "仅作为观察方向。"
+
+
+def quality_gate_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for row in rows:
+        action = str((row.get("quality_gate") or {}).get("action") or quality_gate_action(row))
+        counts[action] = counts.get(action, 0) + 1
+    return counts
+
+
+def topic_quality_profiles(rows: list[dict[str, Any]], topics: list[str]) -> list[dict[str, Any]]:
+    by_topic: dict[str, list[dict[str, Any]]] = {topic: [] for topic in topics}
+    for row in rows:
+        topic = str((row.get("sample") or {}).get("topic", "")).strip()
+        by_topic.setdefault(topic, []).append(row)
+
+    profiles: list[dict[str, Any]] = []
+    for topic, topic_rows in by_topic.items():
+        sample_count = len(topic_rows)
+        agree_high = sum(1 for row in topic_rows if row.get("alignment") == "一致高相关")
+        demoted = sum(1 for row in topic_rows if str(row.get("alignment", "")).startswith("DeepSeek 降级"))
+        noise = sum(1 for row in topic_rows if (row.get("llm_result") or {}).get("is_noise"))
+        bad_sample_count = sum(1 for row in topic_rows if is_bad_sample(row))
+        review = sum(1 for row in topic_rows if (row.get("quality_gate") or {}).get("review_required"))
+        support_trend = sum(1 for row in topic_rows if (row.get("llm_result") or {}).get("can_support_trend"))
+        confidence_values = [
+            int((row.get("llm_result") or {}).get("confidence") or 0)
+            for row in topic_rows
+        ]
+        avg_confidence = round(sum(confidence_values) / len(confidence_values)) if confidence_values else 0
+        quality_label = topic_quality_label(
+            sample_count=sample_count,
+            agree_high=agree_high,
+            bad_sample_count=bad_sample_count,
+            review=review,
+        )
+        profiles.append(
+            {
+                "topic": topic,
+                "sample_count": sample_count,
+                "agree_high": agree_high,
+                "support_trend": support_trend,
+                "demoted": demoted,
+                "noise": noise,
+                "bad_sample_count": bad_sample_count,
+                "review_required": review,
+                "average_confidence": avg_confidence,
+                "quality_label": quality_label,
+                "recommendation": topic_quality_recommendation(topic, quality_label),
+                "suggested_keywords": suggested_keywords_for_topic(topic),
+            }
+        )
+    return profiles
+
+
+def topic_quality_label(
+    *,
+    sample_count: int,
+    agree_high: int,
+    bad_sample_count: int,
+    review: int,
+) -> str:
+    if sample_count == 0:
+        return "未采样"
+    if agree_high >= 2 and demoted == 0 and noise == 0:
+        return "可保留"
+    if bad_sample_count >= max(1, sample_count // 2):
+        return "降噪优先"
+    if agree_high >= 1:
+        return "保留但需收窄"
+    return "继续观察"
+
+
+def topic_quality_recommendation(topic: str, label: str) -> str:
+    lowered = topic.lower()
+    if label == "可保留":
+        return "保留当前关键词，下轮继续观察是否连续出现同类高相关证据。"
+    if "ai" in lowered:
+        return "把宽泛 AI 词收窄到陶瓷工作流、纹样、釉料预测、3D 打印或 prompt 到工艺落地。"
+    if "business" in lowered or "studio" in lowered:
+        return "增加定价、Etsy、commission、客户沟通、工作室营销等经营意图词。"
+    if "kiln" in lowered or "firing" in lowered:
+        return "保留烧成方向，并加入 cone、bisque、electric kiln、glaze defects 等更具体问题词。"
+    if label == "降噪优先":
+        return "先收窄关键词，不建议扩大样本；否则会继续放大噪音。"
+    return "继续小样本观察，等出现更多高相关证据后再进入正式趋势判断。"
+
+
+def next_keyword_actions(profiles: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    actions: list[dict[str, Any]] = []
+    for profile in profiles:
+        label = str(profile["quality_label"])
+        if label == "可保留":
+            action = "keep"
+        elif label == "保留但需收窄":
+            action = "narrow"
+        elif label == "降噪优先":
+            action = "de-noise"
+        elif label == "未采样":
+            action = "sample_next"
+        else:
+            action = "observe"
+        actions.append(
+            {
+                "topic": profile["topic"],
+                "action": action,
+                "suggested_keywords": profile["suggested_keywords"][:5],
+                "reason": profile["recommendation"],
+            }
+        )
+    return actions
+
+
+def render_real_sample_markdown(
+    *,
+    requested_at: str,
+    model: str,
+    base_url: str,
+    rows: list[dict[str, Any]],
+    topics: list[str],
+) -> str:
+    base = render_comparison_markdown(
+        requested_at=requested_at,
+        model=model,
+        base_url=base_url,
+        rows=rows,
+        title="DeepSeek 与真实 Reddit 小样本规则评分对照报告",
+        description="这是 V0.7.3 报告 + 解析旁路对照，不是正式趋势报告。",
+    ).rstrip()
+    profiles = topic_quality_profiles(rows, topics)
+    gate_counts = quality_gate_counts(rows)
+    lines = [
+        base,
+        "",
+        "## V0.7.1 质检样本质量雷达",
+        "",
+        f"> 抽样说明：{SAMPLING_STRATEGY_NOTE}",
+        "",
+        "| 关键词 | 样本数 | 一致高相关 | 可支撑趋势 | 降级/噪音 | 需复核 | 平均置信度 | 质量判断 | 建议 |",
+        "|---|---:|---:|---:|---:|---:|---:|---|---|",
+    ]
+    for profile in profiles:
+        lines.append(
+            "| {topic} | {sample_count} | {agree_high} | {support_trend} | {bad} | {review} | {confidence} | {label} | {recommendation} |".format(
+                topic=escape_cell(str(profile["topic"])),
+                sample_count=profile["sample_count"],
+                agree_high=profile["agree_high"],
+                support_trend=profile["support_trend"],
+                bad=profile["bad_sample_count"],
+                review=profile["review_required"],
+                confidence=profile["average_confidence"],
+                label=escape_cell(str(profile["quality_label"])),
+                recommendation=escape_cell(str(profile["recommendation"])),
+            )
+        )
+
+    lines.extend(
+        [
+            "",
+            "## V0.7.2 DeepSeek 局部质检",
+            "",
+            "本轮 DeepSeek 只用于真实小样本旁路质检，不接管正式报告。质检动作统计：",
+            "",
+        ]
+    )
+    if gate_counts:
+        for action, count in sorted(gate_counts.items()):
+            lines.append(f"- {action}：{count} 条。")
+    else:
+        lines.append("- 暂无可质检样本。")
+
+    lines.extend(
+        [
+            "",
+            "| 关键词 | 标题 | 质检动作 | 正式报告策略 |",
+            "|---|---|---|---|",
+        ]
+    )
+    for row in rows:
+        sample = row["sample"]
+        gate = row.get("quality_gate") or {}
+        lines.append(
+            "| {topic} | {title} | {action} | {policy} |".format(
+                topic=escape_cell(sample["topic"]),
+                title=escape_cell(sample["title"]),
+                action=escape_cell(str(gate.get("action") or quality_gate_action(row))),
+                policy=escape_cell(str(gate.get("formal_report_policy") or "")),
+            )
+        )
+
+    lines.extend(
+        [
+            "",
+            "## V0.7.3 报告 + 解析",
+            "",
+        ]
+    )
+    analysis = report_analysis_lines(rows, profiles)
+    for line in analysis:
+        lines.append(f"- {line}")
+    lines.extend(
+        [
+            "",
+            "## 下一轮关键词动作",
+            "",
+        ]
+    )
+    for action in next_keyword_actions(profiles):
+        keywords = "、".join(f"`{term}`" for term in action["suggested_keywords"])
+        lines.append(
+            f"- **{action['topic']}**：动作 `{action['action']}`。{action['reason']} 建议词：{keywords}。"
+        )
+    return "\n".join(lines) + "\n"
+
+
+def report_analysis_lines(rows: list[dict[str, Any]], profiles: list[dict[str, Any]]) -> list[str]:
+    counts = aggregate_counts(rows)
+    lines: list[str] = []
+    total = counts["total"]
+    if total == 0:
+        return ["本轮没有可解析样本，不适合做报告质量判断。"]
+    lines.append(
+        f"本轮解析 {total} 条真实 Reddit 小样本；其中一致高相关 {counts['agree_high']} 条，DeepSeek 降级 {counts['llm_demoted']} 条，一致低相关或噪音 {counts['agree_low_or_noise']} 条。"
+    )
+    lines.append(SAMPLING_STRATEGY_NOTE)
+    strong_topics = [profile for profile in profiles if profile["quality_label"] == "可保留"]
+    noisy_topics = [profile for profile in profiles if profile["quality_label"] == "降噪优先"]
+    if strong_topics:
+        lines.append(
+            "可优先进入正式报告观察池的关键词是："
+            + "、".join(str(profile["topic"]) for profile in strong_topics)
+            + "。"
+        )
+    else:
+        lines.append("本轮还没有足够稳定的关键词可以直接升级为确定趋势。")
+    if noisy_topics:
+        lines.append(
+            "需要优先降噪的关键词是："
+            + "、".join(str(profile["topic"]) for profile in noisy_topics)
+            + "，下轮应先收窄搜索词。"
+        )
+    lines.append("跑偏样本和人工复核样本只能用于改进过滤规则，不能进入趋势判断。")
+    lines.append("这份解析的作用是帮助你决定下一轮搜什么、少搜什么，而不是替代正式中文趋势报告。")
+    return lines
+
+
+def is_bad_sample(row: Mapping[str, Any]) -> bool:
+    alignment = str(row.get("alignment", ""))
+    result = row.get("llm_result") or {}
+    return (
+        alignment.startswith("DeepSeek 降级")
+        or bool(result.get("is_noise"))
+        or result.get("ceramic_relevance") == "low"
     )
 
 
@@ -544,7 +902,7 @@ def main(
                 timeout=args.timeout,
             )
             result = parse_deepseek_score_response(payload)
-            rows.append(build_row(item, result))
+            rows.append(add_quality_gate_fields(build_row(item, result)))
 
         state = base_state(
             status="success",
@@ -565,13 +923,12 @@ def main(
         write_json(paths.json_file, summary)
         paths.output_file.parent.mkdir(parents=True, exist_ok=True)
         paths.output_file.write_text(
-            render_comparison_markdown(
+            render_real_sample_markdown(
                 requested_at=requested_at,
                 model=model,
                 base_url=base_url,
                 rows=rows,
-                title="DeepSeek 与真实 Reddit 小样本规则评分对照报告",
-                description="这是 V0.7.0 真实小样本旁路对照报告，不是正式趋势报告。",
+                topics=topics,
             ),
             encoding="utf-8",
         )

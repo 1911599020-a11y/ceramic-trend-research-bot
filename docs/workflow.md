@@ -322,7 +322,7 @@ python scripts/summarize_keyword_quality.py
 
 ### 14. DeepSeek 智能评分 tiny probe / 对照报告
 
-V0.7.0 新增 DeepSeek 智能评分 tiny probe、内置样本对照报告和真实 Reddit/ScrapeCreators 小样本对照报告。当前配置见：
+V0.7.3 新增 DeepSeek 智能评分 tiny probe、内置样本对照报告，以及真实 Reddit/ScrapeCreators 小样本的“质量雷达 / 局部质检 / 报告解析”。当前配置见：
 
 ```text
 config/llm_scoring.json
@@ -400,10 +400,10 @@ local_outputs/llm_scoring_comparison_error.md
 bash scripts/compare_real_llm_scoring.sh
 ```
 
-真实运行会同时消耗 ScrapeCreators 和 DeepSeek 的少量额度，必须打开开关并加确认参数：
+真实运行会同时消耗 ScrapeCreators 和 DeepSeek 的少量额度，必须打开开关并加确认参数。注意：`--sample-count` 控制的是 DeepSeek 分析样本数；ScrapeCreators 请求数约等于本轮关键词数量，目前默认质量测试配置是 3 个关键词。
 
 ```bash
-LLM_SCORING_ENABLED=on bash scripts/compare_real_llm_scoring.sh --confirm-live-api --sample-count 8
+LLM_SCORING_ENABLED=on bash scripts/compare_real_llm_scoring.sh --confirm-live-api --sample-count 10
 ```
 
 真实小样本对照报告只写入：
@@ -415,7 +415,7 @@ local_outputs/llm_scoring_real_sample_comparison_state.json
 local_outputs/llm_scoring_real_sample_comparison_error.md
 ```
 
-这一步只用于观察 DeepSeek 在真实 Reddit 数据里是否能补规则评分短板，不会更新正式报告。
+这一步只用于观察 DeepSeek 在真实 Reddit 数据里是否能补规则评分短板，并输出关键词质量判断、质检动作和报告解析。它采用风险优先抽样，会优先检查可疑和边缘样本，因此不代表关键词整体分布，也不会更新正式报告。
 
 ## live 失败时看哪里
 

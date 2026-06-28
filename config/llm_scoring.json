@@ -1,5 +1,5 @@
 {
-  "version": "V0.7.0",
+  "version": "V0.7.3",
   "enabled": false,
   "switch_env_var": "LLM_SCORING_ENABLED",
   "enabled_values": ["on", "true", "1", "yes"],
@@ -16,6 +16,9 @@
     "V0.6.8.1 requires LLM_SCORING_ENABLED=on plus --confirm-live-api before any DeepSeek request.",
     "V0.6.9 adds a separate rule-vs-DeepSeek comparison report under local_outputs/.",
     "V0.7.0 adds a real ScrapeCreators Reddit small-sample rule-vs-DeepSeek comparison report.",
+    "V0.7.1 improves real sample quality selection and topic quality summaries.",
+    "V0.7.2 adds DeepSeek partial quality-gate labels for suspicious or edge samples.",
+    "V0.7.3 adds report-plus-analysis sections to the side comparison report.",
     "The probe writes only to local_outputs/llm_scoring_probe.md and related local_outputs files.",
     "The comparison report writes only to local_outputs/llm_scoring_comparison.md and related local_outputs files.",
     "The real sample comparison writes only to local_outputs/llm_scoring_real_sample_comparison.md and related local_outputs files."
