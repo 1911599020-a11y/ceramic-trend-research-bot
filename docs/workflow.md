@@ -90,6 +90,29 @@ local_outputs/youtube_probe_error.md
 它不会更新 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。V0.8.0 只是验证 YouTube
 入口是否可用，`youtube_future` 仍是 planned source，正式报告不会调用 YouTube。
 
+YouTube 字段整理和 DeepSeek 旁路审核：
+
+```bash
+bash scripts/review_youtube_probe.sh
+```
+
+默认只读取 `local_outputs/youtube_probe.json`，不联网，不消耗 DeepSeek 额度，输出：
+
+```text
+local_outputs/youtube_probe_review.md
+local_outputs/youtube_probe_review.json
+local_outputs/youtube_probe_review_state.json
+local_outputs/youtube_probe_review_error.md
+```
+
+如果用户明确同意消耗少量 DeepSeek 额度，可以运行：
+
+```bash
+LLM_SCORING_ENABLED=on bash scripts/review_youtube_probe.sh --confirm-live-api --sample-count 3
+```
+
+这一步只审核 YouTube Search 摘要，不拉 video details、transcript 或 comments，不更新正式报告。
+
 本地研究证据：
 
 ```text
@@ -281,6 +304,23 @@ local_outputs/youtube_probe.json
 local_outputs/youtube_probe_state.json
 local_outputs/youtube_probe_error.md
 ```
+
+### 11.2 整理 YouTube 字段并做 DeepSeek 旁路审核
+
+默认不联网：
+
+```bash
+bash scripts/review_youtube_probe.sh
+```
+
+真实 DeepSeek 审核必须用户明确同意，并且打开开关：
+
+```bash
+LLM_SCORING_ENABLED=on bash scripts/review_youtube_probe.sh --confirm-live-api --sample-count 3
+```
+
+这一步的作用是判断 Search 摘要字段是否稳定，以及 DeepSeek 是否认为这些视频真能作为陶瓷趋势候选。
+如果样本高相关且字段稳定，下一步才进入 video details tiny probe。
 
 ### 12. 显式使用 ScrapeCreators 正式 live 数据源
 
