@@ -322,6 +322,60 @@ LLM_SCORING_ENABLED=on bash scripts/review_youtube_probe.sh --confirm-live-api -
 这一步的作用是判断 Search 摘要字段是否稳定，以及 DeepSeek 是否认为这些视频真能作为陶瓷趋势候选。
 如果样本高相关且字段稳定，下一步才进入 video details tiny probe。
 
+### 11.3 运行 YouTube Video Details tiny probe
+
+默认保护检查不联网：
+
+```bash
+bash scripts/probe_scrapecreators_youtube_video.sh
+```
+
+真实 video details 小测试必须用户明确同意：
+
+```bash
+bash scripts/probe_scrapecreators_youtube_video.sh --confirm-live-api
+```
+
+它会从 `local_outputs/youtube_probe_review.json` 里选择 DeepSeek 判断高相关的视频 URL，只请求 1 条
+YouTube Video Details。结果只写：
+
+```text
+local_outputs/youtube_video_probe.json
+local_outputs/youtube_video_probe_state.json
+local_outputs/youtube_video_probe_error.md
+```
+
+本阶段不拉 transcript，不拉 comments，不保存原始响应，不更新正式报告。
+短 description 只保存字符数，长 description 只保存确定被截断并去掉链接的摘要。
+
+### 11.4 整理 YouTube Video Details 字段并做 DeepSeek 旁路审核
+
+默认不联网：
+
+```bash
+bash scripts/review_youtube_video_probe.sh
+```
+
+真实 DeepSeek 审核必须用户明确同意，并且打开开关：
+
+```bash
+LLM_SCORING_ENABLED=on bash scripts/review_youtube_video_probe.sh --confirm-live-api
+```
+
+这一步判断 video details 是否真的提升了语义审核质量。只有 details 层有明显增益时，才继续规划
+transcript tiny probe；comments 仍然放在更后面。
+
+结果和错误只看：
+
+```text
+local_outputs/youtube_video_review.md
+local_outputs/youtube_video_review.json
+local_outputs/youtube_video_review_state.json
+local_outputs/youtube_video_review_error.md
+```
+
+这一步仍然不会更新 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。
+
 ### 12. 显式使用 ScrapeCreators 正式 live 数据源
 
 只有在确认愿意消耗 ScrapeCreators API 额度时才运行：

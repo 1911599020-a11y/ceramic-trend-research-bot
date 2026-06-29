@@ -11,8 +11,8 @@
 - `--mode mock`：读取仓库内 `data/mock_samples.json`，零配置、零联网，用于验证报告结构与版式。
 - `--mode live`：默认接入 Reddit（经由外部 `last30days-skill` 子进程），也可显式选择 ScrapeCreators Reddit API，并按陶瓷相关性分层。
 - 当前架构基础：**V0.5.0 — 数据源适配层（data-source adapter）**。详见 `docs/changes/0001-data-source-adapter.md`。
-  当前运行选择：**V0.8.3 — YouTube Search 字段整理 + DeepSeek 旁路审核**，`auto` live 仍默认 `reddit_last30days`；正式报告仍只使用规则评分。
-  注意：V0.8.3 是独立旁路探针/审核版本，不提升 `ceramic_report.py` 的 `REPORT_VERSION`；正式报告生成版本仍保持 V0.6.6。
+  当前运行选择：**V0.8.6 — YouTube video details tiny probe + DeepSeek 旁路审核准备**，`auto` live 仍默认 `reddit_last30days`；正式报告仍只使用规则评分。
+  注意：V0.8.6 是独立旁路探针/审核版本，不提升 `ceramic_report.py` 的 `REPORT_VERSION`；正式报告生成版本仍保持 V0.6.6。
   当前 LLM 状态：`scoring/llm_scorer.py`、`config/llm_scoring.json`、`prompts/llm_scoring_prompt.md` 定义评分契约；`scripts/probe_llm_scoring.sh` 默认 dry-run，不联网。
   DeepSeek tiny probe、评分对照报告和真实小样本对照报告真实运行必须用户明确同意、打开 `LLM_SCORING_ENABLED=on` 并加 `--confirm-live-api`，输出只写入 `local_outputs/llm_scoring_probe.*`、`local_outputs/llm_scoring_comparison.*` 或 `local_outputs/llm_scoring_real_sample_comparison.*`，不写正式 reports。
   真实小样本对照采用风险优先抽样，用于质检，不代表关键词整体分布；`--sample-count` 控制 DeepSeek 分析样本数，ScrapeCreators 请求数约等于本轮关键词数量。
@@ -43,6 +43,8 @@ docs/changes/                 # 变更记录（每个改动一份编号文档）
 scripts/probe_scrapecreators_reddit.py  # 独立 tiny probe，只写 local_outputs/
 scripts/probe_scrapecreators_youtube.py # YouTube Search 独立 tiny probe，只写 local_outputs/
 scripts/review_youtube_probe.py         # YouTube Search 字段质量和 DeepSeek 旁路审核，只写 local_outputs/
+scripts/probe_scrapecreators_youtube_video.py # YouTube Video Details 独立 tiny probe，只写 local_outputs/
+scripts/review_youtube_video_probe.py         # YouTube Video Details 字段质量和 DeepSeek 旁路审核，只写 local_outputs/
 scripts/run_scrapecreators_live.sh      # ScrapeCreators 正式 live runner，默认单关键词，带额度保护
 scripts/run_keyword_quality_check.sh    # 小批量关键词质量 runner，默认 dry-run，只写 local_outputs/
 scripts/summarize_keyword_quality.py    # 从测试报告生成关键词质量摘要
@@ -80,6 +82,13 @@ transcript 或 comments，不得保存原始响应、description 全文或 conti
 `local_outputs/youtube_probe.json` 并输出字段质量报告；真实 DeepSeek 审核必须打开
 `LLM_SCORING_ENABLED=on` 并加 `--confirm-live-api`。它不得读取 YouTube 原始响应，不得请求 video details、
 transcript 或 comments，不得更新正式 reports。
+`scripts/probe_scrapecreators_youtube_video.py` 是 V0.8.4 的独立 YouTube Video Details tiny probe，
+默认只选择候选 URL，不联网；真实请求必须加 `--confirm-live-api`。它只请求 1 条视频详情，输出只能写
+`local_outputs/youtube_video_probe.*`，不得保存原始响应、完整 description、字幕链接、watch-next 列表、
+transcript 或 comments。
+`scripts/review_youtube_video_probe.py` 是 V0.8.5/V0.8.6 的独立字段整理和 DeepSeek 旁路审核脚本，
+默认不联网；真实 DeepSeek 审核必须打开 `LLM_SCORING_ENABLED=on` 并加 `--confirm-live-api`。
+它不得更新正式 reports，也不得启用 `youtube_future`。
 进入真实 key-backed live 前，必须先阅读并遵守 `docs/live-readiness-checklist.md`。
 维护 ScrapeCreators tiny probe 前，必须先阅读 `docs/plans/2026-06-25-scrapecreators-tiny-probe.md`；
 不得猜测 API endpoint 或 response shape。tiny probe 不得更新 `reports/report.md`、`reports/latest.md`
@@ -134,6 +143,18 @@ bash scripts/review_youtube_probe.sh
 # YouTube probe DeepSeek 旁路审核（必须用户明确同意后才运行）
 LLM_SCORING_ENABLED=on bash scripts/review_youtube_probe.sh --confirm-live-api --sample-count 3
 
+# YouTube video details tiny probe 默认保护检查（不联网）
+bash scripts/probe_scrapecreators_youtube_video.sh
+
+# YouTube video details tiny probe 真实小测试（必须用户明确同意后才运行）
+bash scripts/probe_scrapecreators_youtube_video.sh --confirm-live-api
+
+# YouTube video details 字段整理（默认不联网）
+bash scripts/review_youtube_video_probe.sh
+
+# YouTube video details DeepSeek 旁路审核（必须用户明确同意后才运行）
+LLM_SCORING_ENABLED=on bash scripts/review_youtube_video_probe.sh --confirm-live-api
+
 # ScrapeCreators 正式 live（默认单关键词，显式选择，可能消耗 API 额度）
 bash scripts/run_scrapecreators_live.sh
 
@@ -165,6 +186,8 @@ bash scripts/summarize_keyword_convergence.sh
 - `tests/test_scrapecreators_probe.py`：tiny probe 的默认不联网、缺 key、limit、HTTP 错误分类和脱敏摘要。
 - `tests/test_scrapecreators_youtube_probe.py`：YouTube tiny probe 的默认不联网、缺 key、输出保护、单 Search 请求、HTTP 错误分类和脱敏摘要。
 - `tests/test_youtube_probe_review.py`：YouTube probe 字段整理、DeepSeek 旁路审核的开关保护、输出保护和错误分类。
+- `tests/test_youtube_video_probe.py`：YouTube Video Details tiny probe 的默认不联网、缺 key、输出保护、单请求、摘要脱敏和错误分类。
+- `tests/test_youtube_video_review.py`：YouTube Video Details 字段整理、DeepSeek 旁路审核的开关保护、输出保护和错误分类。
 - `tests/test_scrapecreators_source.py`：ScrapeCreators readiness、`.env` 读取、API 响应转换和 key 脱敏。
 - `tests/test_llm_scoring.py`：V0.6.7 智能评分接口、JSON schema、mock scorer 和规则/LLM 合并契约。
 - `tests/test_llm_scoring_probe.py`：DeepSeek tiny probe 的默认不联网、缺 key、输出路径保护、HTTP 错误分类和脱敏摘要。
