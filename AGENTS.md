@@ -13,6 +13,7 @@
 - 当前架构基础：**V0.5.0 — 数据源适配层（data-source adapter）**。详见 `docs/changes/0001-data-source-adapter.md`。
   当前运行选择：**V0.8.6 — YouTube video details tiny probe + DeepSeek 旁路审核准备**，`auto` live 仍默认 `reddit_last30days`；正式报告仍只使用规则评分。
   注意：V0.8.6 是独立旁路探针/审核版本，不提升 `ceramic_report.py` 的 `REPORT_VERSION`；正式报告生成版本仍保持 V0.6.6。
+  V0.8.7-lite 是 YouTube 转正决策备忘录：当前判断为 `wait`，YouTube 仍保持 planned/opt-in，不能成为默认 live source。
   当前 LLM 状态：`scoring/llm_scorer.py`、`config/llm_scoring.json`、`prompts/llm_scoring_prompt.md` 定义评分契约；`scripts/probe_llm_scoring.sh` 默认 dry-run，不联网。
   DeepSeek tiny probe、评分对照报告和真实小样本对照报告真实运行必须用户明确同意、打开 `LLM_SCORING_ENABLED=on` 并加 `--confirm-live-api`，输出只写入 `local_outputs/llm_scoring_probe.*`、`local_outputs/llm_scoring_comparison.*` 或 `local_outputs/llm_scoring_real_sample_comparison.*`，不写正式 reports。
   真实小样本对照采用风险优先抽样，用于质检，不代表关键词整体分布；`--sample-count` 控制 DeepSeek 分析样本数，ScrapeCreators 请求数约等于本轮关键词数量。
