@@ -60,6 +60,36 @@ docs/plans/2026-06-25-scrapecreators-tiny-probe.md
 
 这份方案已经落地为独立 tiny probe。默认运行不会联网；只有显式确认时才会发起一次极小 ScrapeCreators Reddit API 请求。
 
+YouTube tiny probe：
+
+```bash
+bash scripts/probe_scrapecreators_youtube.sh
+```
+
+默认运行不联网，只写：
+
+```text
+local_outputs/youtube_probe_state.json
+```
+
+真实 YouTube Search 小测试必须由用户明确同意后再运行：
+
+```bash
+bash scripts/probe_scrapecreators_youtube.sh --confirm-live-api --query "ceramic glaze"
+```
+
+它只做一次 ScrapeCreators YouTube Search 请求，不追分页，不拉 video details、transcript 或 comments。
+输出只写：
+
+```text
+local_outputs/youtube_probe.json
+local_outputs/youtube_probe_state.json
+local_outputs/youtube_probe_error.md
+```
+
+它不会更新 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。V0.8.0 只是验证 YouTube
+入口是否可用，`youtube_future` 仍是 planned source，正式报告不会调用 YouTube。
+
 本地研究证据：
 
 ```text
@@ -228,6 +258,29 @@ local_outputs/scrapecreators_probe_error.md
 ```
 
 如果遇到 401、403、429、quota/billing、timeout 或 network error，先看 error 文件，不要连续重复请求。
+
+### 11.1 运行 YouTube Search tiny probe
+
+默认保护检查不联网：
+
+```bash
+bash scripts/probe_scrapecreators_youtube.sh
+```
+
+只有用户明确同意消耗一次 ScrapeCreators YouTube Search 请求时才运行：
+
+```bash
+bash scripts/probe_scrapecreators_youtube.sh --confirm-live-api --query "ceramic glaze"
+```
+
+这一步只验证 YouTube Search API 是否可用，不拉字幕、不拉评论、不接 DeepSeek、不写正式报告。
+结果和错误只看：
+
+```text
+local_outputs/youtube_probe.json
+local_outputs/youtube_probe_state.json
+local_outputs/youtube_probe_error.md
+```
 
 ### 12. 显式使用 ScrapeCreators 正式 live 数据源
 

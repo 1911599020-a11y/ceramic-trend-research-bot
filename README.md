@@ -4,9 +4,15 @@
 
 ## Current Status
 
-V0.7.5 是 **关键词配置收敛版本**，建立在 V0.7.4 关键词质量收敛计划之上：
+V0.8.0 是 **YouTube tiny probe 版本**，建立在 V0.7.5 关键词配置收敛之上：
 
 - 注意：V0.7.5 仍是独立旁路分析版本，不提升正式报告生成版本；`ceramic_report.py` 的 `REPORT_VERSION` 仍保持 `V0.6.6`，因为正式报告流程没有接入 LLM scoring。
+- 注意：V0.8.0 也是独立旁路探针版本，不提升正式报告生成版本；正式报告仍只使用规则评分和当前已启用数据源。
+- 新增 `scripts/probe_scrapecreators_youtube.py` / `.sh`，用于 ScrapeCreators YouTube Search tiny probe。
+- YouTube tiny probe 默认 dry-run，不联网；真实请求必须显式加 `--confirm-live-api`。
+- YouTube tiny probe 每次真实运行只做 1 次 Search 请求，不追分页，不拉 video details、transcript 或 comments。
+- YouTube tiny probe 只保存最多 3 条摘要到 `local_outputs/youtube_probe.*`，不保存原始响应，不更新正式 reports。
+- `youtube_future` 仍保持 planned，不会被 `--data-source auto` 或正式报告调用；DeepSeek 也不参与 V0.8.0。
 - 新增 `sources/` 适配层，定义统一的 `TrendSource` 契约：`fetch(topic, *, recommended_subreddits)`，输出统一的 `last30days` 形状报告 dict
 - 新增 `scoring/llm_scorer.py`，为后续大模型辅助打分定义结构化输入、输出、mock scorer 和规则/LLM 合并结果
 - 新增 `config/llm_scoring.json`，默认 `enabled=false`、`provider=deepseek`、`mode=design_only`，并用 `LLM_SCORING_ENABLED=off/on` 预留未来界面勾选开关
@@ -248,6 +254,30 @@ local_outputs/scrapecreators_probe_error.md
 
 它不会更新 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。正式报告若要使用 ScrapeCreators，优先运行 `bash scripts/run_scrapecreators_live.sh`；如果绕过脚本直接用 Python 跑完整 `config/ceramic_topics.json`，也必须显式加 `--confirm-full-api`。
 
+ScrapeCreators YouTube tiny probe 默认不联网：
+
+```bash
+bash scripts/probe_scrapecreators_youtube.sh
+```
+
+这个命令只写入 `local_outputs/youtube_probe_state.json`，用于确认 YouTube 探针保护机制生效。
+
+只有在你明确同意消耗一次 ScrapeCreators YouTube Search 请求时，才运行：
+
+```bash
+bash scripts/probe_scrapecreators_youtube.sh --confirm-live-api --query "ceramic glaze"
+```
+
+tiny probe 的结果只写入：
+
+```text
+local_outputs/youtube_probe.json
+local_outputs/youtube_probe_state.json
+local_outputs/youtube_probe_error.md
+```
+
+它不会更新 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。V0.8.0 只验证 YouTube Search 入口是否可用，不接 DeepSeek，不拉视频详情、字幕或评论，也不会把 `youtube_future` 改成正式可用数据源。
+
 真实 API live 前检查清单：
 
 ```text
@@ -425,6 +455,7 @@ tests/test_live_failure_guidance.py # live 失败提示与 ScrapeCreators 状态
 tests/test_research_evidence.py # 本地研究证据加载和报告模块
 tests/test_scrapecreators_source.py # ScrapeCreators readiness、source 转换与 key 脱敏
 tests/test_scrapecreators_probe.py # tiny probe 的默认不联网、缺 key、limit 和错误分类
+tests/test_scrapecreators_youtube_probe.py # YouTube tiny probe 的默认不联网、输出保护、单请求和错误分类
 tests/test_llm_scoring.py # LLM scoring 契约、mock scorer 和规则/LLM 合并
 tests/test_llm_scoring_probe.py # DeepSeek tiny probe 默认不联网、缺 key、输出保护和错误分类
 tests/test_llm_scoring_comparison.py # DeepSeek 与规则评分对照报告保护和统计
@@ -474,6 +505,7 @@ bash scripts/reddit_probe_matrix.sh
 - ScrapeCreators 正式数据源优先用 `bash scripts/run_scrapecreators_live.sh`；它不是 `auto` 默认源，可能消耗 API 额度。默认只跑单关键词，完整关键词必须显式加 `--confirm-full-api`。
 - ScrapeCreators tiny probe 不是正式报告流程；它只写 `local_outputs/`，不会覆盖 `reports/report.md`、`reports/latest.md` 或 `reports/archive/`。
 - 只有带 `--confirm-live-api` 时 tiny probe 才会发起真实 API 请求；默认运行只做本地保护检查。
+- YouTube tiny probe 不是正式报告流程；它只写 `local_outputs/youtube_probe.*`，不会覆盖正式 reports，不追分页，不拉视频详情、字幕或评论。
 
 ## Project Structure
 
@@ -505,6 +537,8 @@ scripts/check_environment.sh       # Local environment diagnostic runner
 scripts/check_scrapecreators_ready.sh # ScrapeCreators readiness check without network/API calls
 scripts/probe_scrapecreators_reddit.py # ScrapeCreators tiny opt-in Reddit API probe
 scripts/probe_scrapecreators_reddit.sh # Local tiny probe runner
+scripts/probe_scrapecreators_youtube.py # ScrapeCreators tiny opt-in YouTube Search API probe
+scripts/probe_scrapecreators_youtube.sh # Local YouTube tiny probe runner
 scripts/run_scrapecreators_live.sh # ScrapeCreators formal live runner with API quota guard
 scripts/run_keyword_quality_check.sh # Small-batch keyword quality runner, dry-run by default
 scripts/summarize_keyword_quality.py # Parse keyword quality report into local_outputs summary
