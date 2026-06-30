@@ -78,6 +78,17 @@ BUSINESS_STRONG_TERMS = (
 )
 AI_SIGNAL_TERMS = ("ai", "generative", "digital", "prompt", "pattern", "computational")
 PRINTING_3D_SIGNAL_TERMS = ("3d", "printing", "printed", "extrusion", "paste")
+MAKING_PROCESS_TERMS = (
+    "handmade",
+    "making",
+    "make",
+    "process",
+    "teapot",
+    "wheel throwing",
+    "handbuilding",
+    "throwing",
+    "trimming",
+)
 
 
 @dataclass(frozen=True)
@@ -845,13 +856,17 @@ def infer_pain_points(topic: str) -> list[str]:
         return ["釉色结果不稳定，配方、厚度、窑温之间的变量难追踪。", "新手难判断流釉、针孔、开片等问题的成因。"]
     if "kiln" in text or "firing" in text:
         return ["烧成曲线和窑位差异带来高试错成本。", "缺少可复盘的烧成记录和失败案例库。"]
-    if "business" in text or "studio" in text:
+    if "business" in text:
         return ["工作室经营同时面对定价、排课、库存和社媒获客压力。", "手作产品很难把时间成本清楚地转化成价格。"]
+    if "studio" in text:
+        return ["工作室内容容易混在作品展示、教学和日常记录之间，缺少清晰分类。", "空间、窑炉、排课和制作节奏需要更可复盘的运营记录。"]
     if "ai" in text or "3d" in text:
         return ["数字设计与真实泥料、釉料、烧成之间存在落地断层。", "创作者需要把 AI/3D 灵感转译成可制作的工艺方案。"]
     if "texture" in text:
         return ["纹理灵感容易停留在图片收藏，缺少可执行的制作步骤。", "表面肌理与器型、釉色的搭配需要更多案例对照。"]
-    return ["创作者需要更快发现用户真正感兴趣的题材。", "从灵感、制作、展示到销售之间缺少连续的决策工具。"]
+    if any(term in text for term in ("handmade", "pottery", "wheel", "handbuilding")):
+        return ["制作步骤、器型选择和修坯节奏需要更清楚的过程复盘。", "材料用量、制作时间和失败节点容易散落在视频或笔记里。"]
+    return ["创作者需要更快发现用户真正感兴趣的题材。", "从灵感、制作、展示到复盘之间缺少连续的记录工具。"]
 
 
 def build_conclusion_summary(
@@ -1015,7 +1030,7 @@ def supported_content_ideas(
             continue
         seen_topics.add(item.topic)
         ideas.append(
-            f"《{item.topic}：把一个 {platform_label} 真实问题讲透》 - 值得做：{content_reason(item)} 证据：{evidence_ref(item)}。"
+            f"{content_idea_title(item, platform_label)} - 值得做：{content_reason(item)} 证据：{evidence_ref(item)}。"
         )
     return ideas
 
@@ -1043,7 +1058,7 @@ def observation_content_ideas(
     ideas.extend(
         [
             "观察方向：《陶瓷作品从灵感到烧成失败复盘》 - 长期内容方向，需用更多真实失败案例验证。",
-            "观察方向：《釉色测试片如何变成可售卖系列》 - 适合等待更多 glaze / business 证据后展开。",
+            "观察方向：《釉色测试片如何变成可复盘系列》 - 适合等待更多 glaze / kiln 证据后展开。",
             "观察方向：《AI 生成纹样到真实陶瓷表面的完整流程》 - 只有在 AI 与陶瓷制作同时出现时，才可升级为证据支撑选题。",
         ]
     )
@@ -1082,7 +1097,7 @@ def long_term_tool_ideas(research_evidence: list[ResearchEvidence] | None = None
         "陶瓷内容选题雷达：长期产品方向，不是本轮数据直接证明，后续需要更多 Reddit/YouTube/Pinterest 证据验证。",
         "AI 陶瓷纹样 Prompt 生成器：长期产品方向，不是本轮数据直接证明，需等 AI ceramic design 出现真实高相关证据后优先化。",
         "釉色实验记录器：长期产品方向，不是本轮数据直接证明，可在更多 glaze / kiln 证据出现后优先化。",
-        "工作室定价小工具：长期产品方向，不是本轮数据直接证明，可在更多 business / studio 证据出现后优先化。",
+        "工作室定价小工具：长期产品方向，不是本轮数据直接证明，可在更多 pricing / customer / order / sell 证据出现后优先化。",
     ]
     for item in research_evidence or []:
         for tool in item.tool_ideas[:2]:
@@ -1149,8 +1164,10 @@ def suggested_keywords_for_topic(topic: str) -> list[str]:
     text = topic.lower()
     if "ai" in text:
         return ["AI pottery workflow", "generative ceramic pattern", "computational ceramics", "ceramic prompt design"]
-    if "business" in text or "studio" in text:
+    if any(term in text for term in BUSINESS_STRONG_TERMS):
         return ["Etsy pottery pricing", "pottery commission", "ceramic studio marketing", "handmade ceramics pricing"]
+    if "studio" in text:
+        return ["ceramic studio workflow", "pottery studio setup", "studio kiln schedule", "ceramic studio organization"]
     if "kiln" in text or "firing" in text:
         return ["cone 6", "bisque firing", "electric kiln", "glaze defects", "kiln schedule"]
     if "glaze" in text:
@@ -1159,7 +1176,7 @@ def suggested_keywords_for_topic(topic: str) -> list[str]:
         return ["ceramic 3D printing clay", "clay paste extrusion", "3D printed pottery", "ceramic printing failure"]
     if "texture" in text:
         return ["ceramic surface texture", "clay texture tools", "handbuilt texture", "carved pottery surface"]
-    return ["handmade pottery process", "ceramic artist studio", "pottery critique", "clay handbuilding techniques"]
+    return ["handmade pottery process", "wheel throwing teapot", "pottery trimming workflow", "clay handbuilding techniques"]
 
 
 def sort_evidence(evidence: list[Evidence]) -> list[Evidence]:
@@ -1223,14 +1240,34 @@ def evidence_has_any(item: Evidence, terms: tuple[str, ...]) -> bool:
     return any(term in text for term in terms)
 
 
+def is_making_process_evidence(item: Evidence) -> bool:
+    text = evidence_text(item)
+    return any(term in text for term in MAKING_PROCESS_TERMS)
+
+
+def has_strong_business_signal(item: Evidence) -> bool:
+    text = evidence_text(item)
+    return any(term in text for term in BUSINESS_STRONG_TERMS)
+
+
+def content_idea_title(item: Evidence, platform_label: str) -> str:
+    if has_strong_business_signal(item):
+        return f"《{item.topic}：把一个 {platform_label} 真实问题讲透》"
+    if is_making_process_evidence(item):
+        return f"《{item.topic}：制作过程拆解 / 工艺复盘 / 器型案例》"
+    return f"《{item.topic}：把一个 {platform_label} 真实问题讲透》"
+
+
 def content_reason(item: Evidence) -> str:
     text = evidence_text(item)
     if any(term in text for term in KILN_SIGNAL_TERMS):
         return "它把烧成失败、温度控制或窑炉选择变成可拆解步骤，适合做避坑型内容。"
     if any(term in text for term in GLAZE_SIGNAL_TERMS):
         return "它对应釉色测试和缺陷排查，读者通常会需要配方、变量和前后对照。"
-    if any(term in text for term in BUSINESS_STRONG_TERMS):
+    if has_strong_business_signal(item):
         return "它贴近工作室经营场景，能转成定价、客户沟通或销售复盘内容。"
+    if is_making_process_evidence(item):
+        return "它更适合拆解制作步骤、器型选择、修坯节奏和材料/时间成本，而不是直接判断为销售趋势。"
     if any(term in text for term in AI_SIGNAL_TERMS):
         return "它连接数字灵感与真实制作，适合讲清楚从图案到泥料、釉料和烧成的落地过程。"
     if any(term in text for term in PRINTING_3D_SIGNAL_TERMS):

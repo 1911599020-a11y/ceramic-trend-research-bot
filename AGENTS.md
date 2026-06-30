@@ -11,9 +11,10 @@
 - `--mode mock`：读取仓库内 `data/mock_samples.json`，零配置、零联网，用于验证报告结构与版式。
 - `--mode live`：默认接入 Reddit（经由外部 `last30days-skill` 子进程），也可显式选择 ScrapeCreators Reddit API 或 ScrapeCreators YouTube Search API，并按陶瓷相关性分层。
 - 当前架构基础：**V0.5.0 — 数据源适配层（data-source adapter）**。详见 `docs/changes/0001-data-source-adapter.md`。
-  当前运行选择：**V0.9.3 — YouTube Search 小样本质量验证准备**，`auto` live 仍默认 `reddit_last30days`；YouTube 只能通过 `scrapecreators_youtube_search` 显式 opt-in。
+  当前运行选择：**V0.9.4 — YouTube 报告解释精修**，`auto` live 仍默认 `reddit_last30days`；YouTube 只能通过 `scrapecreators_youtube_search` 显式 opt-in。
   注意：V0.9.x 只把 YouTube Search 元数据接入正式 report pipeline，不接字幕、评论、视频画面或 DeepSeek 正式评分；正式报告生成版本仍保持 V0.6.6。
   V0.9.2 以后，频道名里的 `studio` 不得单独触发经营类趋势或“工作室定价”小工具；经营类判断必须命中更强的 pricing/customer/order/sell 等信号。
+  V0.9.4 以后，handmade / making / process 类 YouTube 制作视频优先解释为制作过程拆解、工艺复盘或器型案例，不得自动推导成销售决策工具或强趋势。
   当前 LLM 状态：`scoring/llm_scorer.py`、`config/llm_scoring.json`、`prompts/llm_scoring_prompt.md` 定义评分契约；`scripts/probe_llm_scoring.sh` 默认 dry-run，不联网。
   DeepSeek tiny probe、评分对照报告和真实小样本对照报告真实运行必须用户明确同意、打开 `LLM_SCORING_ENABLED=on` 并加 `--confirm-live-api`，输出只写入 `local_outputs/llm_scoring_probe.*`、`local_outputs/llm_scoring_comparison.*` 或 `local_outputs/llm_scoring_real_sample_comparison.*`，不写正式 reports。
   真实小样本对照采用风险优先抽样，用于质检，不代表关键词整体分布；`--sample-count` 控制 DeepSeek 分析样本数，ScrapeCreators 请求数约等于本轮关键词数量。

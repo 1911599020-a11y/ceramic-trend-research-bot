@@ -4,12 +4,13 @@
 
 ## Current Status
 
-V0.9.3 是 **YouTube Search 小样本质量验证准备版本**，建立在 V0.9.0 YouTube Search 最小正式 adapter 之上：
+V0.9.4 是 **YouTube 报告解释精修版本**，建立在 V0.9.3 YouTube 多关键词小样本验证之上：
 
 - 注意：V0.7.5 仍是独立旁路分析版本，不提升正式报告生成版本；`ceramic_report.py` 的 `REPORT_VERSION` 仍保持 `V0.6.6`，因为正式报告流程没有接入 LLM scoring。
 - 注意：V0.8.0 也是独立旁路探针版本，不提升正式报告生成版本；正式报告仍只使用规则评分和当前已启用数据源。
 - V0.9.2 收紧报告推理：频道名里的 `studio` 不再单独触发经营类趋势或“工作室定价”小工具。
 - V0.9.3 新增 `config/youtube_quality_topics.json`，用 `ceramic glaze`、`kiln firing`、`handmade pottery` 做 YouTube 多关键词小样本验证。
+- V0.9.4 收紧制作类视频解释：`handmade pottery` 这类 YouTube 制作视频优先写成制作过程拆解、工艺复盘和器型案例，不再自动推导成销售决策工具。
 - 新增 `scripts/run_youtube_quality_live.sh`，默认 dry-run，不联网；真实运行必须显式加 `--confirm-live-api`。
 - 新增 `sources/youtube_source.py`，把 ScrapeCreators YouTube Search 结果转换成统一 `last30days` 形状，进入正式 report pipeline。
 - 新增显式数据源 `scrapecreators_youtube_search`；`--data-source auto` 仍然保持 Reddit，不会自动切到 YouTube。

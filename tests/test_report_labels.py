@@ -7,7 +7,10 @@ from ceramic_report import (
     Evidence,
     TopicRun,
     evidence_backed_tool_ideas,
+    infer_pain_points,
+    long_term_tool_ideas,
     trend_insights,
+    suggested_keywords_for_topic,
     render_report,
 )
 
@@ -98,6 +101,104 @@ class ReportLabelTests(unittest.TestCase):
 
         self.assertTrue(any("工作室定价与客户沟通表" in idea for idea in tool_ideas))
         self.assertFalse(any("釉色实验记录器" in idea for idea in tool_ideas))
+
+    def test_handmade_pottery_pain_points_do_not_assume_sales_decision_tools(self) -> None:
+        pain_points = infer_pain_points("handmade pottery")
+        text = "\n".join(pain_points)
+
+        self.assertIn("制作步骤", text)
+        self.assertIn("器型", text)
+        self.assertNotIn("销售", text)
+        self.assertNotIn("决策工具", text)
+
+    def test_youtube_making_video_uses_process_case_framing(self) -> None:
+        evidence = Evidence(
+            topic="handmade pottery",
+            source="youtube",
+            title="How to Make a Handmade Pottery Teapot — ASMR Version",
+            url="https://www.youtube.com/watch?v=gAzaeA-ifNE",
+            snippet="handmade pottery teapot clay throwing trimming process",
+            engagement="3,541,587 views",
+            subreddit="florian gadsby",
+            relevance_level="high",
+            relevance_score=6,
+            relevance_notes="YouTube 搜索结果已显式评分；命中陶瓷词：handmade, pottery；命中分类意图：handmade, pottery",
+        )
+        source = DataSourceSelection(
+            requested="scrapecreators_youtube_search",
+            source_id="scrapecreators_youtube_search",
+            label="ScrapeCreators YouTube Search API",
+            mode="live",
+            status="available",
+            kind="api_provider",
+            description="explicit opt-in",
+            fallback_sources=["mock"],
+        )
+
+        text = render_report(
+            [TopicRun(topic="handmade pottery", report={}, evidence=[evidence])],
+            "",
+            mode="live",
+            model_provider="rules",
+            data_source=source,
+            research_evidence=[],
+        )
+
+        self.assertIn("handmade pottery：制作过程拆解", text)
+        self.assertIn("工艺复盘", text)
+        self.assertNotIn("handmade pottery：把一个 YouTube 真实问题讲透", text)
+        self.assertNotIn("销售之间缺少连续的决策工具", text)
+
+    def test_strong_business_signal_is_not_overridden_by_handmade_terms(self) -> None:
+        evidence = Evidence(
+            topic="handmade pottery",
+            source="youtube",
+            title="Pricing handmade pottery for studio sales",
+            url="https://www.youtube.com/watch?v=pricing456",
+            snippet="customer orders, pricing, inventory, and handmade pottery sales",
+            engagement="2,400 views",
+            subreddit="pottery business channel",
+            relevance_level="high",
+            relevance_score=7,
+            relevance_notes="YouTube 搜索结果已显式评分；命中陶瓷词：handmade, pottery；命中经营意图：pricing, customer, order",
+        )
+        source = DataSourceSelection(
+            requested="scrapecreators_youtube_search",
+            source_id="scrapecreators_youtube_search",
+            label="ScrapeCreators YouTube Search API",
+            mode="live",
+            status="available",
+            kind="api_provider",
+            description="explicit opt-in",
+            fallback_sources=["mock"],
+        )
+
+        text = render_report(
+            [TopicRun(topic="handmade pottery", report={}, evidence=[evidence])],
+            "",
+            mode="live",
+            model_provider="rules",
+            data_source=source,
+            research_evidence=[],
+        )
+
+        self.assertIn("handmade pottery：把一个 YouTube 真实问题讲透", text)
+        self.assertIn("定价、客户沟通或销售复盘", text)
+        self.assertNotIn("handmade pottery：制作过程拆解", text)
+
+    def test_long_term_business_tool_idea_uses_strong_business_signals(self) -> None:
+        text = "\n".join(long_term_tool_ideas([]))
+
+        self.assertIn("pricing / customer / order / sell", text)
+        self.assertNotIn("business / studio 证据", text)
+
+    def test_studio_keyword_suggestions_are_not_pricing_by_default(self) -> None:
+        studio_terms = suggested_keywords_for_topic("ceramic studio")
+        business_terms = suggested_keywords_for_topic("ceramic business")
+
+        self.assertIn("ceramic studio workflow", studio_terms)
+        self.assertNotIn("Etsy pottery pricing", studio_terms)
+        self.assertIn("Etsy pottery pricing", business_terms)
 
 
 if __name__ == "__main__":
