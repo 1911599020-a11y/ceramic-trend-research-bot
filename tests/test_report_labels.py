@@ -6,6 +6,7 @@ from ceramic_report import (
     DataSourceSelection,
     Evidence,
     TopicRun,
+    content_reason,
     evidence_backed_tool_ideas,
     infer_pain_points,
     long_term_tool_ideas,
@@ -101,6 +102,69 @@ class ReportLabelTests(unittest.TestCase):
 
         self.assertTrue(any("工作室定价与客户沟通表" in idea for idea in tool_ideas))
         self.assertFalse(any("釉色实验记录器" in idea for idea in tool_ideas))
+
+    def test_strong_business_signal_keeps_mixed_glaze_and_kiln_explanations_consistent(self) -> None:
+        evidence = Evidence(
+            topic="ceramic business",
+            source="youtube",
+            title="Pricing kiln firing services for handmade pottery glaze customers",
+            url="https://www.youtube.com/watch?v=pricing789",
+            snippet="customer orders, pricing, kiln firing schedule, cone 6 glaze samples, and studio sales",
+            engagement="3,200 views",
+            subreddit="pottery business channel",
+            relevance_level="high",
+            relevance_score=8,
+            relevance_notes="YouTube 搜索结果已显式评分；命中陶瓷词：kiln, glaze, pottery；命中经营意图：pricing, customer, order",
+        )
+
+        tool_ideas = evidence_backed_tool_ideas([evidence], mode="live")
+        insights = trend_insights(
+            ["ceramic business"],
+            [evidence],
+            mode="live",
+            platform_label="YouTube",
+        )
+        insight_text = "\n".join(insights)
+
+        self.assertIn("定价、客户沟通或销售复盘", content_reason(evidence))
+        self.assertNotIn("烧成失败、温度控制", content_reason(evidence))
+        self.assertNotIn("釉色测试和缺陷排查", content_reason(evidence))
+        self.assertTrue(any("工作室定价与客户沟通表" in idea for idea in tool_ideas))
+        self.assertFalse(any("烧成失败诊断卡" in idea for idea in tool_ideas))
+        self.assertFalse(any("釉色实验记录器" in idea for idea in tool_ideas))
+        self.assertIn("经营类问题如果持续出现", insight_text)
+        self.assertNotIn("釉料与表面结果", insight_text)
+        self.assertNotIn("烧成环节仍是高价值讨论点", insight_text)
+
+    def test_business_topic_alone_does_not_force_business_interpretation(self) -> None:
+        evidence = Evidence(
+            topic="ceramic business",
+            source="youtube",
+            title="Ceramic glaze color tests and surface results",
+            url="https://www.youtube.com/watch?v=glaze456",
+            snippet="glaze recipe test tile ceramic surface chemistry",
+            engagement="1,900 views",
+            subreddit="ceramic glaze channel",
+            relevance_level="high",
+            relevance_score=6,
+            relevance_notes="YouTube 搜索结果已显式评分；命中陶瓷词：ceramic, glaze；命中釉料意图：glaze, recipe",
+        )
+
+        tool_ideas = evidence_backed_tool_ideas([evidence], mode="live")
+        insights = trend_insights(
+            ["ceramic business"],
+            [evidence],
+            mode="live",
+            platform_label="YouTube",
+        )
+        insight_text = "\n".join(insights)
+
+        self.assertIn("釉色测试和缺陷排查", content_reason(evidence))
+        self.assertNotIn("定价、客户沟通或销售复盘", content_reason(evidence))
+        self.assertTrue(any("釉色实验记录器" in idea for idea in tool_ideas))
+        self.assertFalse(any("工作室定价与客户沟通表" in idea for idea in tool_ideas))
+        self.assertIn("釉料与表面结果", insight_text)
+        self.assertNotIn("经营类问题如果持续出现", insight_text)
 
     def test_handmade_pottery_pain_points_do_not_assume_sales_decision_tools(self) -> None:
         pain_points = infer_pain_points("handmade pottery")
