@@ -59,6 +59,23 @@ class DataSourceSelectionTests(unittest.TestCase):
         self.assertEqual(scrape_selection.status, "available")
         self.assertEqual(scrape_selection.kind, "api_provider")
 
+    def test_youtube_search_is_explicit_available_source_not_default(self) -> None:
+        auto_selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="live",
+            requested="auto",
+        )
+        youtube_selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="live",
+            requested="scrapecreators_youtube_search",
+        )
+
+        self.assertEqual(auto_selection.source_id, "reddit_last30days")
+        self.assertEqual(youtube_selection.source_id, "scrapecreators_youtube_search")
+        self.assertEqual(youtube_selection.status, "available")
+        self.assertEqual(youtube_selection.kind, "api_provider")
+
     def test_scrapecreators_probe_topics_keep_relevance_rules(self) -> None:
         path = ceramic_report.PROJECT_ROOT / "config" / "scrapecreators_probe_topics.json"
         config = ceramic_report.load_config(path)
@@ -103,6 +120,37 @@ class DataSourceSelectionTests(unittest.TestCase):
         self.assertIn("--confirm-full-api", output)
         self.assertIn("config/ceramic_topics.json", output)
         self.assertNotIn("config/scrapecreators_probe_topics.json", output)
+
+    def test_youtube_live_script_defaults_to_single_topic_dry_run(self) -> None:
+        result = subprocess.run(
+            ["bash", "scripts/run_youtube_live.sh", "--dry-run"],
+            cwd=ceramic_report.PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        output = result.stdout
+        self.assertIn("Dry run", output)
+        self.assertIn("--data-source scrapecreators_youtube_search", output)
+        self.assertIn("config/youtube_probe_topics.json", output)
+        self.assertIn("local_outputs/youtube_live_error.md", output)
+        self.assertNotIn("config/ceramic_topics.json", output)
+
+    def test_youtube_live_script_requires_explicit_full_confirmation(self) -> None:
+        result = subprocess.run(
+            ["bash", "scripts/run_youtube_live.sh", "--dry-run", "--confirm-full-api"],
+            cwd=ceramic_report.PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        output = result.stdout
+        self.assertIn("已显式确认全量关键词运行", output)
+        self.assertIn("--confirm-full-api", output)
+        self.assertIn("config/ceramic_topics.json", output)
+        self.assertNotIn("config/youtube_probe_topics.json", output)
 
     def test_scrapecreators_default_python_full_topics_requires_confirmation(self) -> None:
         selection = ceramic_report.resolve_data_source(
@@ -160,6 +208,63 @@ class DataSourceSelectionTests(unittest.TestCase):
         )
 
         self.assertEqual(source.__class__.__name__, "ScrapeCreatorsSource")
+
+    def test_build_trend_source_supports_youtube_search(self) -> None:
+        selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="live",
+            requested="scrapecreators_youtube_search",
+        )
+
+        source = ceramic_report.build_trend_source(
+            selection,
+            ceramic_report.DEFAULT_LAST30DAYS_SCRIPT,
+        )
+
+        self.assertEqual(source.__class__.__name__, "ScrapeCreatorsYouTubeSearchSource")
+
+    def test_youtube_default_python_full_topics_requires_confirmation(self) -> None:
+        selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="live",
+            requested="scrapecreators_youtube_search",
+        )
+
+        with self.assertRaisesRegex(ValueError, "confirm-full-api"):
+            ceramic_report.validate_api_topic_scope(
+                mode="live",
+                data_source=selection,
+                topics_path=ceramic_report.DEFAULT_TOPICS_PATH,
+                confirm_full_api=False,
+            )
+
+    def test_youtube_python_single_topic_does_not_require_full_confirmation(self) -> None:
+        selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="live",
+            requested="scrapecreators_youtube_search",
+        )
+
+        ceramic_report.validate_api_topic_scope(
+            mode="live",
+            data_source=selection,
+            topics_path=ceramic_report.PROJECT_ROOT / "config" / "youtube_probe_topics.json",
+            confirm_full_api=False,
+        )
+
+    def test_youtube_python_full_topics_allows_explicit_confirmation(self) -> None:
+        selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="live",
+            requested="scrapecreators_youtube_search",
+        )
+
+        ceramic_report.validate_api_topic_scope(
+            mode="live",
+            data_source=selection,
+            topics_path=ceramic_report.DEFAULT_TOPICS_PATH,
+            confirm_full_api=True,
+        )
 
     def test_planned_sources_are_reserved_not_silent_network(self) -> None:
         with mock.patch.dict(os.environ, {}, clear=True):

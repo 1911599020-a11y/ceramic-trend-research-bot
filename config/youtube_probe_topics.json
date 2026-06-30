@@ -1,0 +1,66 @@
+{
+  "topics": [
+    "ceramic glaze"
+  ],
+  "recommended_subreddits": [],
+  "relevance": {
+    "positive_terms": [
+      "ceramic",
+      "ceramics",
+      "pottery",
+      "glaze",
+      "kiln",
+      "clay",
+      "firing",
+      "underglaze",
+      "cone",
+      "recipe",
+      "test tile"
+    ],
+    "exclude_terms": [
+      "anime",
+      "cosplay",
+      "cats",
+      "cat",
+      "outfit",
+      "gaming",
+      "fivenightsatfreddys",
+      "fnaf",
+      "makati",
+      "keyboards",
+      "keyboard",
+      "naruto",
+      "ordinary ai video",
+      "ai video"
+    ]
+  },
+  "topic_rules": {
+    "ceramic glaze": {
+      "required_terms": [
+        "glaze",
+        "underglaze",
+        "cone",
+        "recipe",
+        "test tile",
+        "crawling",
+        "pinholes",
+        "crystalline"
+      ],
+      "boost_terms": [
+        "oxide",
+        "stain",
+        "celadon",
+        "shino",
+        "ash glaze",
+        "layering",
+        "food safe"
+      ],
+      "exclude_terms": [
+        "anime",
+        "gaming",
+        "cats"
+      ],
+      "intent_note": "YouTube Search 安全测试词，只验证釉料方向的视频搜索元数据是否能进入报告。"
+    }
+  }
+}

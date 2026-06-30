@@ -12,6 +12,8 @@ Available sources:
 - Last30DaysSource    shells out to the external last30days-skill exactly the
                       way ceramic_report.py V0.4.2 did; used by --mode live.
 - ScrapeCreatorsSource optional ScrapeCreators Reddit API adapter; opt-in only.
+- ScrapeCreatorsYouTubeSearchSource optional ScrapeCreators YouTube Search API
+                      adapter; opt-in only.
 
 V0.6.0 selects among available and planned source ids via
 config/data_sources.json. Planned ids are documentation and CLI guardrails
@@ -44,5 +46,12 @@ class TrendSource(Protocol):
 from sources.last30days_source import Last30DaysSource  # noqa: E402
 from sources.mock_source import MockSource  # noqa: E402
 from sources.scrapecreators_source import ScrapeCreatorsSource  # noqa: E402
+from sources.youtube_source import ScrapeCreatorsYouTubeSearchSource  # noqa: E402
 
-__all__ = ["TrendSource", "MockSource", "Last30DaysSource", "ScrapeCreatorsSource"]
+__all__ = [
+    "TrendSource",
+    "MockSource",
+    "Last30DaysSource",
+    "ScrapeCreatorsSource",
+    "ScrapeCreatorsYouTubeSearchSource",
+]

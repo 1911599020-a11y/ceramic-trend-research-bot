@@ -43,6 +43,20 @@
       ]
     },
     {
+      "id": "scrapecreators_youtube_search",
+      "label": "ScrapeCreators YouTube Search API",
+      "mode": "live",
+      "status": "available",
+      "kind": "api_provider",
+      "description": "Explicit opt-in YouTube Search source. It is not the default live source; select it explicitly with --data-source scrapecreators_youtube_search.",
+      "requires_env": [
+        "SCRAPECREATORS_API_KEY"
+      ],
+      "fallback_sources": [
+        "mock"
+      ]
+    },
+    {
       "id": "youtube_future",
       "label": "YouTube transcripts",
       "mode": "live",

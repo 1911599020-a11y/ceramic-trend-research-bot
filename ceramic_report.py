@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Local wrapper for ceramic trend research reports.
 
-Supports mock reports and a minimal Reddit-only live mode. YouTube, Pinterest,
-GitHub Actions, and API-key-backed sources are intentionally left for later
-phases.
+Supports mock reports, Reddit live mode, and explicit opt-in API-backed
+sources. YouTube Search is available only when selected explicitly; it is not
+the default live source.
 
 Since V0.5.0 data collection lives in the sources/ adapter layer: mock mode
 reads repository-local data/mock_samples.json (works on Windows / CI with no
@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from sources import TrendSource
+from sources import ScrapeCreatorsYouTubeSearchSource, TrendSource
 from sources.last30days_source import (  # noqa: F401  (re-exported for compatibility)
     DEFAULT_LAST30DAYS_SCRIPT,
     LAST30DAYS_REPO_HINT,
@@ -135,7 +135,7 @@ def parse_args() -> argparse.Namespace:
         "--mode",
         choices=["mock", "live"],
         default="mock",
-        help="Run mode. live currently uses Reddit only.",
+        help="Run mode. live defaults to Reddit; YouTube must be selected explicitly.",
     )
     parser.add_argument(
         "--model-provider",
@@ -147,8 +147,8 @@ def parse_args() -> argparse.Namespace:
         default="auto",
         help=(
             "Data source id. Use auto, mock, reddit_last30days, or explicit "
-            "scrapecreators_reddit. Paid API sources must be selected by CLI flag, "
-            "not by environment variable."
+            "scrapecreators_reddit / scrapecreators_youtube_search. Paid API "
+            "sources must be selected by CLI flag, not by environment variable."
         ),
     )
     parser.add_argument(
@@ -342,6 +342,8 @@ def build_trend_source(selection: DataSourceSelection, script_path: Path) -> Tre
         return Last30DaysSource(script_path, mode="live")
     if selection.source_id == "scrapecreators_reddit":
         return ScrapeCreatorsSource(dotenv_path=PROJECT_ROOT / ".env")
+    if selection.source_id == "scrapecreators_youtube_search":
+        return ScrapeCreatorsYouTubeSearchSource(dotenv_path=PROJECT_ROOT / ".env")
     raise ValueError(
         f"数据源 `{selection.source_id}` 尚未接入 TrendSource。请切回 --data-source auto。"
     )
@@ -372,12 +374,20 @@ def validate_api_topic_scope(
     topics_path: Path,
     confirm_full_api: bool,
 ) -> None:
-    if mode != "live" or data_source.source_id != "scrapecreators_reddit":
+    guarded_sources = {"scrapecreators_reddit", "scrapecreators_youtube_search"}
+    if mode != "live" or data_source.source_id not in guarded_sources:
         return
     if topics_path != DEFAULT_TOPICS_PATH:
         return
     if confirm_full_api:
         return
+    if data_source.source_id == "scrapecreators_youtube_search":
+        raise ValueError(
+            "ScrapeCreators YouTube Search 正式 live 默认不允许直接使用完整关键词配置，"
+            "以避免误消耗 API 额度。请优先使用 `bash scripts/run_youtube_live.sh` "
+            "的单关键词安全模式；如果确认要跑完整 `config/ceramic_topics.json`，"
+            "请显式添加 `--confirm-full-api`。"
+        )
     raise ValueError(
         "ScrapeCreators 正式 live 默认不允许直接使用完整关键词配置，"
         "以避免误消耗 API 额度。请优先使用 `bash scripts/run_scrapecreators_live.sh` "
@@ -559,10 +569,10 @@ def scrapecreators_failure_hint(error_type: str) -> str:
             "可以考虑配置 ScrapeCreators Reddit API 作为备份路线；如果暂时不配置 key，"
             "就先用 mock 或其他数据源继续推进。"
         )
-    if error_type == "no_usable_reddit_evidence" and not configured:
+    if error_type == "no_usable_evidence" and not configured:
         return (
-            "当前没有检测到 `SCRAPECREATORS_API_KEY`。如果 public Reddit JSON 没有返回可用证据，"
-            "后续可以先做 ScrapeCreators 最小 live 验证，或把 Reddit 暂时降为可选数据源。"
+            "当前没有检测到 `SCRAPECREATORS_API_KEY`。如果 API 或 public JSON 没有返回可用证据，"
+            "后续可以先做最小 live 验证，或把当前数据源暂时降为观察数据源。"
         )
     return ""
 
@@ -591,10 +601,20 @@ def apply_relevance_ranking(
     topic: str,
 ) -> dict[str, Any]:
     for source, items in (report.get("items_by_source") or {}).items():
-        if source != "reddit" or not isinstance(items, list):
+        if not isinstance(items, list):
+            continue
+        if source not in {"reddit", "youtube"}:
+            for item in items:
+                metadata = item.setdefault("metadata", {})
+                metadata.setdefault("ceramic_relevance_score", 0)
+                metadata.setdefault("ceramic_relevance_level", "low")
+                metadata.setdefault("ceramic_relevance_notes", "该来源尚未接入相关性评分，默认不计入可用证据")
             continue
         for item in items:
-            score, level, notes = score_reddit_item(item, rules, topic)
+            if source == "youtube":
+                score, level, notes = score_youtube_item(item, rules, topic)
+            else:
+                score, level, notes = score_reddit_item(item, rules, topic)
             metadata = item.setdefault("metadata", {})
             metadata["ceramic_relevance_score"] = score
             metadata["ceramic_relevance_level"] = level
@@ -607,6 +627,67 @@ def apply_relevance_ranking(
             reverse=True,
         )
     return report
+
+
+def score_youtube_item(
+    item: dict[str, Any],
+    rules: RelevanceConfig,
+    topic: str = "",
+) -> tuple[int, str, str]:
+    title = str(item.get("title") or "")
+    body = str(item.get("body") or item.get("snippet") or "")
+    channel = str(item.get("container") or item.get("subreddit") or "")
+    url = str(item.get("url") or "")
+    metadata = item.get("metadata") or {}
+    metadata_text = " ".join(str(value) for value in metadata.values() if value)
+    haystack = " ".join([title, body, channel, url, metadata_text])
+    topic_rule = find_topic_rule(topic, rules)
+
+    score = 0
+    notes = ["YouTube 搜索结果已显式评分"]
+
+    positive_hits = match_terms(haystack, rules.positive_terms)
+    if positive_hits:
+        score += min(5, len(set(positive_hits)))
+        notes.append("命中陶瓷词：" + ", ".join(sorted(set(positive_hits))[:5]))
+
+    title_or_channel = f"{title} {channel}"
+    strong_hits = match_terms(title_or_channel, rules.positive_terms)
+    if strong_hits:
+        score += 2
+        notes.append("标题或频道直接相关")
+
+    exclude_hits = match_terms(haystack, rules.exclude_terms)
+    rule_exclude_hits = match_terms(haystack, topic_rule.get("exclude_terms", [])) if topic_rule else []
+    exclude_hits = sorted(set(exclude_hits + rule_exclude_hits))
+    if exclude_hits:
+        score -= 5 + min(4, len(set(exclude_hits)))
+        notes.append("跑偏词：" + ", ".join(sorted(set(exclude_hits))[:5]))
+
+    if topic_rule:
+        required_hits = match_terms(haystack, topic_rule.get("required_terms", []))
+        boost_hits = match_terms(haystack, topic_rule.get("boost_terms", []))
+        if required_hits:
+            score += min(4, len(set(required_hits)))
+            notes.append("命中分类意图：" + ", ".join(sorted(set(required_hits))[:5]))
+        else:
+            if positive_hits:
+                score = min(score, 4)
+                notes.append("陶瓷相关，但未命中当前关键词意图")
+            else:
+                score -= 2
+                notes.append("未命中当前关键词意图")
+        if boost_hits:
+            score += min(3, len(set(boost_hits)))
+            notes.append("分类加权：" + ", ".join(sorted(set(boost_hits))[:5]))
+
+    if score >= 5:
+        level = "high"
+    elif score >= 1:
+        level = "edge"
+    else:
+        level = "low"
+    return score, level, "；".join(notes) if notes else "未命中明确陶瓷相关信号"
 
 
 def score_reddit_item(
@@ -706,6 +787,7 @@ def collect_evidence(topic: str, report: dict[str, Any]) -> list[Evidence]:
     for source, items in (report.get("items_by_source") or {}).items():
         for item in items[:6]:
             metadata = item.get("metadata") or {}
+            default_relevance_level = "low" if source == "youtube" else "edge"
             evidence.append(
                 Evidence(
                     topic=topic,
@@ -717,7 +799,7 @@ def collect_evidence(topic: str, report: dict[str, Any]) -> list[Evidence]:
                     subreddit=normalize_subreddit(
                         str(item.get("container") or item.get("subreddit") or "")
                     ),
-                    relevance_level=metadata.get("ceramic_relevance_level", "edge"),
+                    relevance_level=metadata.get("ceramic_relevance_level", default_relevance_level),
                     relevance_score=int(metadata.get("ceramic_relevance_score", 0)),
                     relevance_notes=metadata.get("ceramic_relevance_notes", ""),
                 )
@@ -732,7 +814,8 @@ def format_engagement(engagement: dict[str, Any]) -> str:
     if engagement.get("num_comments") is not None:
         parts.append(f"{engagement['num_comments']} comments")
     if engagement.get("views") is not None:
-        parts.append(f"{engagement['views']} views")
+        views = str(engagement["views"])
+        parts.append(views if "view" in views.lower() else f"{views} views")
     if engagement.get("likes") is not None:
         parts.append(f"{engagement['likes']} likes")
     return ", ".join(parts) if parts else "n/a"
@@ -760,26 +843,27 @@ def build_conclusion_summary(
     low_evidence: list[Evidence],
     *,
     mode: str,
+    platform_label: str = "Reddit",
 ) -> list[str]:
     high_sorted = sort_evidence(high_evidence)
     top_topics = unique_in_order([item.topic for item in high_sorted])
 
     if mode == "mock":
         return [
-            "当前是 mock 报告，只用于检查结构、分区和中文表达，不代表真实 Reddit 趋势。",
+            "当前是 mock 报告，只用于检查结构、分区和中文表达，不代表真实社媒趋势。",
             f"mock 中有 {len(high_evidence)} 条高相关样例，可用于验证趋势摘要、选题和小工具模块的展示方式。",
             f"高相关样例主要落在 {format_topic_list(top_topics[:3]) or '少数关键词'}，但这些不是实际社媒热度。",
             f"边缘相关 {len(edge_evidence)} 条、跑偏样本 {len(low_evidence)} 条，只用于测试相关性分层是否清楚。",
-            "正式判断仍需要 live 模式拿到真实 Reddit 证据后再做。",
+            "正式判断仍需要 live 模式拿到真实社媒证据后再做。",
         ]
 
     if not high_evidence:
         return [
-            "本轮没有获得高相关 Reddit 证据，不适合做趋势判断。",
+            f"本轮没有获得高相关 {platform_label} 证据，不适合做趋势判断。",
             "本轮样本有限，当前结果只能说明搜索或网络状态需要继续调整。",
             f"边缘相关 {len(edge_evidence)} 条、跑偏样本 {len(low_evidence)} 条，均不进入趋势结论。",
             "内容选题和小工具灵感应先标记为观察方向，不应当作已验证机会。",
-            "下一轮应优先收窄关键词，并确认 Reddit live 能稳定返回陶瓷相关帖子。",
+            f"下一轮应优先收窄关键词，并确认 {platform_label} live 能稳定返回陶瓷相关内容。",
         ]
 
     summary = []
@@ -788,7 +872,7 @@ def build_conclusion_summary(
     elif len(high_evidence) < 8:
         summary.append("本轮高相关证据达到中等规模，可以提炼线索，但仍不宜过度外推。")
     else:
-        summary.append("本轮高相关证据较充足，可以作为短期 Reddit 趋势简报参考。")
+        summary.append(f"本轮高相关证据较充足，可以作为短期 {platform_label} 趋势简报参考。")
 
     lead = high_sorted[0]
     summary.append(f"最值得注意的线索来自 {evidence_ref(lead)}，它比普通热帖更贴近陶瓷创作者的真实语境。")
@@ -810,6 +894,7 @@ def credibility_assessment(
     *,
     mode: str,
     connectivity_note: str = "",
+    platform_label: str = "Reddit",
 ) -> tuple[str, str]:
     high_count = len(high_evidence)
     edge_count = len(edge_evidence)
@@ -818,7 +903,7 @@ def credibility_assessment(
     if mode == "mock":
         return (
             "低",
-            "当前是 mock 数据，只能验证报告流程，不能代表真实 Reddit 趋势。",
+            "当前是 mock 数据，只能验证报告流程，不能代表真实社媒趋势。",
         )
     if connectivity_note and high_count == 0:
         return (
@@ -827,7 +912,7 @@ def credibility_assessment(
         )
     if high_count >= 8:
         level = "高"
-        reason = "高相关证据不少于 8 条，可以作为本轮 Reddit 陶瓷圈观察依据。"
+        reason = f"高相关证据不少于 8 条，可以作为本轮 {platform_label} 陶瓷圈观察依据。"
     elif high_count >= 4:
         level = "中"
         reason = "高相关证据在 4 到 7 条之间，可以提炼方向，但仍需下一轮扩大样本。"
@@ -845,13 +930,14 @@ def trend_insights(
     high_evidence: list[Evidence],
     *,
     mode: str,
+    platform_label: str = "Reddit",
 ) -> list[str]:
     if mode == "mock":
         return ["当前为 mock 模式，本节只展示报告结构，不从模拟数据生成真实趋势判断。"]
     if not high_evidence:
-        return ["本轮未获得高相关 Reddit 证据，因此不生成确定性趋势判断。"]
+        return [f"本轮未获得高相关 {platform_label} 证据，因此不生成确定性趋势判断。"]
 
-    insights = ["本轮 Reddit 数据样本有限，趋势判断仅代表当前抓取结果。"]
+    insights = [f"本轮 {platform_label} 数据样本有限，趋势判断仅代表当前抓取结果。"]
     signal_rules = [
         (
             ("glaze", "underglaze", "recipe", "test tile", "defect"),
@@ -896,7 +982,12 @@ def trend_insights(
     return insights
 
 
-def supported_content_ideas(high_evidence: list[Evidence], *, mode: str) -> list[str]:
+def supported_content_ideas(
+    high_evidence: list[Evidence],
+    *,
+    mode: str,
+    platform_label: str = "Reddit",
+) -> list[str]:
     if mode != "live":
         return []
     ideas = []
@@ -906,7 +997,7 @@ def supported_content_ideas(high_evidence: list[Evidence], *, mode: str) -> list
             continue
         seen_topics.add(item.topic)
         ideas.append(
-            f"《{item.topic}：把一个 Reddit 真实问题讲透》 - 值得做：{content_reason(item)} 证据：{evidence_ref(item)}。"
+            f"《{item.topic}：把一个 {platform_label} 真实问题讲透》 - 值得做：{content_reason(item)} 证据：{evidence_ref(item)}。"
         )
     return ideas
 
@@ -991,13 +1082,14 @@ def next_search_suggestions(
     *,
     mode: str,
     research_evidence: list[ResearchEvidence] | None = None,
+    platform_label: str = "Reddit",
 ) -> list[str]:
     high_by_topic = group_by_topic(high_evidence)
     edge_by_topic = group_by_topic(edge_evidence)
     suggestions = []
 
     if mode == "mock":
-        suggestions.append("当前是 mock 报告，下一轮应使用 live 模式验证真实 Reddit 结果，再根据证据调整关键词。")
+        suggestions.append("当前是 mock 报告，下一轮应使用 live 模式验证真实社媒结果，再根据证据调整关键词。")
 
     for topic in topics:
         high_count = len(high_by_topic.get(topic, []))
@@ -1024,7 +1116,7 @@ def next_search_suggestions(
             f"{format_code_terms(research_terms[:8])}。这些是研究启发，不代表本轮社媒趋势。"
         )
     if not suggestions:
-        suggestions.append("本轮高相关证据较稳定，下一轮可以保持关键词，同时增加 YouTube/Pinterest 后再比较跨平台一致性。")
+        suggestions.append(f"本轮 {platform_label} 高相关证据较稳定，下一轮可以保持关键词，同时比较跨平台一致性。")
     return suggestions
 
 
@@ -1078,9 +1170,30 @@ def group_by_topic(evidence: list[Evidence]) -> dict[str, list[Evidence]]:
     return grouped
 
 
+def data_source_platform_label(
+    data_source: DataSourceSelection | None,
+    *,
+    mode: str = "live",
+) -> str:
+    if mode == "mock":
+        return "mock"
+    if data_source and data_source.source_id == "scrapecreators_youtube_search":
+        return "YouTube"
+    if data_source and data_source.source_id in {"reddit_last30days", "scrapecreators_reddit"}:
+        return "Reddit"
+    return "社媒"
+
+
+def evidence_origin_label(item: Evidence) -> str:
+    if item.source == "youtube":
+        return f"YouTube 频道 {item.subreddit}" if item.subreddit else "YouTube"
+    if item.source == "reddit":
+        return f"r/{item.subreddit}" if item.subreddit else "Reddit"
+    return item.subreddit or item.source or "未知来源"
+
+
 def evidence_ref(item: Evidence) -> str:
-    subreddit = f"r/{item.subreddit}" if item.subreddit else "Reddit"
-    return f"{subreddit} 的“{short_title(item.title, 42)}”"
+    return f"{evidence_origin_label(item)} 的“{short_title(item.title, 42)}”"
 
 
 def evidence_text(item: Evidence) -> str:
@@ -1135,6 +1248,7 @@ def render_report(
     high_evidence = [item for item in all_evidence if item.relevance_level == "high"]
     edge_evidence = [item for item in all_evidence if item.relevance_level == "edge"]
     low_evidence = [item for item in all_evidence if item.relevance_level == "low"]
+    platform_label = data_source_platform_label(data_source, mode=mode)
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
     credibility_level, credibility_reason = credibility_assessment(
         high_evidence,
@@ -1142,13 +1256,14 @@ def render_report(
         low_evidence,
         mode=mode,
         connectivity_note=connectivity_note,
+        platform_label=platform_label,
     )
 
     lines = [
         "# 陶瓷趋势情报报告",
         "",
         f"- 生成时间：{generated_at}",
-        f"- 版本：{REPORT_VERSION} {'Reddit live' if mode == 'live' else 'mock'} 本地报告",
+        f"- 版本：{REPORT_VERSION} {platform_label + ' live' if mode == 'live' else 'mock'} 本地报告",
         f"- 数据模式：{data_mode_label(mode, data_source)}",
         f"- 数据源：{source_report_label(data_source)}",
         f"- 报告生成器：`{model_provider}`",
@@ -1167,6 +1282,7 @@ def render_report(
         edge_evidence,
         low_evidence,
         mode=mode,
+        platform_label=platform_label,
     ):
         lines.append(f"- {summary}")
 
@@ -1192,11 +1308,10 @@ def render_report(
     if all_evidence:
         for run in runs:
             best = next((item for item in run.evidence if item.relevance_level == "high"), None)
-            prefix = "真实 Reddit 热点" if mode == "live" else "mock 热点"
+            prefix = f"真实 {platform_label} 热点" if mode == "live" else "mock 热点"
             if best:
-                subreddit = f"r/{best.subreddit}" if best.subreddit else "n/a"
                 lines.append(
-                    f"- **{run.topic}**：{prefix}为“{best.title}”（{subreddit}，{best.engagement}），"
+                    f"- **{run.topic}**：{prefix}为“{best.title}”（{evidence_origin_label(best)}，{best.engagement}），"
                     f"相关性：高相关（{best.relevance_score} 分）。"
                 )
             elif any(item.relevance_level in {"edge", "low"} for item in run.evidence):
@@ -1205,10 +1320,10 @@ def render_report(
                 )
             else:
                 lines.append(
-                    f"- **{run.topic}**：本轮未获得高质量 Reddit 证据，暂不纳入趋势判断。"
+                    f"- **{run.topic}**：本轮未获得高质量 {platform_label} 证据，暂不纳入趋势判断。"
                 )
     else:
-        lines.append("- 暂未获得可用 Reddit 证据。mock 模式仍可用于验证报告流程。")
+        lines.append(f"- 暂未获得可用 {platform_label} 证据。mock 模式仍可用于验证报告流程。")
 
     lines.extend(["", "## 用户痛点", ""])
     for topic in topics:
@@ -1216,21 +1331,21 @@ def render_report(
             lines.append(f"- **{topic}**：{pain}")
 
     lines.extend(["", "## 趋势判断", ""])
-    for insight in trend_insights(topics, high_evidence, mode=mode):
+    for insight in trend_insights(topics, high_evidence, mode=mode, platform_label=platform_label):
         lines.append(f"- {insight}")
 
-    append_research_evidence_section(lines, research_evidence)
+    append_research_evidence_section(lines, research_evidence, platform_label=platform_label)
 
     lines.extend(["", "## 内容选题", ""])
-    lines.append("### 有 Reddit 高相关证据支撑的选题")
-    supported_ideas = supported_content_ideas(high_evidence, mode=mode)
+    lines.append(f"### 有 {platform_label} 高相关证据支撑的选题")
+    supported_ideas = supported_content_ideas(high_evidence, mode=mode, platform_label=platform_label)
     if supported_ideas:
         for idea in supported_ideas:
             lines.append(f"- {idea}")
     elif mode == "mock":
-        lines.append("- 当前为 mock 模式，暂无真实 Reddit 高相关证据支撑的选题。")
+        lines.append("- 当前为 mock 模式，暂无真实社媒高相关证据支撑的选题。")
     else:
-        lines.append("- 本轮暂无高相关 Reddit 证据支撑的选题。")
+        lines.append(f"- 本轮暂无高相关 {platform_label} 证据支撑的选题。")
     lines.append("")
     lines.append("### 暂无充分证据但值得后续观察的选题")
     for idea in observation_content_ideas(topics, high_evidence, edge_evidence):
@@ -1259,6 +1374,7 @@ def render_report(
         low_evidence,
         mode=mode,
         research_evidence=research_evidence,
+        platform_label=platform_label,
     ):
         lines.append(f"- {suggestion}")
 
@@ -1280,7 +1396,7 @@ def render_report(
     if all_evidence:
         append_evidence_table(lines, all_evidence, include_level=True)
     else:
-        lines.append(f"- 暂无证据。{connectivity_note or 'live run returned no usable Reddit items.'}")
+        lines.append(f"- 暂无证据。{connectivity_note or 'live run returned no usable social items.'}")
         for run in runs:
             if run.error:
                 lines.append(f"- **{run.topic}**：{run.error}")
@@ -1292,7 +1408,8 @@ def render_report(
             "",
             "- `--data-source auto` 当前会把 mock 映射到 `mock`，把 live 映射到 `reddit_last30days`。",
             "- ScrapeCreators 正式 live 优先使用 `bash scripts/run_scrapecreators_live.sh`；默认单关键词，完整关键词需 `--confirm-full-api`。",
-            "- YouTube、Pinterest、GitHub Actions 留到后续阶段。",
+            "- YouTube Search 正式 live 使用 `bash scripts/run_youtube_live.sh`；它是显式 opt-in，不会成为 `auto` 默认源。",
+            "- YouTube 字幕、评论、画面理解、Pinterest、GitHub Actions 留到后续阶段。",
             "- 数据源清单见 `config/data_sources.json`；预留数据源不会在没有实现时偷偷联网。",
             "- 报告结构来自 `prompts/ceramic_report_prompt.md`，后续可替换为 LLM 中文综合。",
             "- 自动化路线见 `docs/automation-roadmap.md`。",
@@ -1316,6 +1433,8 @@ def render_report(
 def append_research_evidence_section(
     lines: list[str],
     research_evidence: list[ResearchEvidence],
+    *,
+    platform_label: str = "Reddit",
 ) -> None:
     if not research_evidence:
         return
@@ -1325,7 +1444,7 @@ def append_research_evidence_section(
             "",
             "## 研究证据",
             "",
-            "> 本节来自本地研究证据库，用于支撑长期产品方向和下一轮搜索建议；它不是本轮 Reddit 热度，也不能单独证明市场趋势。",
+            f"> 本节来自本地研究证据库，用于支撑长期产品方向和下一轮搜索建议；它不是本轮 {platform_label} 热度，也不能单独证明市场趋势。",
             "",
             "| 证据 | 关联方向 | 可用启发 | 限制 | 链接 |",
             "|---|---|---|---|---|",
@@ -1359,6 +1478,8 @@ def data_mode_label(mode: str, data_source: DataSourceSelection | None = None) -
         return "last30days-skill `--quick --search=reddit`"
     if data_source and data_source.source_id == "scrapecreators_reddit":
         return "ScrapeCreators Reddit API `reddit/search`"
+    if data_source and data_source.source_id == "scrapecreators_youtube_search":
+        return "ScrapeCreators YouTube Search API `youtube/search`"
     if mode == "live":
         return "live source adapter"
     return "mock source adapter"
@@ -1376,23 +1497,23 @@ def append_evidence_table(
     if include_level:
         lines.extend(
             [
-                "| 相关性 | 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |",
+                "| 相关性 | 关键词 | 来源 | 标题 | 互动 | 原因 | 链接 |",
                 "|---|---|---|---|---|---|---|",
             ]
         )
     else:
         lines.extend(
             [
-                "| 关键词 | Subreddit | 标题 | 互动 | 原因 | 链接 |",
+                "| 关键词 | 来源 | 标题 | 互动 | 原因 | 链接 |",
                 "|---|---|---|---|---|---|---|",
             ]
         )
     for item in evidence:
         link = f"[打开]({item.url})" if item.url else "n/a"
-        subreddit = f"r/{item.subreddit}" if item.subreddit else "n/a"
+        origin = evidence_origin_label(item)
         row = [
             escape_cell(item.topic),
-            escape_cell(subreddit),
+            escape_cell(origin),
             escape_cell(item.title),
             escape_cell(item.engagement),
             escape_cell(item.relevance_notes),
@@ -1419,7 +1540,7 @@ def low_relevance_reason(item: Evidence) -> str:
     if "未命中当前关键词意图" in notes:
         return "虽然可能碰到陶瓷词，但没有满足当前关键词意图。"
     if item.subreddit:
-        return f"来自 r/{item.subreddit}，陶瓷语境不足或与本轮分类目标不一致。"
+        return f"来自 {evidence_origin_label(item)}，陶瓷语境不足或与本轮分类目标不一致。"
     return "陶瓷语境不足或主题偏离本轮分类目标。"
 
 
@@ -1443,6 +1564,11 @@ def report_note(
             "不代表真实社媒趋势。"
         )
     if evidence:
+        if data_source and data_source.source_id == "scrapecreators_youtube_search":
+            return (
+                f"> 说明：当前报告使用 {source_report_label(data_source)}。"
+                "本阶段只接入 YouTube Search 元数据，不包含字幕、评论或视频画面理解。"
+            )
         return (
             f"> 说明：当前报告使用 {source_report_label(data_source)}。"
             "YouTube、Pinterest、GitHub 等来源尚未接入。"
@@ -1450,7 +1576,7 @@ def report_note(
     return (
         f"> 说明：当前 live 模式已调用 {source_report_label(data_source)}，"
         "但没有获得可用证据。这通常是数据源访问问题，不代表报告生成器坏了。"
-        f"{connectivity_note or '请检查本机网络是否能访问 Reddit。'}"
+        f"{connectivity_note or '请检查当前数据源网络或 API 配置。'}"
     )
 
 
@@ -1498,7 +1624,7 @@ def live_status_and_error_type(
     else:
         status = "success"
     if status != "success" and not error_type:
-        error_type = "no_usable_reddit_evidence"
+        error_type = "no_usable_evidence"
     return status, error_type, error_text
 
 
@@ -1506,6 +1632,33 @@ def live_error_guidance(
     error_type: str,
     data_source: DataSourceSelection | None = None,
 ) -> str:
+    if data_source and data_source.source_id == "scrapecreators_youtube_search":
+        youtube_guidance = {
+            "forbidden_403": (
+                "ScrapeCreators YouTube Search 返回 403。请检查 API key 权限、接口权限、账号状态和后台额度，"
+                "不要连续重试；正式报告已保留上一份成功版本。"
+            ),
+            "rate_limited_429": (
+                "YouTube Search API 临时限流。请至少等待 30 分钟，不要连续使用 --force。"
+                "可以先用 mock 模式调整报告结构。"
+            ),
+            "dns_error": (
+                "当前运行环境无法解析 ScrapeCreators 或 YouTube 相关域名。请检查网络、代理、DNS，或稍后再试。"
+            ),
+            "timeout": (
+                "YouTube Search 请求超时，可能是网络或代理出口不稳定。建议稍后再试。"
+            ),
+            "network_error": (
+                "当前网络无法稳定访问 YouTube Search API。请检查代理、网络连通性或 API 服务状态。"
+            ),
+            "no_usable_evidence": (
+                "本次没有拿到可用 YouTube 证据。可以先用 mock 模式调整报告结构，再换更具体关键词重试 live。"
+            ),
+        }
+        if error_type in youtube_guidance:
+            message = youtube_guidance[error_type]
+            hint = scrapecreators_failure_hint(error_type)
+            return f"{message}{hint}" if hint else message
     if error_type == "forbidden_403" and data_source and data_source.source_id == "scrapecreators_reddit":
         return (
             "ScrapeCreators 返回 403。请检查 API key 权限、账号状态、接口权限和后台额度，"
@@ -1533,8 +1686,8 @@ def live_error_guidance(
             "当前网络无法稳定访问 Reddit。请检查代理、网络连通性，或稍后再试。"
             "可先运行 `bash scripts/check_environment.sh` 查看诊断结果。"
         ),
-        "no_usable_reddit_evidence": (
-            "本次没有拿到可用 Reddit 证据。可以先用 mock 模式调整报告结构，再换更具体关键词重试 live。"
+        "no_usable_evidence": (
+            "本次没有拿到可用证据。可以先用 mock 模式调整报告结构，再换更具体关键词重试 live。"
         ),
         "missing_key": (
             "ScrapeCreators 数据源需要本地 `SCRAPECREATORS_API_KEY`。请确认 `.env` 已配置，"
@@ -1626,8 +1779,9 @@ def render_live_error_report(
     generated_at = datetime.now().strftime("%Y-%m-%d %H:%M")
     guidance = live_error_guidance(error_type, data_source)
     fallback_sources = data_source.fallback_sources if data_source else []
+    platform_label = data_source_platform_label(data_source, mode="live")
     lines = [
-        "# Reddit live 运行失败记录",
+        f"# {platform_label} live 运行失败记录",
         "",
         f"- 发生时间：{generated_at}",
         f"- 错误类型：{error_type or 'unknown'}",
@@ -1643,7 +1797,7 @@ def render_live_error_report(
         "",
         "## 说明",
         "",
-        "live 失败，未覆盖 `reports/report.md`。如果这是 Reddit 403 / 429 / DNS 问题，通常先处理数据源或网络，不要急着改报告生成逻辑。mock 模式仍可继续用于测试报告流程。",
+        "live 失败，未覆盖 `reports/report.md`。通常先处理数据源、网络、代理、API key 或额度问题，不要急着改报告生成逻辑。mock 模式仍可继续用于测试报告流程。",
         "",
         "## 建议下一步操作",
         "",
@@ -1659,7 +1813,7 @@ def render_live_error_report(
         lines.append(error_text.strip())
         lines.append("```")
     else:
-        lines.append("- 本次没有拿到高相关或边缘相关 Reddit 证据，因此没有更新正式报告。")
+        lines.append(f"- 本次没有拿到高相关或边缘相关 {platform_label} 证据，因此没有更新正式报告。")
 
     if connectivity_note:
         lines.extend(["", "## Reddit 预检", "", f"- {connectivity_note}"])
@@ -1675,13 +1829,13 @@ def render_live_error_report(
             "",
             "## NEXT STEPS",
             "",
-            "- 如果是 `forbidden_403`：通常是 Reddit 阻挡当前网络或请求方式，稍后换网络或降低频率再试。",
+            "- 如果是 `forbidden_403`：通常是当前数据源拒绝请求，稍后换网络、检查 API key / 权限或降低频率再试。",
             "- 如果是 `rate_limited_429`：不要立刻重复运行，等待冷却时间后再试。",
-            "- 如果是 `dns_error`：先确认本机能解析并访问 `www.reddit.com`。",
+            "- 如果是 `dns_error`：先确认本机能解析并访问当前数据源域名。",
             "- 如果是 `timeout`：检查代理出口稳定性，或稍后再试。",
-            "- 如果是 `network_error`：先确认当前网络能打开 Reddit，再运行 `bash scripts/run_live.sh --force`。",
-            "- 需要进一步定位时，运行 `bash scripts/check_environment.sh`，重点看 `terminal proxy env` 和 `Reddit proxy-aware HTTP`。",
-            "- 如果 public Reddit JSON 持续 403，并且 ScrapeCreators 备份状态是 `missing`，再决定是否配置 `SCRAPECREATORS_API_KEY`。",
+            "- 如果是 `network_error`：先确认当前网络能访问对应数据源，再决定是否运行 live。",
+            "- 需要进一步定位 Reddit public JSON 时，运行 `bash scripts/check_environment.sh`，重点看 `terminal proxy env` 和 `Reddit proxy-aware HTTP`。",
+            "- 如果 API-backed 数据源失败，请检查 `SCRAPECREATORS_API_KEY`、接口权限和后台额度。",
         ]
     )
     return "\n".join(lines) + "\n"
