@@ -283,7 +283,7 @@ def render_comparison(previous: ParsedReport, latest: ParsedReport, *, archive_c
             "",
             f"- 建议下轮加强这些关键词：{format_keywords(strengthen)}",
             f"- 建议下轮降低这些噪音关键词：{format_keywords(reduce_noise)}",
-            "- 如果 Reddit live 继续失败，不要用失败报告做趋势对比；先修网络或代理，再积累成功 archive。",
+            "- 如果 live 继续失败，不要用失败报告做趋势对比；先修网络、代理或数据源配置，再积累成功 archive。",
             "",
         ]
     )
@@ -302,7 +302,7 @@ def render_observations(
     if archive_count < 3:
         lines.append("- 当前 archive 样本不足，不适合做强趋势判断；本报告只做最近两期的基础变化提示。")
     if latest.high_count > previous.high_count:
-        lines.append("- 高相关证据数量上升，说明最新一期 Reddit 抓取结果更适合提炼内容和工具线索。")
+        lines.append("- 高相关证据数量上升，说明最新一期 live 抓取结果更适合提炼内容和工具线索。")
     elif latest.high_count < previous.high_count:
         lines.append("- 高相关证据数量下降，下一轮应优先检查关键词是否过宽、网络是否稳定、subreddit 是否需要收窄。")
     else:
