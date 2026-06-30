@@ -1,0 +1,120 @@
+{
+  "topics": [
+    "ceramic glaze",
+    "kiln firing",
+    "handmade pottery"
+  ],
+  "recommended_subreddits": [],
+  "relevance": {
+    "positive_terms": [
+      "ceramic",
+      "ceramics",
+      "pottery",
+      "glaze",
+      "kiln",
+      "clay",
+      "firing",
+      "handmade",
+      "wheel throwing",
+      "studio",
+      "cone",
+      "recipe",
+      "test tile"
+    ],
+    "exclude_terms": [
+      "anime",
+      "cosplay",
+      "cats",
+      "cat",
+      "outfit",
+      "gaming",
+      "fivenightsatfreddys",
+      "fnaf",
+      "makati",
+      "keyboards",
+      "keyboard",
+      "naruto",
+      "ordinary ai video",
+      "ai video"
+    ]
+  },
+  "topic_rules": {
+    "ceramic glaze": {
+      "required_terms": [
+        "glaze",
+        "underglaze",
+        "cone",
+        "recipe",
+        "test tile",
+        "crawling",
+        "pinholes",
+        "crystalline",
+        "chemistry"
+      ],
+      "boost_terms": [
+        "oxide",
+        "stain",
+        "celadon",
+        "shino",
+        "ash glaze",
+        "layering",
+        "food safe"
+      ],
+      "exclude_terms": [
+        "anime",
+        "gaming",
+        "cats"
+      ],
+      "intent_note": "YouTube 多关键词小样本中的釉料方向，用于观察釉色、配方、缺陷和测试片内容。"
+    },
+    "kiln firing": {
+      "required_terms": [
+        "kiln",
+        "firing",
+        "cone",
+        "temperature",
+        "bisque",
+        "schedule"
+      ],
+      "boost_terms": [
+        "electric kiln",
+        "gas kiln",
+        "reduction",
+        "oxidation",
+        "cooling",
+        "kiln unloading"
+      ],
+      "exclude_terms": [
+        "gaming",
+        "anime",
+        "fnaf"
+      ],
+      "intent_note": "YouTube 多关键词小样本中的烧成方向，用于观察温度、锥度、窑炉和失败复盘内容。"
+    },
+    "handmade pottery": {
+      "required_terms": [
+        "handmade",
+        "pottery",
+        "clay",
+        "wheel throwing",
+        "handbuilding",
+        "ceramic"
+      ],
+      "boost_terms": [
+        "studio",
+        "mug",
+        "bowl",
+        "vase",
+        "throwing",
+        "trimming"
+      ],
+      "exclude_terms": [
+        "anime",
+        "cosplay",
+        "gaming",
+        "keyboard"
+      ],
+      "intent_note": "YouTube 多关键词小样本中的手作陶艺方向，用于观察制作过程、器型和工作室内容。"
+    }
+  }
+}

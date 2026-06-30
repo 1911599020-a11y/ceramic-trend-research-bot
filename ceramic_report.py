@@ -60,6 +60,24 @@ DEFAULT_STATE_FILE = PROJECT_ROOT / "local_outputs" / "run_state.json"
 DEFAULT_ERROR_FILE = PROJECT_ROOT / "local_outputs" / "last_error.md"
 SUPPORTED_MODEL_PROVIDERS = {"rules"}
 REPORT_VERSION = "V0.6.6"
+GLAZE_SIGNAL_TERMS = ("glaze", "recipe", "test tile", "underglaze", "defect", "chemistry")
+KILN_SIGNAL_TERMS = ("kiln", "firing", "cone", "temperature", "bisque", "schedule")
+BUSINESS_STRONG_TERMS = (
+    "business",
+    "etsy",
+    "pricing",
+    "price",
+    "customer",
+    "sell",
+    "selling",
+    "sales",
+    "order",
+    "commission",
+    "marketing",
+    "inventory",
+)
+AI_SIGNAL_TERMS = ("ai", "generative", "digital", "prompt", "pattern", "computational")
+PRINTING_3D_SIGNAL_TERMS = ("3d", "printing", "printed", "extrusion", "paste")
 
 
 @dataclass(frozen=True)
@@ -940,23 +958,23 @@ def trend_insights(
     insights = [f"本轮 {platform_label} 数据样本有限，趋势判断仅代表当前抓取结果。"]
     signal_rules = [
         (
-            ("glaze", "underglaze", "recipe", "test tile", "defect"),
+            GLAZE_SIGNAL_TERMS,
             "釉料与表面结果的讨论更像“问题求诊断”而不是单纯晒图，适合继续观察配方、测试片和缺陷排查内容。",
         ),
         (
-            ("kiln", "firing", "cone", "temperature", "bisque", "schedule"),
+            KILN_SIGNAL_TERMS,
             "烧成环节仍是高价值讨论点，用户更需要可复盘的温度、锥度、窑位和失败原因整理。",
         ),
         (
-            ("business", "pricing", "etsy", "customer", "studio", "sell", "order"),
+            BUSINESS_STRONG_TERMS,
             "经营类问题如果持续出现，说明工作室定价、订单沟通和销售解释是中文内容可以切入的实用主题。",
         ),
         (
-            ("ai", "generative", "digital", "prompt", "pattern", "computational"),
+            AI_SIGNAL_TERMS,
             "AI/数字设计目前需要看是否真的落到陶瓷制作流程；只有同时出现 AI 与陶瓷工艺语境时，才适合判断为趋势信号。",
         ),
         (
-            ("3d", "printing", "printed", "extrusion", "paste"),
+            PRINTING_3D_SIGNAL_TERMS,
             "3D 打印陶瓷更适合作为技术观察线索，重点应放在材料、成型失败和可制作性，而不是只看视觉新鲜感。",
         ),
     ]
@@ -1039,16 +1057,16 @@ def evidence_backed_tool_ideas(high_evidence: list[Evidence], *, mode: str) -> l
     seen = set()
     for item in sort_evidence(high_evidence):
         text = evidence_text(item)
-        if any(term in text for term in ("kiln", "firing", "cone", "temperature", "bisque", "schedule")):
+        if any(term in text for term in KILN_SIGNAL_TERMS):
             key = "kiln"
             idea = f"烧成失败诊断卡：本轮证据 {evidence_ref(item)} 指向烧成复盘需求，可记录温度、锥度、窑位和失败现象。"
-        elif any(term in text for term in ("business", "etsy", "pricing", "customer", "sell", "studio", "order")):
+        elif any(term in text for term in BUSINESS_STRONG_TERMS):
             key = "business"
             idea = f"工作室定价与客户沟通表：本轮证据 {evidence_ref(item)} 指向经营解释成本，可整理定价、订单、瑕疵说明和售后话术。"
-        elif any(term in text for term in ("glaze", "recipe", "test tile", "underglaze", "defect")):
+        elif any(term in text for term in GLAZE_SIGNAL_TERMS):
             key = "glaze"
             idea = f"釉色实验记录器：本轮证据 {evidence_ref(item)} 指向釉料测试和缺陷排查，可记录配方、厚度、烧成条件和结果照片。"
-        elif any(term in text for term in ("ai", "generative", "digital", "prompt", "pattern")):
+        elif any(term in text for term in AI_SIGNAL_TERMS):
             key = "ai"
             idea = f"AI 陶瓷纹样落地检查表：本轮证据 {evidence_ref(item)} 指向数字灵感到工艺执行的断层，可把 prompt、纹样、泥料和烧成限制放在同一页。"
         else:
@@ -1207,15 +1225,15 @@ def evidence_has_any(item: Evidence, terms: tuple[str, ...]) -> bool:
 
 def content_reason(item: Evidence) -> str:
     text = evidence_text(item)
-    if any(term in text for term in ("kiln", "firing", "cone", "temperature", "bisque", "schedule")):
+    if any(term in text for term in KILN_SIGNAL_TERMS):
         return "它把烧成失败、温度控制或窑炉选择变成可拆解步骤，适合做避坑型内容。"
-    if any(term in text for term in ("glaze", "recipe", "test tile", "underglaze", "defect")):
+    if any(term in text for term in GLAZE_SIGNAL_TERMS):
         return "它对应釉色测试和缺陷排查，读者通常会需要配方、变量和前后对照。"
-    if any(term in text for term in ("business", "etsy", "pricing", "customer", "sell", "studio", "order")):
+    if any(term in text for term in BUSINESS_STRONG_TERMS):
         return "它贴近工作室经营场景，能转成定价、客户沟通或销售复盘内容。"
-    if any(term in text for term in ("ai", "generative", "digital", "prompt", "pattern", "computational")):
+    if any(term in text for term in AI_SIGNAL_TERMS):
         return "它连接数字灵感与真实制作，适合讲清楚从图案到泥料、釉料和烧成的落地过程。"
-    if any(term in text for term in ("3d", "printing", "printed", "extrusion")):
+    if any(term in text for term in PRINTING_3D_SIGNAL_TERMS):
         return "它涉及新工艺落地，适合用案例解释材料、成型限制和失败成本。"
     return "它来自高相关陶瓷语境，适合围绕真实问题做解释、复盘或案例拆解。"
 

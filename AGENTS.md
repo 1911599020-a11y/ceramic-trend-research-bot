@@ -11,8 +11,9 @@
 - `--mode mock`：读取仓库内 `data/mock_samples.json`，零配置、零联网，用于验证报告结构与版式。
 - `--mode live`：默认接入 Reddit（经由外部 `last30days-skill` 子进程），也可显式选择 ScrapeCreators Reddit API 或 ScrapeCreators YouTube Search API，并按陶瓷相关性分层。
 - 当前架构基础：**V0.5.0 — 数据源适配层（data-source adapter）**。详见 `docs/changes/0001-data-source-adapter.md`。
-  当前运行选择：**V0.9.0 — YouTube Search 最小正式 adapter**，`auto` live 仍默认 `reddit_last30days`；YouTube 只能通过 `scrapecreators_youtube_search` 显式 opt-in。
-  注意：V0.9.0 只把 YouTube Search 元数据接入正式 report pipeline，不接字幕、评论、视频画面或 DeepSeek 正式评分；正式报告生成版本仍保持 V0.6.6。
+  当前运行选择：**V0.9.3 — YouTube Search 小样本质量验证准备**，`auto` live 仍默认 `reddit_last30days`；YouTube 只能通过 `scrapecreators_youtube_search` 显式 opt-in。
+  注意：V0.9.x 只把 YouTube Search 元数据接入正式 report pipeline，不接字幕、评论、视频画面或 DeepSeek 正式评分；正式报告生成版本仍保持 V0.6.6。
+  V0.9.2 以后，频道名里的 `studio` 不得单独触发经营类趋势或“工作室定价”小工具；经营类判断必须命中更强的 pricing/customer/order/sell 等信号。
   当前 LLM 状态：`scoring/llm_scorer.py`、`config/llm_scoring.json`、`prompts/llm_scoring_prompt.md` 定义评分契约；`scripts/probe_llm_scoring.sh` 默认 dry-run，不联网。
   DeepSeek tiny probe、评分对照报告和真实小样本对照报告真实运行必须用户明确同意、打开 `LLM_SCORING_ENABLED=on` 并加 `--confirm-live-api`，输出只写入 `local_outputs/llm_scoring_probe.*`、`local_outputs/llm_scoring_comparison.*` 或 `local_outputs/llm_scoring_real_sample_comparison.*`，不写正式 reports。
   真实小样本对照采用风险优先抽样，用于质检，不代表关键词整体分布；`--sample-count` 控制 DeepSeek 分析样本数，ScrapeCreators 请求数约等于本轮关键词数量。
@@ -35,6 +36,7 @@ ceramic_report.py             # 打分 + 渲染（“如何消化证据”），
 config/ceramic_topics.json    # 关键词、推荐 subreddit、相关性规则（positive/exclude/topic_rules）
 config/scrapecreators_quality_topics.json # 小批量关键词质量测试配置；V0.7.5 active topics 已用更具体 AI 陶瓷词替换宽泛 AI ceramic design
 config/youtube_probe_topics.json # YouTube Search 正式 live 的默认单关键词安全配置
+config/youtube_quality_topics.json # YouTube Search 多关键词小样本配置，默认 dry-run runner 使用
 config/llm_scoring.json       # 智能评分设计配置，默认 disabled/design_only
 config/data_sources.json      # 数据源清单：mock / reddit_last30days / scrapecreators_reddit / scrapecreators_youtube_search 可用，其他来源预留
 data/mock_samples.json        # mock 证据样例（last30days --emit=json 形状）
@@ -49,6 +51,7 @@ scripts/probe_scrapecreators_youtube_video.py # YouTube Video Details 独立 tin
 scripts/review_youtube_video_probe.py         # YouTube Video Details 字段质量和 DeepSeek 旁路审核，只写 local_outputs/
 scripts/run_scrapecreators_live.sh      # ScrapeCreators 正式 live runner，默认单关键词，带额度保护
 scripts/run_youtube_live.sh             # YouTube Search 正式 live runner，默认单关键词，带额度保护
+scripts/run_youtube_quality_live.sh     # YouTube Search 多关键词小样本 runner，默认 dry-run
 scripts/run_keyword_quality_check.sh    # 小批量关键词质量 runner，默认 dry-run，只写 local_outputs/
 scripts/summarize_keyword_quality.py    # 从测试报告生成关键词质量摘要
 scripts/probe_llm_scoring.py            # DeepSeek LLM scoring tiny probe，默认不联网
@@ -87,6 +90,9 @@ transcript 或 comments，不得保存原始响应、description 全文或 conti
 `bash scripts/run_youtube_live.sh` 默认只跑 `config/youtube_probe_topics.json`；完整关键词必须显式加
 `--confirm-full-api`。YouTube live 失败、空结果或全低相关结果不得覆盖 `reports/report.md`、`reports/latest.md`
 或 `reports/archive/`，错误写入 `local_outputs/youtube_live_error.md`，状态写入 `local_outputs/youtube_run_state.json`。
+`bash scripts/run_youtube_quality_live.sh` 默认 dry-run，只打印 3 个关键词小样本命令；真实运行必须显式加
+`--confirm-live-api`。它使用 `config/youtube_quality_topics.json`，状态写入
+`local_outputs/youtube_quality_run_state.json`，错误写入 `local_outputs/youtube_quality_error.md`。
 `youtube_future` 继续保持 planned，留给未来 transcript / comments / video understanding，不得被当前正式报告调用。
 `scripts/review_youtube_probe.py` 是 V0.8.2/V0.8.3 的独立旁路审核脚本，默认只读
 `local_outputs/youtube_probe.json` 并输出字段质量报告；真实 DeepSeek 审核必须打开
@@ -174,6 +180,12 @@ bash scripts/run_youtube_live.sh
 # ScrapeCreators YouTube Search 正式 live dry-run（不联网、不消耗 API）
 bash scripts/run_youtube_live.sh --dry-run
 
+# ScrapeCreators YouTube Search 多关键词小样本 dry-run（默认不联网、不消耗 API）
+bash scripts/run_youtube_quality_live.sh
+
+# ScrapeCreators YouTube Search 多关键词小样本真实运行（必须用户明确同意后才运行）
+bash scripts/run_youtube_quality_live.sh --confirm-live-api
+
 # 小批量关键词质量测试（默认 dry-run，不联网、不消耗 API）
 bash scripts/run_keyword_quality_check.sh
 
@@ -206,7 +218,7 @@ bash scripts/summarize_keyword_convergence.sh
 - `tests/test_youtube_video_review.py`：YouTube Video Details 字段整理、DeepSeek 旁路审核的开关保护、输出保护和错误分类。
 - `tests/test_youtube_source.py`：YouTube Search adapter 的缺 key 保护、响应转换、HTTP / DNS / timeout / parse 错误分类和脱敏。
 - `tests/test_youtube_live_protection.py`：YouTube formal live 的 API 错误、空结果、全低相关不覆盖正式报告，以及高相关样本成功写报告。
-- `tests/test_report_labels.py`：YouTube 报告显示频道来源，不显示成 `r/频道名` 或 Reddit 热点。
+- `tests/test_report_labels.py`：YouTube 报告显示频道来源，不显示成 `r/频道名` 或 Reddit 热点，并避免把频道名 `studio` 误判为经营证据。
 - `tests/test_scrapecreators_source.py`：ScrapeCreators readiness、`.env` 读取、API 响应转换和 key 脱敏。
 - `tests/test_llm_scoring.py`：V0.6.7 智能评分接口、JSON schema、mock scorer 和规则/LLM 合并契约。
 - `tests/test_llm_scoring_probe.py`：DeepSeek tiny probe 的默认不联网、缺 key、输出路径保护、HTTP 错误分类和脱敏摘要。
@@ -243,6 +255,7 @@ bash scripts/summarize_keyword_convergence.sh
 - YouTube tiny probe 默认不联网；真实请求必须显式加 `--confirm-live-api`，输出只能写入 `local_outputs/youtube_probe.*`，不得覆盖正式报告，不得追分页，不得拉视频详情、字幕或评论。
 - ScrapeCreators 正式 source 不是默认源；优先用 `bash scripts/run_scrapecreators_live.sh` 显式调用，成功时会更新正式报告。该脚本默认单关键词，`--confirm-full-api` 才跑完整关键词。
 - YouTube Search 正式 source 不是默认源；优先用 `bash scripts/run_youtube_live.sh` 显式调用。该脚本默认单关键词，`--confirm-full-api` 才跑完整关键词；API 错误、空结果或全低相关不得覆盖正式报告。
+- YouTube 多关键词小样本 runner 默认不联网：`bash scripts/run_youtube_quality_live.sh` 只打印命令；真实运行必须用户明确同意并加 `--confirm-live-api`。
 - 小批量关键词质量测试默认 dry-run；真实运行必须显式加 `--confirm-live-api`，输出只写入 `local_outputs/keyword_quality_*`。
 - DeepSeek LLM scoring probe、scoring comparison 和 real sample comparison 默认 dry-run；真实运行必须显式打开 `LLM_SCORING_ENABLED=on` 并加 `--confirm-live-api`，输出只写入 `local_outputs/llm_scoring_probe.*`、`local_outputs/llm_scoring_comparison.*` 或 `local_outputs/llm_scoring_real_sample_comparison.*`。
 - 关键词收敛计划默认不联网，只读 `local_outputs/llm_scoring_real_sample_comparison.json`，输出只写入 `local_outputs/keyword_convergence_plan.*`，不得自动修改正式报告或 active keyword config。

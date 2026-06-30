@@ -252,6 +252,49 @@ class DataSourceSelectionTests(unittest.TestCase):
             confirm_full_api=False,
         )
 
+    def test_youtube_quality_topics_are_small_sample(self) -> None:
+        path = ceramic_report.PROJECT_ROOT / "config" / "youtube_quality_topics.json"
+        config = ceramic_report.load_config(path)
+        relevance = ceramic_report.load_relevance_config(config)
+
+        self.assertEqual(
+            ceramic_report.load_topics(path),
+            ["ceramic glaze", "kiln firing", "handmade pottery"],
+        )
+        self.assertIn("ceramic glaze", {key.lower() for key in relevance.topic_rules})
+        self.assertIn("kiln firing", {key.lower() for key in relevance.topic_rules})
+        self.assertIn("handmade pottery", {key.lower() for key in relevance.topic_rules})
+
+    def test_youtube_quality_python_topics_do_not_require_full_confirmation(self) -> None:
+        selection = ceramic_report.resolve_data_source(
+            self.catalog,
+            mode="live",
+            requested="scrapecreators_youtube_search",
+        )
+
+        ceramic_report.validate_api_topic_scope(
+            mode="live",
+            data_source=selection,
+            topics_path=ceramic_report.PROJECT_ROOT / "config" / "youtube_quality_topics.json",
+            confirm_full_api=False,
+        )
+
+    def test_youtube_quality_live_script_defaults_to_dry_run(self) -> None:
+        result = subprocess.run(
+            ["bash", "scripts/run_youtube_quality_live.sh"],
+            cwd=ceramic_report.PROJECT_ROOT,
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+        output = result.stdout
+        self.assertIn("Dry run", output)
+        self.assertIn("--data-source scrapecreators_youtube_search", output)
+        self.assertIn("config/youtube_quality_topics.json", output)
+        self.assertIn("local_outputs/youtube_quality_error.md", output)
+        self.assertNotIn("config/ceramic_topics.json", output)
+
     def test_youtube_python_full_topics_allows_explicit_confirmation(self) -> None:
         selection = ceramic_report.resolve_data_source(
             self.catalog,
