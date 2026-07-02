@@ -1942,6 +1942,31 @@ def write_successful_live_report(
     return archive_path
 
 
+def save_scored_run_to_knowledge_store(
+    runs: list[TopicRun],
+    *,
+    mode: str,
+    data_source: DataSourceSelection,
+) -> str:
+    """Archive scored evidence after the report is safely on disk.
+
+    The knowledge store must never affect report generation: import or write
+    failures are reduced to a printable note and swallowed. Frozen scoring and
+    report output stay byte-identical whether the store succeeds or fails.
+    """
+    try:
+        from storage.knowledge_store import save_run_to_store
+
+        return save_run_to_store(
+            runs,
+            mode=mode,
+            data_source=data_source.source_id,
+            report_version=REPORT_VERSION,
+        )
+    except Exception as exc:  # noqa: BLE001 - store failure must not break reports
+        return f"知识库写入失败（报告不受影响）：{exc}"
+
+
 def escape_cell(value: str) -> str:
     return value.replace("|", "\\|").replace("\n", " ").strip()
 
@@ -2083,6 +2108,13 @@ def main() -> int:
             print(f"已更新 {display_path(output_path)}")
             print(f"已更新 {display_path(latest_path)}")
             print(f"已归档 {display_path(archive_path)}")
+            store_note = save_scored_run_to_knowledge_store(
+                runs,
+                mode=args.mode,
+                data_source=data_source,
+            )
+            if store_note:
+                print(store_note)
             return 0
 
         write_text_file(
@@ -2128,6 +2160,13 @@ def main() -> int:
     save_run_state(state_path, mock_state)
     print(f"本次数据源：{source_report_label(data_source)}")
     print(f"已更新 {display_path(output_path)}")
+    store_note = save_scored_run_to_knowledge_store(
+        runs,
+        mode=args.mode,
+        data_source=data_source,
+    )
+    if store_note:
+        print(store_note)
     return 0
 
 

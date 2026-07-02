@@ -79,9 +79,11 @@ class YouTubeLiveProtectionTests(unittest.TestCase):
         ]
 
     def run_main_with_source(self, source: FakeSource) -> int:
-        with mock.patch.object(sys, "argv", self.argv()):
-            with mock.patch("ceramic_report.build_trend_source", return_value=source):
-                return ceramic_report.main()
+        # 知识库开关关闭：单测不得写入真实 data/ceramic_knowledge.db
+        with mock.patch.dict("os.environ", {"KNOWLEDGE_STORE_ENABLED": "off"}):
+            with mock.patch.object(sys, "argv", self.argv()):
+                with mock.patch("ceramic_report.build_trend_source", return_value=source):
+                    return ceramic_report.main()
 
     def seed_previous_reports(self) -> None:
         self.output_path.write_text("previous report\n", encoding="utf-8")

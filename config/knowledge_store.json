@@ -1,0 +1,20 @@
+{
+  "version": "V0.9.6",
+  "enabled": true,
+  "switch_env_var": "KNOWLEDGE_STORE_ENABLED",
+  "enabled_values": ["on", "true", "1", "yes"],
+  "disabled_values": ["off", "false", "0", "no"],
+  "db_path": "data/ceramic_knowledge.db",
+  "allowed_db_root": "data",
+  "platforms": ["reddit", "youtube", "xiaohongshu", "radar"],
+  "notes": [
+    "V0.9.6 adds a local SQLite knowledge store so runs are remembered across time.",
+    "The store runs strictly AFTER report rendering and never changes scoring or report output.",
+    "Store failures must not break or overwrite the report flow.",
+    "The database writes only inside data/ (default data/ceramic_knowledge.db, git-ignored).",
+    "The store is local and free: no network, no external dependency (sqlite3 is stdlib).",
+    "Live failure runs are not archived; only successfully reported runs are.",
+    "xiaohongshu and radar are reserved partitions; no current code writes to them.",
+    "Tests must keep KNOWLEDGE_STORE_ENABLED=off when invoking main() to avoid polluting the real database."
+  ]
+}

@@ -17,6 +17,9 @@ local_outputs/
 temp/
 tmp/
 
+# Local knowledge store (V0.9.6): personal archive stays local
+data/ceramic_knowledge.db
+
 # Agent-local state and credentials
 .claude/
 .codex/

@@ -105,8 +105,10 @@ class ResearchEvidenceTests(unittest.TestCase):
                 str(state),
             ]
 
-            with mock.patch("sys.argv", argv):
-                exit_code = main()
+            # 知识库开关关闭：单测不得写入真实 data/ceramic_knowledge.db
+            with mock.patch.dict("os.environ", {"KNOWLEDGE_STORE_ENABLED": "off"}):
+                with mock.patch("sys.argv", argv):
+                    exit_code = main()
 
             rendered = output.read_text(encoding="utf-8")
 

@@ -19,6 +19,7 @@
   当前 LLM 状态：`scoring/llm_scorer.py`、`config/llm_scoring.json`、`prompts/llm_scoring_prompt.md` 定义评分契约；`scripts/probe_llm_scoring.sh` 默认 dry-run，不联网。
   DeepSeek tiny probe、评分对照报告和真实小样本对照报告真实运行必须用户明确同意、打开 `LLM_SCORING_ENABLED=on` 并加 `--confirm-live-api`，输出只写入 `local_outputs/llm_scoring_probe.*`、`local_outputs/llm_scoring_comparison.*` 或 `local_outputs/llm_scoring_real_sample_comparison.*`，不写正式 reports。
   真实小样本对照采用风险优先抽样，用于质检，不代表关键词整体分布；`--sample-count` 控制 DeepSeek 分析样本数，ScrapeCreators 请求数约等于本轮关键词数量。
+  当前知识库状态：V0.9.6 起 `storage/knowledge_store.py` + `config/knowledge_store.json` 在报告成功写盘后，把本轮打分证据归档进本地 SQLite（默认 `data/ceramic_knowledge.db`，已 git 忽略，纯标准库、零联网）。知识库只在渲染之后运行，不改打分与报告输出；写入失败不得影响或覆盖正式报告；live 失败轮不入库。`xiaohongshu` 与 `radar` 为预留分区，当前不得有任何代码写入。开关为 `KNOWLEDGE_STORE_ENABLED`（默认 on，设 `off` 关闭）；测试中调用 `main()` 时必须显式关闭，避免污染真实数据库。只读查询用 `python scripts/query_knowledge.py`。详见 `docs/changes/0035-knowledge-store.md`。
   最新项目决策按 `docs/changes/` 中的编号变更记录继续递增。
 
 ## 2. 架构
@@ -34,6 +35,8 @@ sources/                      # 数据源适配层（“证据从哪来”）
   youtube_source.py           # ScrapeCreators YouTube Search opt-in source
 scoring/
   llm_scorer.py               # V0.6.7 design-only LLM scoring contract + mock scorer
+storage/
+  knowledge_store.py          # V0.9.6 本地知识库（SQLite）：报告写盘后归档每轮打分证据，失败不影响报告
 ceramic_report.py             # 打分 + 渲染（“如何消化证据”），CLI 入口
 config/ceramic_topics.json    # 关键词、推荐 subreddit、相关性规则（positive/exclude/topic_rules）
 config/scrapecreators_quality_topics.json # 小批量关键词质量测试配置；V0.7.5 active topics 已用更具体 AI 陶瓷词替换宽泛 AI ceramic design
