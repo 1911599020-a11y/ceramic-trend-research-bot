@@ -4,10 +4,13 @@
 
 ## Current Status
 
-V0.9.5 是 **YouTube 混合信号解释一致性版本**，建立在 V0.9.4 YouTube 报告解释精修之上：
+V0.9.7 是 **DeepSeek 正式报告语义质检版本**，建立在 V0.9.6 本地知识库之上：
 
-- 注意：V0.7.5 仍是独立旁路分析版本，不提升正式报告生成版本；`ceramic_report.py` 的 `REPORT_VERSION` 仍保持 `V0.6.6`，因为正式报告流程没有接入 LLM scoring。
-- 注意：V0.8.0 也是独立旁路探针版本，不提升正式报告生成版本；正式报告仍只使用规则评分和当前已启用数据源。
+- 注意：`ceramic_report.py` 的 `REPORT_VERSION` 仍保持 `V0.6.6`，因为高/边缘/跑偏规则分层仍由冻结规则负责。
+- V0.9.7 起，打开 `LLM_SCORING_ENABLED=on` 且配置 `DEEPSEEK_API_KEY` 后，正式报告会新增 `DeepSeek 语义质检` 两栏对照；DeepSeek 不当主裁判，不改写整份报告。
+- DeepSeek 正式报告质检每轮受 `config/llm_scoring.json` 的 `max_items_per_run` 限制，默认最多 5 条；失败时只写 `local_outputs/llm_report_review_error.md`，报告仍按规则评分生成。
+- V0.9.6 新增本地知识库 `data/ceramic_knowledge.db`（git 忽略），报告成功写盘后归档每轮证据，用于后续跨期对比。
+- V0.9.7 将“用户痛点”降级为“用户痛点假设”，明确它仍是关键词假设，不是评论/字幕/长文本证据抽取结果。
 - V0.9.2 收紧报告推理：频道名里的 `studio` 不再单独触发经营类趋势或“工作室定价”小工具。
 - V0.9.3 新增 `config/youtube_quality_topics.json`，用 `ceramic glaze`、`kiln firing`、`handmade pottery` 做 YouTube 多关键词小样本验证。
 - V0.9.4 收紧制作类视频解释：`handmade pottery` 这类 YouTube 制作视频优先写成制作过程拆解、工艺复盘和器型案例，不再自动推导成销售决策工具。
@@ -31,10 +34,10 @@ V0.9.5 是 **YouTube 混合信号解释一致性版本**，建立在 V0.9.4 YouT
 - 新增 `scripts/review_youtube_video_probe.py` / `.sh`，用于整理 video details 字段，并可选让 DeepSeek 做详情层旁路审核。
 - V0.8.4-V0.8.6 默认不联网、不拉字幕、不拉评论、不更新正式 reports；真实 video details 请求和 DeepSeek 详情层旁路审核已完成一次小样本验证。
 - V0.8.7-lite 记录了 YouTube 转正判断：当时状态是 `wait`；V0.9.0 已实现最小 YouTube Search adapter，但仍然 opt-in。
-- `youtube_future` 仍保持 planned，专门留给未来 transcript / comments / video understanding；DeepSeek 只参与旁路审核，不写入正式报告。
+- `youtube_future` 仍保持 planned，专门留给未来 transcript / comments / video understanding；V0.9.7 只让 DeepSeek 对正式报告候选证据做限量语义质检。
 - 新增 `sources/` 适配层，定义统一的 `TrendSource` 契约：`fetch(topic, *, recommended_subreddits)`，输出统一的 `last30days` 形状报告 dict
 - 新增 `scoring/llm_scorer.py`，为后续大模型辅助打分定义结构化输入、输出、mock scorer 和规则/LLM 合并结果
-- 新增 `config/llm_scoring.json`，默认 `enabled=false`、`provider=deepseek`、`mode=design_only`，并用 `LLM_SCORING_ENABLED=off/on` 预留未来界面勾选开关
+- 新增 `config/llm_scoring.json`，默认 `enabled=false`、`provider=deepseek`、`mode=formal_report_review`，并用 `LLM_SCORING_ENABLED=off/on` 控制正式报告语义质检
 - 新增 `prompts/llm_scoring_prompt.md`，要求模型只返回 JSON，不直接生成最终报告
 - 新增 `scripts/probe_llm_scoring.py` / `.sh`，默认 dry-run，不联网；真实 DeepSeek tiny test 必须同时打开 `LLM_SCORING_ENABLED=on` 并显式加 `--confirm-live-api`
 - V0.6.8 tiny probe 只写 `local_outputs/llm_scoring_probe.md` 等本地文件，**不更新正式 reports**
@@ -42,7 +45,7 @@ V0.9.5 是 **YouTube 混合信号解释一致性版本**，建立在 V0.9.4 YouT
 - `scripts/compare_real_llm_scoring.py` / `.sh` 已升级为真实样本质量雷达 + DeepSeek 局部质检 + 报告解析，输出只写 `local_outputs/llm_scoring_real_sample_comparison.*`
 - 新增 `scripts/summarize_keyword_convergence.py` / `.sh`，读取 V0.7.3 真实小样本对照 JSON，生成下一轮关键词保留、收窄、降噪计划，输出只写 `local_outputs/keyword_convergence_plan.*`
 - V0.7.5 已将小批量 active topics 收敛为 `kiln firing`、`ceramic business` 和 4 个更具体的 AI 陶瓷词，替换宽泛的 `AI ceramic design`
-- `mock` 模式改由 `MockSource` 读取仓库内 `data/mock_samples.json`，**零配置、零联网、零外部依赖**，在 Windows / CI 上也能稳定出报告
+- `mock` 模式改由 `MockSource` 读取仓库内 `data/mock_samples.json`，**零配置、零外部依赖**；默认 `LLM_SCORING_ENABLED=off` 时零联网，在 Windows / CI 上也能稳定出报告。若显式打开 `LLM_SCORING_ENABLED=on` 且配置 DeepSeek key，mock 会用于 V0.9.7 语义质检接线验收。
 - `live` 模式由 `Last30DaysSource` 承接，子进程命令构造与 V0.4.2 逐项一致，行为不变
 - 新增 `config/data_sources.json`，集中记录当前可用数据源和未来预留数据源
 - 新增 `--data-source auto`：mock 自动选择 `mock`，live 自动选择 `reddit_last30days`
@@ -135,7 +138,7 @@ V0.9.5 是 **YouTube 混合信号解释一致性版本**，建立在 V0.9.4 YouT
 MODEL_PROVIDER=rules
 ```
 
-当前正式报告只支持 `rules`。V0.7.5 已新增 DeepSeek tiny probe、内置样本评分对照报告、真实 Reddit/ScrapeCreators 小样本对照报告、局部质检、报告解析、关键词收敛计划和收敛后的质量测试词，但它们都是独立诊断脚本，不接入正式报告流程；日常报告当前不会调用 DeepSeek。
+当前正式报告的基础生成 provider 仍是 `rules`。V0.9.7 允许 DeepSeek 在正式报告中做限量语义质检：它会显示“规则判断 vs DeepSeek 判断”的两栏对照，但不会替代规则主分层，也不会重写整份报告。
 
 当前数据源选择：
 
@@ -213,7 +216,7 @@ bash scripts/run_scrapecreators_live.sh --include-prompt-template
 bash scripts/run_youtube_live.sh
 ```
 
-这个脚本默认只运行 `config/youtube_probe_topics.json` 的单关键词配置。它会进入正式 live 报告流程，成功且拿到高相关或边缘相关证据时才会更新 `reports/report.md`、`reports/latest.md` 和 `reports/archive/`。它不会拉字幕、评论或视频画面，也不会调用 DeepSeek 写正式报告。
+这个脚本默认只运行 `config/youtube_probe_topics.json` 的单关键词配置。它会进入正式 live 报告流程，成功且拿到高相关或边缘相关证据时才会更新 `reports/report.md`、`reports/latest.md` 和 `reports/archive/`。它不会拉字幕、评论或视频画面。默认不会调用 DeepSeek；但如果显式打开 `LLM_SCORING_ENABLED=on` 且配置了 `DEEPSEEK_API_KEY`，成功 live 报告会加入限量 `DeepSeek 语义质检` 两栏对照。
 
 先检查 YouTube live 命令但不联网：
 
@@ -424,7 +427,20 @@ config/llm_scoring.json
 prompts/llm_scoring_prompt.md
 ```
 
-V0.6.7 只定义智能评分接口，不调用真实模型，不消耗 API，不更新正式报告。V0.6.8 如果进入大模型评分 tiny test，必须用户明确同意，并且输出只能写入 `local_outputs/llm_scoring_probe.*`。V0.6.8.1 增加 `LLM_SCORING_ENABLED` 开关，避免 `.env` 里有 key 时误触发真实请求。
+V0.9.7 起，智能评分接口可以进入正式报告做限量语义质检。默认仍关闭；只有 `LLM_SCORING_ENABLED=on` 且本地配置 `DEEPSEEK_API_KEY` 时，`ceramic_report.py` 才会把最多 5 条候选证据交给 DeepSeek，生成“规则判断 vs DeepSeek 判断”的两栏对照。
+
+正式报告 DeepSeek 语义质检示例：
+
+```bash
+LLM_SCORING_ENABLED=on python3 ceramic_report.py --mode mock
+```
+
+保护规则：
+
+- DeepSeek 只做语义质检，不当主裁判；高相关 / 边缘 / 跑偏分层仍由规则评分生成。
+- 每轮复核数量由 `config/llm_scoring.json` 的 `max_items_per_run` 控制，默认 5 条，并有代码级硬上限 10 条防止配置误改。
+- DeepSeek 失败、缺 key 或开关关闭时，报告仍按规则评分生成。
+- DeepSeek 错误详情只写 `local_outputs/llm_report_review_error.md`，不得泄露 key。
 
 DeepSeek LLM scoring tiny probe 默认不联网：
 
@@ -637,7 +653,7 @@ bash scripts/reddit_probe_matrix.sh
 - 不要把 `.env` 提交到 GitHub。
 - 真实 key 只放在本地 `.env`、系统环境变量、GitHub Secrets 或服务器密钥管理中。
 - `.env.example` 只保留空变量，用作配置模板。
-- `mock` 模式不会读取真实 API key，也不会发起真实联网搜索。
+- `mock` 模式默认不会读取真实 API key，也不会发起真实联网搜索；若显式打开 `LLM_SCORING_ENABLED=on` 且配置 DeepSeek key，会调用 DeepSeek 做 V0.9.7 语义质检。
 - `mock` 模式可以覆盖 `reports/report.md`，因为它是测试流程。
 - `live` 模式默认只访问 Reddit 公共数据源；如果当前网络无法访问 Reddit，会保留上一份成功报告，并把失败原因写入 `local_outputs/last_error.md`。
 - live 失败时会标明本次数据源，方便判断是 Reddit 数据源失败、网络失败，还是报告生成逻辑问题。
@@ -651,6 +667,7 @@ bash scripts/reddit_probe_matrix.sh
 ```text
 ceramic_report.py                 # 打分 + 渲染 + CLI 入口
 scoring/llm_scorer.py             # Design-only LLM scoring contract and mock scorer
+scoring/deepseek_client.py        # Reusable DeepSeek client for capped formal report review
 sources/__init__.py               # TrendSource 契约（数据源适配层）
 sources/mock_source.py            # MockSource：读 data/mock_samples.json，离线
 sources/last30days_source.py      # Last30DaysSource：外部 last30days-skill 子进程（live）
@@ -658,14 +675,15 @@ sources/scrapecreators_source.py  # ScrapeCreators readiness 和显式可选 Red
 config/ceramic_topics.json        # Ceramic keyword, subreddit, and relevance rules
 config/scrapecreators_probe_topics.json # Single-topic ScrapeCreators live config with full relevance rules
 config/scrapecreators_quality_topics.json # Small-batch keyword quality test config
-config/llm_scoring.json           # LLM scoring design config, disabled by default
+config/llm_scoring.json           # DeepSeek formal report review config, disabled by default
 config/data_sources.json          # 当前可用和未来预留的数据源清单
 data/mock_samples.json            # mock 证据样例（last30days --emit=json 形状）
 data/research_evidence.json       # 本地研究证据，供报告“研究证据”模块读取
 prompts/ceramic_report_prompt.md  # Chinese report structure
-prompts/llm_scoring_prompt.md     # Future semantic scoring JSON prompt
+prompts/llm_scoring_prompt.md     # Semantic scoring JSON prompt
 tests/                            # unittest 用例（term matching / scoring / sources）
 tests/test_llm_scoring.py         # Design-only LLM scoring contract tests
+tests/test_llm_report_integration.py # DeepSeek formal report review integration tests
 tests/test_data_source_selection.py # 数据源 auto 映射、预留源保护、run_state 字段
 docs/changes/                     # 变更记录（每个改动一份编号文档）
 AGENTS.md                         # 代理 / 贡献者工作说明
@@ -738,11 +756,12 @@ research/ceramic-ai-evidence.md   # Ceramic + AI primary research evidence
 
 - 本轮结论摘要
 - 本轮可信度
+- DeepSeek 语义质检（开启时显示两栏对照；关闭/缺 key 时显示状态说明）
 - 热门内容
 - 高相关内容
 - 边缘相关内容
 - 跑偏样本
-- 用户痛点
+- 用户痛点假设
 - 趋势判断
 - 内容选题
 - 小工具灵感

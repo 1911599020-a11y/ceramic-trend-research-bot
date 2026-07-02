@@ -18,14 +18,34 @@ import argparse
 import json
 import os
 import re
+import socket
 import sys
 import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
+from urllib.error import HTTPError, URLError
 
+from scoring.deepseek_client import (
+    DEFAULT_DEEPSEEK_BASE_URL,
+    DEFAULT_DEEPSEEK_MODEL,
+    DEFAULT_DEEPSEEK_TIMEOUT_SECONDS,
+    classify_http_error,
+    classify_url_error,
+    parse_deepseek_score_response,
+    redact_secret,
+    request_deepseek_score,
+    validate_deepseek_base_url,
+)
+from scoring.llm_scorer import (
+    LLMScoringInput,
+    MockLLMScorer,
+    build_llm_scoring_prompt,
+    combine_rule_and_llm,
+    load_llm_scoring_config,
+)
 from sources import ScrapeCreatorsYouTubeSearchSource, TrendSource
 from sources.last30days_source import (  # noqa: F401  (re-exported for compatibility)
     DEFAULT_LAST30DAYS_SCRIPT,
@@ -54,10 +74,14 @@ DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "reports" / "report.md"
 DEFAULT_LATEST_PATH = PROJECT_ROOT / "reports" / "latest.md"
 DEFAULT_ARCHIVE_DIR = PROJECT_ROOT / "reports" / "archive"
 DEFAULT_PROMPT_PATH = PROJECT_ROOT / "prompts" / "ceramic_report_prompt.md"
+DEFAULT_LLM_SCORING_CONFIG_PATH = PROJECT_ROOT / "config" / "llm_scoring.json"
+DEFAULT_LLM_SCORING_PROMPT_PATH = PROJECT_ROOT / "prompts" / "llm_scoring_prompt.md"
+DEFAULT_LLM_REVIEW_ERROR_FILE = PROJECT_ROOT / "local_outputs" / "llm_report_review_error.md"
 DEFAULT_RESEARCH_EVIDENCE_PATH = PROJECT_ROOT / "data" / "research_evidence.json"
 DEFAULT_DATA_SOURCE_CATALOG_PATH = PROJECT_ROOT / "config" / "data_sources.json"
 DEFAULT_STATE_FILE = PROJECT_ROOT / "local_outputs" / "run_state.json"
 DEFAULT_ERROR_FILE = PROJECT_ROOT / "local_outputs" / "last_error.md"
+MAX_LLM_REVIEW_ITEMS_PER_RUN = 10
 SUPPORTED_MODEL_PROVIDERS = {"rules"}
 REPORT_VERSION = "V0.6.6"
 GLAZE_SIGNAL_TERMS = ("glaze", "recipe", "test tile", "underglaze", "defect", "chemistry")
@@ -103,6 +127,38 @@ class Evidence:
     relevance_level: str
     relevance_score: int
     relevance_notes: str
+
+
+@dataclass(frozen=True)
+class ReportLLMReview:
+    topic: str
+    source: str
+    container: str
+    title: str
+    url: str
+    rule_level: str
+    rule_score: int
+    rule_notes: str
+    llm_relevance: str
+    llm_intent_match: str
+    llm_evidence_type: str
+    llm_can_support_trend: bool
+    llm_is_noise: bool
+    llm_confidence: int
+    llm_reason: str
+    combined_level: str
+    combined_confidence: int
+    combined_reason: str
+
+
+@dataclass(frozen=True)
+class LLMReviewStatus:
+    status: str
+    message: str
+    error_type: str = ""
+    attempted: bool = False
+    reviewed_count: int = 0
+    max_items: int = 0
 
 
 @dataclass(frozen=True)
@@ -836,6 +892,291 @@ def collect_evidence(topic: str, report: dict[str, Any]) -> list[Evidence]:
     return evidence
 
 
+def evidence_to_llm_input(evidence: Evidence) -> LLMScoringInput:
+    return LLMScoringInput(
+        topic=evidence.topic,
+        title=evidence.title,
+        subreddit=evidence.subreddit,
+        body=evidence.snippet,
+        url=evidence.url,
+        source=evidence.source,
+        rule_level=evidence.relevance_level,
+        rule_score=evidence.relevance_score,
+        rule_notes=evidence.relevance_notes,
+    )
+
+
+def select_llm_review_candidates(
+    runs: list[TopicRun],
+    max_items: int,
+) -> list[Evidence]:
+    if max_items <= 0:
+        return []
+    all_evidence = [item for run in runs for item in run.evidence]
+    high = [item for item in all_evidence if item.relevance_level == "high"]
+    edge = [item for item in all_evidence if item.relevance_level == "edge"]
+    selected = high + edge
+    return selected[:max_items]
+
+
+def report_llm_review_from_result(evidence: Evidence, result: Any) -> ReportLLMReview:
+    combined = combine_rule_and_llm(
+        rule_level=evidence.relevance_level,
+        rule_score=evidence.relevance_score,
+        llm_result=result,
+    )
+    return ReportLLMReview(
+        topic=evidence.topic,
+        source=evidence.source,
+        container=evidence.subreddit,
+        title=evidence.title,
+        url=evidence.url,
+        rule_level=evidence.relevance_level,
+        rule_score=evidence.relevance_score,
+        rule_notes=evidence.relevance_notes,
+        llm_relevance=result.ceramic_relevance,
+        llm_intent_match=result.keyword_intent_match,
+        llm_evidence_type=result.evidence_type,
+        llm_can_support_trend=result.can_support_trend,
+        llm_is_noise=result.is_noise,
+        llm_confidence=result.confidence,
+        llm_reason=result.reason,
+        combined_level=combined.level,
+        combined_confidence=combined.confidence,
+        combined_reason=combined.reason,
+    )
+
+
+def build_llm_reviews_with_mock(candidates: list[Evidence]) -> list[ReportLLMReview]:
+    scorer = MockLLMScorer()
+    reviews: list[ReportLLMReview] = []
+    for evidence in candidates:
+        result = scorer.score(evidence_to_llm_input(evidence))
+        reviews.append(report_llm_review_from_result(evidence, result))
+    return reviews
+
+
+def llm_review_origin_label(review: ReportLLMReview) -> str:
+    if review.source == "youtube":
+        return f"YouTube 频道 {review.container}" if review.container else "YouTube"
+    if review.source == "reddit":
+        return f"r/{review.container}" if review.container else "Reddit"
+    return review.container or review.source or "未知来源"
+
+
+def parse_dotenv(path: Path) -> dict[str, str]:
+    if not path.exists():
+        return {}
+    values: dict[str, str] = {}
+    for raw_line in path.read_text(encoding="utf-8").splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        if line.startswith("export "):
+            line = line.removeprefix("export ").strip()
+        key, value = line.split("=", 1)
+        key = key.strip()
+        value = value.strip().strip('"').strip("'")
+        if key:
+            values[key] = value
+    return values
+
+
+def effective_llm_env(env: Mapping[str, str] | None = None) -> dict[str, str]:
+    values = dict(os.environ if env is None else env)
+    if env is None:
+        for key, value in parse_dotenv(PROJECT_ROOT / ".env").items():
+            values.setdefault(key, value)
+    return values
+
+
+def llm_switch_enabled(
+    config_path: Path = DEFAULT_LLM_SCORING_CONFIG_PATH,
+    env: Mapping[str, str] | None = None,
+) -> tuple[bool, Any]:
+    config = load_llm_scoring_config(config_path)
+    values = effective_llm_env(env)
+    raw_value = values.get(config.switch_env_var)
+    if raw_value is not None:
+        return raw_value.strip().lower() in config.enabled_values, config
+    return config.enabled, config
+
+
+def clamp_llm_review_limit(value: int) -> int:
+    return max(0, min(int(value), MAX_LLM_REVIEW_ITEMS_PER_RUN))
+
+
+def parse_llm_timeout(value: str | None) -> float:
+    if not value:
+        return DEFAULT_DEEPSEEK_TIMEOUT_SECONDS
+    try:
+        timeout = float(value)
+    except ValueError:
+        return DEFAULT_DEEPSEEK_TIMEOUT_SECONDS
+    return timeout if timeout > 0 else DEFAULT_DEEPSEEK_TIMEOUT_SECONDS
+
+
+def write_llm_review_error(
+    *,
+    error_type: str,
+    message: str,
+    api_key: str = "",
+    path: Path | None = None,
+) -> None:
+    path = path or DEFAULT_LLM_REVIEW_ERROR_FILE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    safe_message = redact_secret(message, api_key)
+    path.write_text(
+        "\n".join(
+            [
+                "# DeepSeek 正式报告语义质检错误",
+                "",
+                f"- 错误类型：{error_type}",
+                f"- 发生时间：{datetime.now().isoformat(timespec='seconds')}",
+                "- 保护动作：正式报告仍按规则评分生成；DeepSeek 不覆盖报告结论。",
+                f"- 错误说明：{safe_message}",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def maybe_build_llm_reviews(
+    runs: list[TopicRun],
+    *,
+    env: Mapping[str, str] | None = None,
+    config_path: Path = DEFAULT_LLM_SCORING_CONFIG_PATH,
+    prompt_path: Path = DEFAULT_LLM_SCORING_PROMPT_PATH,
+) -> tuple[list[ReportLLMReview], LLMReviewStatus]:
+    values = effective_llm_env(env)
+    try:
+        enabled, config = llm_switch_enabled(config_path, values)
+        max_items = clamp_llm_review_limit(config.max_items_per_run)
+    except Exception as error:  # noqa: BLE001 - LLM config must not block reports
+        write_llm_review_error(error_type="config_error", message=str(error))
+        return [], LLMReviewStatus(
+            status="failure",
+            error_type="config_error",
+            message="DeepSeek 语义质检配置读取失败；本报告仅使用规则评分。",
+        )
+
+    candidates = select_llm_review_candidates(runs, max_items)
+    if not candidates:
+        return [], LLMReviewStatus(
+            status="no_candidates",
+            message="DeepSeek 语义质检未运行：本轮没有高相关或边缘相关候选证据。",
+            max_items=max_items,
+        )
+    if not enabled:
+        return [], LLMReviewStatus(
+            status="disabled",
+            message="DeepSeek 语义质检未开启；本报告仅使用规则评分。",
+            max_items=max_items,
+        )
+
+    api_key = values.get("DEEPSEEK_API_KEY", "")
+    if not api_key:
+        return [], LLMReviewStatus(
+            status="missing_key",
+            message="DeepSeek 语义质检已请求但未找到 API key；本报告仅使用规则评分。",
+            max_items=max_items,
+        )
+
+    base_url = values.get("DEEPSEEK_BASE_URL") or DEFAULT_DEEPSEEK_BASE_URL
+    model = values.get("DEEPSEEK_MODEL") or config.model or DEFAULT_DEEPSEEK_MODEL
+    timeout = parse_llm_timeout(values.get("DEEPSEEK_TIMEOUT_SECONDS"))
+    base_url_error = validate_deepseek_base_url(base_url)
+    if base_url_error:
+        write_llm_review_error(
+            error_type="invalid_base_url",
+            message=base_url_error,
+            api_key=api_key,
+        )
+        return [], LLMReviewStatus(
+            status="failure",
+            error_type="invalid_base_url",
+            attempted=False,
+            message="DeepSeek 语义质检失败：base URL 不安全；本报告仅使用规则评分。",
+            max_items=max_items,
+        )
+
+    reviews: list[ReportLLMReview] = []
+    try:
+        prompt_template = prompt_path.read_text(encoding="utf-8")
+        for evidence in candidates:
+            prompt = build_llm_scoring_prompt(prompt_template, evidence_to_llm_input(evidence))
+            payload, _status_code = request_deepseek_score(
+                api_key=api_key,
+                base_url=base_url,
+                model=model,
+                prompt=prompt,
+                timeout=timeout,
+            )
+            result = parse_deepseek_score_response(payload)
+            reviews.append(report_llm_review_from_result(evidence, result))
+    except HTTPError as error:
+        body = error.read().decode("utf-8", errors="replace")
+        error_type = classify_http_error(error, body)
+        write_llm_review_error(
+            error_type=error_type,
+            message=f"HTTP {error.code}: {body[:500]}",
+            api_key=api_key,
+        )
+        return [], LLMReviewStatus(
+            status="failure",
+            error_type=error_type,
+            attempted=True,
+            message=f"DeepSeek 语义质检失败（{error_type}）；本报告仅使用规则评分。",
+            max_items=max_items,
+        )
+    except (socket.timeout, TimeoutError) as error:
+        write_llm_review_error(error_type="timeout", message=str(error), api_key=api_key)
+        return [], LLMReviewStatus(
+            status="failure",
+            error_type="timeout",
+            attempted=True,
+            message="DeepSeek 语义质检超时；本报告仅使用规则评分。",
+            max_items=max_items,
+        )
+    except URLError as error:
+        error_type = classify_url_error(error)
+        write_llm_review_error(error_type=error_type, message=str(error), api_key=api_key)
+        return [], LLMReviewStatus(
+            status="failure",
+            error_type=error_type,
+            attempted=True,
+            message=f"DeepSeek 语义质检失败（{error_type}）；本报告仅使用规则评分。",
+            max_items=max_items,
+        )
+    except (json.JSONDecodeError, ValueError) as error:
+        write_llm_review_error(error_type="parse_error", message=str(error), api_key=api_key)
+        return [], LLMReviewStatus(
+            status="failure",
+            error_type="parse_error",
+            attempted=True,
+            message="DeepSeek 语义质检返回格式不符合预期；本报告仅使用规则评分。",
+            max_items=max_items,
+        )
+    except Exception as error:  # noqa: BLE001 - report generation must survive LLM failures
+        write_llm_review_error(error_type="unknown_error", message=str(error), api_key=api_key)
+        return [], LLMReviewStatus(
+            status="failure",
+            error_type="unknown_error",
+            attempted=True,
+            message="DeepSeek 语义质检出现未知错误；本报告仅使用规则评分。",
+            max_items=max_items,
+        )
+
+    return reviews, LLMReviewStatus(
+        status="success",
+        attempted=True,
+        reviewed_count=len(reviews),
+        max_items=max_items,
+        message=f"DeepSeek 语义质检已完成：本轮复核 {len(reviews)} 条证据。",
+    )
+
+
 def format_engagement(engagement: dict[str, Any]) -> str:
     parts = []
     if engagement.get("score") is not None:
@@ -1316,10 +1657,13 @@ def render_report(
     model_provider: str,
     data_source: DataSourceSelection | None = None,
     research_evidence: list[ResearchEvidence] | None = None,
+    llm_reviews: list[ReportLLMReview] | None = None,
+    llm_review_status: LLMReviewStatus | None = None,
     connectivity_note: str = "",
     include_prompt_template: bool = False,
 ) -> str:
     research_evidence = research_evidence or []
+    llm_reviews = llm_reviews or []
     topics = [run.topic for run in runs]
     all_evidence = [item for run in runs for item in run.evidence]
     high_evidence = [item for item in all_evidence if item.relevance_level == "high"]
@@ -1375,6 +1719,8 @@ def render_report(
         ]
     )
 
+    append_llm_review_section(lines, llm_reviews, llm_review_status)
+
     lines.extend(
         [
         "## 热门内容",
@@ -1402,7 +1748,9 @@ def render_report(
     else:
         lines.append(f"- 暂未获得可用 {platform_label} 证据。mock 模式仍可用于验证报告流程。")
 
-    lines.extend(["", "## 用户痛点", ""])
+    lines.extend(["", "## 用户痛点假设", ""])
+    lines.append("> 本节仍是按关键词生成的初步假设，尚未基于评论、字幕或长文本证据抽取。")
+    lines.append("")
     for topic in topics:
         for pain in infer_pain_points(topic):
             lines.append(f"- **{topic}**：{pain}")
@@ -1505,6 +1853,54 @@ def render_report(
             ]
         )
     return "\n".join(lines)
+
+
+def append_llm_review_section(
+    lines: list[str],
+    reviews: list[ReportLLMReview],
+    status: LLMReviewStatus | None = None,
+) -> None:
+    if not reviews and status is None:
+        return
+    lines.extend(["", "## DeepSeek 语义质检", ""])
+    if status:
+        lines.append(f"> {status.message}")
+    if not reviews:
+        lines.append("")
+        return
+    lines.extend(
+        [
+            "> 本节只做语义复核，不替代规则评分；V0.9.7 先采用两栏对照。",
+            "",
+            "| 关键词 | 来源 | 标题 | 规则判断 | DeepSeek 判断 | 合并建议 | 置信度 | 理由 | 链接 |",
+            "|---|---|---|---|---|---|---:|---|---|",
+        ]
+    )
+    for review in reviews:
+        link = f"[打开]({review.url})" if review.url else "n/a"
+        llm_label = (
+            f"{relevance_label(review.llm_relevance)} / "
+            f"{review.llm_evidence_type} / "
+            f"{'可支撑趋势' if review.llm_can_support_trend else '仅作观察'}"
+        )
+        lines.append(
+            "| "
+            + " | ".join(
+                [
+                    escape_cell(review.topic),
+                    escape_cell(llm_review_origin_label(review)),
+                    escape_cell(review.title),
+                    escape_cell(f"{relevance_label(review.rule_level)}（{review.rule_score} 分）"),
+                    escape_cell(llm_label),
+                    escape_cell(relevance_label(review.combined_level)),
+                    str(review.llm_confidence),
+                    escape_cell(review.llm_reason),
+                    link,
+                ]
+            )
+            + " |"
+        )
+    lines.append("")
 
 
 def append_research_evidence_section(
@@ -2063,6 +2459,25 @@ def main() -> int:
                 raise
             runs.append(TopicRun(topic=topic, report={"topic": topic}, evidence=[], error=str(exc)))
 
+    counts = evidence_summary(runs)
+    llm_reviews: list[ReportLLMReview] = []
+    llm_review_status: LLMReviewStatus | None = None
+    if args.mode == "live":
+        pre_status, _pre_error_type, _pre_error_text = live_status_and_error_type(
+            runs,
+            connectivity_note,
+            counts["usable_evidence_count"],
+        )
+        if pre_status == "success":
+            llm_reviews, llm_review_status = maybe_build_llm_reviews(runs)
+        else:
+            llm_review_status = LLMReviewStatus(
+                status="skipped_live_failure",
+                message="DeepSeek 语义质检未运行：本轮 live 未获得成功报告条件。",
+            )
+    else:
+        llm_reviews, llm_review_status = maybe_build_llm_reviews(runs)
+
     report_markdown = render_report(
         runs,
         prompt_template,
@@ -2070,10 +2485,11 @@ def main() -> int:
         model_provider=model_provider,
         data_source=data_source,
         research_evidence=research_evidence,
+        llm_reviews=llm_reviews,
+        llm_review_status=llm_review_status,
         connectivity_note=connectivity_note,
         include_prompt_template=args.include_prompt_template,
     )
-    counts = evidence_summary(runs)
     if args.mode == "live":
         status, error_type, error_text = live_status_and_error_type(
             runs,

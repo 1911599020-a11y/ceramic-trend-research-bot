@@ -15,12 +15,12 @@ from scoring.llm_scorer import (
 
 
 class LLMScoringContractTests(unittest.TestCase):
-    def test_config_is_design_only_and_disabled_by_default(self) -> None:
+    def test_config_is_formal_review_and_disabled_by_default(self) -> None:
         config = load_llm_scoring_config(Path("config/llm_scoring.json"))
 
         self.assertFalse(config.enabled)
         self.assertEqual(config.provider, "deepseek")
-        self.assertEqual(config.mode, "design_only")
+        self.assertEqual(config.mode, "formal_report_review")
         self.assertEqual(config.model, "deepseek-chat")
         self.assertEqual(config.switch_env_var, "LLM_SCORING_ENABLED")
         self.assertIn("on", config.enabled_values)

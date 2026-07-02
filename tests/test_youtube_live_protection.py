@@ -21,6 +21,18 @@ class FakeSource:
         return self.report
 
 
+def deepseek_response(payload: dict[str, object]) -> dict[str, object]:
+    return {
+        "choices": [
+            {
+                "message": {
+                    "content": json.dumps(payload, ensure_ascii=False),
+                }
+            }
+        ]
+    }
+
+
 class YouTubeLiveProtectionTests(unittest.TestCase):
     def setUp(self) -> None:
         self.tmpdir = tempfile.TemporaryDirectory()
@@ -78,9 +90,17 @@ class YouTubeLiveProtectionTests(unittest.TestCase):
             "--no-research-evidence",
         ]
 
-    def run_main_with_source(self, source: FakeSource) -> int:
+    def run_main_with_source(
+        self,
+        source: FakeSource,
+        *,
+        env: dict[str, str] | None = None,
+    ) -> int:
         # 知识库开关关闭：单测不得写入真实 data/ceramic_knowledge.db
-        with mock.patch.dict("os.environ", {"KNOWLEDGE_STORE_ENABLED": "off"}):
+        values = {"KNOWLEDGE_STORE_ENABLED": "off", "LLM_SCORING_ENABLED": "off"}
+        if env:
+            values.update(env)
+        with mock.patch.dict("os.environ", values):
             with mock.patch.object(sys, "argv", self.argv()):
                 with mock.patch("ceramic_report.build_trend_source", return_value=source):
                     return ceramic_report.main()
@@ -120,6 +140,22 @@ class YouTubeLiveProtectionTests(unittest.TestCase):
                 self.state_path.unlink(missing_ok=True)
                 self.output_path.unlink(missing_ok=True)
                 self.latest_path.unlink(missing_ok=True)
+
+    def test_live_failure_does_not_call_deepseek_review(self) -> None:
+        self.seed_previous_reports()
+        with mock.patch.dict(
+            "os.environ",
+            {"LLM_SCORING_ENABLED": "on", "DEEPSEEK_API_KEY": "secret-token"},
+        ):
+            with mock.patch("ceramic_report.request_deepseek_score") as request:
+                exit_code = self.run_main_with_source(
+                    FakeSource(error="network_error: simulated"),
+                    env={"LLM_SCORING_ENABLED": "on", "DEEPSEEK_API_KEY": "secret-token"},
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(request.call_count, 0)
+        self.assert_previous_reports_preserved()
 
     def test_empty_youtube_results_do_not_overwrite_reports(self) -> None:
         self.seed_previous_reports()
@@ -173,6 +209,42 @@ class YouTubeLiveProtectionTests(unittest.TestCase):
         state = json.loads(self.state_path.read_text(encoding="utf-8"))
         self.assertEqual(state["status"], "success")
         self.assertEqual(state["usable_evidence_count"], 1)
+
+    def test_successful_live_can_include_deepseek_review(self) -> None:
+        high_item = {
+            "title": "Cone 6 ceramic glaze tests",
+            "snippet": "ceramic glaze clay kiln results",
+            "container": "Clay Studio",
+            "url": "https://www.youtube.com/watch?v=abc123",
+            "engagement": {"views": "2,000 views"},
+            "metadata": {"platform": "youtube"},
+        }
+        payload = deepseek_response(
+            {
+                "ceramic_relevance": "high",
+                "keyword_intent_match": "high",
+                "evidence_type": "trend_signal",
+                "can_support_trend": True,
+                "is_noise": False,
+                "confidence": 88,
+                "reason": "YouTube 标题和摘要都指向陶瓷釉料测试。",
+            }
+        )
+        with mock.patch.dict(
+            "os.environ",
+            {"LLM_SCORING_ENABLED": "on", "DEEPSEEK_API_KEY": "secret-token"},
+        ):
+            with mock.patch("ceramic_report.request_deepseek_score", return_value=(payload, 200)) as request:
+                exit_code = self.run_main_with_source(
+                    FakeSource(report=self.youtube_report([high_item])),
+                    env={"LLM_SCORING_ENABLED": "on", "DEEPSEEK_API_KEY": "secret-token"},
+                )
+
+        self.assertEqual(exit_code, 0)
+        self.assertEqual(request.call_count, 1)
+        text = self.output_path.read_text(encoding="utf-8")
+        self.assertIn("## DeepSeek 语义质检", text)
+        self.assertIn("YouTube 标题和摘要都指向陶瓷釉料测试", text)
 
 
 if __name__ == "__main__":

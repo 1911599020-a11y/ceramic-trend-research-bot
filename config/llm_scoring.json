@@ -1,10 +1,10 @@
 {
-  "version": "V0.7.5",
+  "version": "V0.9.7",
   "enabled": false,
   "switch_env_var": "LLM_SCORING_ENABLED",
   "enabled_values": ["on", "true", "1", "yes"],
   "provider": "deepseek",
-  "mode": "design_only",
+  "mode": "formal_report_review",
   "model": "deepseek-chat",
   "max_items_per_run": 5,
   "output_path": "local_outputs/llm_scoring_probe.md",
@@ -21,9 +21,12 @@
     "V0.7.3 adds report-plus-analysis sections to the side comparison report.",
     "V0.7.4 adds a local keyword convergence plan from the real-sample comparison JSON.",
     "V0.7.5 applies the keyword convergence plan to the quality-test active topics.",
+    "V0.9.7 allows capped DeepSeek semantic review to appear in the formal report when LLM_SCORING_ENABLED=on and DEEPSEEK_API_KEY is configured.",
+    "V0.9.7 DeepSeek review is a two-column quality check, not the final judge; rule scoring still owns the existing high/edge/low buckets.",
     "The probe writes only to local_outputs/llm_scoring_probe.md and related local_outputs files.",
     "The comparison report writes only to local_outputs/llm_scoring_comparison.md and related local_outputs files.",
-    "The real sample comparison writes only to local_outputs/llm_scoring_real_sample_comparison.md and related local_outputs files."
+    "The real sample comparison writes only to local_outputs/llm_scoring_real_sample_comparison.md and related local_outputs files.",
+    "Formal report DeepSeek failures write sanitized diagnostics to local_outputs/llm_report_review_error.md and must not block report generation."
   ],
   "result_schema": {
     "ceramic_relevance": "high | edge | low",
